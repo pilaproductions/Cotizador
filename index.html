@@ -1,0 +1,1544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cardona Hall — Quotation System</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --gold: #C9A84C;
+  --gold-light: #E8D5A3;
+  --gold-pale: #FDF8EE;
+  --gold-border: #D4B86A;
+  --black: #0A0A0A;
+  --dark: #1A1A1A;
+  --dark2: #242424;
+  --gray: #5A5A5A;
+  --gray-light: #F5F5F5;
+  --white: #FFFFFF;
+  --red: #8B2020;
+  --red-light: #FDECEA;
+  --green: #1E5C2E;
+  --green-light: #EAF4ED;
+  --blue: #1A3A6B;
+  --orange: #B85C00;
+  --orange-light: #FFF3E0;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#111; font-family:'Montserrat',sans-serif; font-size:13px; color:var(--dark); padding:20px; }
+.page { max-width:980px; margin:0 auto; background:var(--white); box-shadow:0 0 60px rgba(0,0,0,0.7); }
+
+/* HEADER */
+.header { background:var(--black); padding:18px 28px; display:flex; align-items:center; justify-content:space-between; border-bottom:2px solid var(--gold); }
+.brand-title { font-family:'Cormorant Garamond',serif; font-size:24px; font-weight:700; color:var(--gold); letter-spacing:2px; text-transform:uppercase; }
+.brand-sub { font-size:9px; color:#888; letter-spacing:3px; text-transform:uppercase; margin-top:2px; }
+.header-right { display:flex; flex-direction:column; align-items:flex-end; gap:5px; }
+.cot-box { background:var(--dark2); border:1px solid var(--gold); padding:5px 14px; color:var(--gold); font-size:13px; font-weight:600; letter-spacing:1px; }
+.cot-meta { font-size:9px; color:#666; letter-spacing:1px; }
+.status-pill { display:inline-block; padding:2px 10px; font-size:9px; font-weight:700; letter-spacing:2px; text-transform:uppercase; background:#2A2A1A; color:var(--gold); border:1px solid var(--gold); margin-left:6px; }
+
+/* ACTION BAR */
+.actions { background:var(--dark2); padding:9px 28px; display:flex; gap:8px; align-items:center; border-bottom:1px solid #333; flex-wrap:wrap; }
+.btn { padding:7px 16px; font-family:'Montserrat',sans-serif; font-size:10px; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; cursor:pointer; border:none; transition:all 0.2s; }
+.btn-gold { background:var(--gold); color:var(--black); }
+.btn-gold:hover { background:var(--gold-light); }
+.btn-outline { background:transparent; color:var(--gold); border:1px solid var(--gold); }
+.btn-outline:hover { background:rgba(201,168,76,0.1); }
+.btn-ghost { background:transparent; color:#888; border:1px solid #444; }
+.btn-ghost:hover { color:#bbb; border-color:#666; }
+.btn-reserve { background:var(--green); color:var(--white); margin-left:auto; }
+.btn-reserve:hover { background:#266b38; }
+.btn-danger { background:var(--red); color:var(--white); }
+
+/* BLOCKS */
+.block { border-bottom:1px solid #E8E8E8; }
+.block-header { background:var(--black); padding:8px 28px; display:flex; align-items:center; gap:10px; }
+.block-num { width:22px; height:22px; background:var(--gold); color:var(--black); font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.block-title { font-family:'Cormorant Garamond',serif; font-size:14px; font-weight:600; color:var(--white); letter-spacing:2px; text-transform:uppercase; }
+.block-tag { margin-left:auto; font-size:8px; letter-spacing:1.5px; text-transform:uppercase; color:#666; background:#1A1A1A; padding:2px 8px; border:1px solid #333; }
+.block-content { padding:14px 28px; }
+
+/* FIELDS */
+.field { display:flex; align-items:center; padding:6px 0; border-bottom:1px solid #F0F0F0; min-height:34px; gap:8px; }
+.field:last-child { border-bottom:none; }
+.field-label { font-size:10px; font-weight:600; color:var(--gray); letter-spacing:0.8px; text-transform:uppercase; min-width:160px; flex-shrink:0; }
+.field-label .req { color:var(--red); margin-left:2px; }
+.field-input { flex:1; border:none; border-bottom:1px solid #DDD; padding:4px 6px; font-family:'Montserrat',sans-serif; font-size:12px; color:var(--dark); background:transparent; outline:none; transition:border-color 0.2s; max-width:320px; }
+.field-input:focus { border-bottom-color:var(--gold); }
+.field-input.error { border-bottom-color:var(--red); }
+.field-select { border:1px solid var(--gold-border); padding:4px 28px 4px 8px; font-family:'Montserrat',sans-serif; font-size:12px; color:var(--dark); background:var(--gold-pale); outline:none; cursor:pointer; appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23C9A84C'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 8px center; min-width:200px; max-width:320px; }
+.field-select:disabled { background:var(--gray-light); color:#AAA; border-color:#DDD; background-image:none; cursor:default; }
+.field-auto { padding:3px 10px; font-size:11px; color:var(--gray); background:var(--gray-light); border:1px solid #E0E0E0; font-style:italic; white-space:nowrap; }
+.field-auto.highlight { background:#FFF9EC; color:var(--orange); border-color:var(--gold-border); font-style:normal; font-weight:600; }
+.field-note { font-size:9px; color:#AAA; font-style:italic; }
+.field-error { font-size:10px; color:var(--red); font-weight:600; margin-left:4px; display:none; }
+.field-error.show { display:block; }
+
+/* GRID */
+.grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:0 32px; }
+
+/* ALERTS */
+.alert { padding:6px 12px; font-size:10px; font-weight:600; letter-spacing:0.5px; margin:6px 0; display:none; border-left:3px solid; }
+.alert.show { display:block; }
+.alert-warn { background:var(--orange-light); color:var(--orange); border-color:var(--orange); }
+.alert-error { background:var(--red-light); color:var(--red); border-color:var(--red); }
+.alert-ok { background:var(--green-light); color:var(--green); border-color:var(--green); }
+.alert-info { background:#EEF3FF; color:var(--blue); border-color:var(--blue); }
+
+/* TIER BUTTONS */
+.tier-row { display:flex; align-items:center; padding:8px 0; gap:12px; flex-wrap:wrap; }
+.tier-label { font-size:10px; font-weight:600; color:var(--gray); letter-spacing:0.8px; text-transform:uppercase; min-width:160px; flex-shrink:0; }
+.tier-opts { display:flex; gap:6px; flex-wrap:wrap; }
+.tier-btn { padding:5px 14px; font-family:'Montserrat',sans-serif; font-size:10px; font-weight:600; letter-spacing:1px; text-transform:uppercase; cursor:pointer; border:1px solid #CCC; background:var(--white); color:var(--gray); transition:all 0.15s; }
+.tier-btn:hover:not(:disabled) { border-color:var(--gold); color:var(--gold); }
+.tier-btn.active { background:var(--gold); color:var(--black); border-color:var(--gold); }
+.tier-btn.na { border-style:dashed; font-size:9px; }
+.tier-btn:disabled { opacity:0.3; cursor:not-allowed; }
+.tier-avail { font-size:9px; font-weight:600; padding:2px 8px; }
+.tier-avail.ok { color:var(--green); background:var(--green-light); }
+.tier-avail.no { color:var(--red); background:var(--red-light); }
+
+/* SUB-BLOCKS */
+.sub-block { margin:8px 0; border:1px solid #E8E8E8; }
+.sub-header { background:var(--dark2); padding:5px 14px; display:flex; align-items:center; justify-content:space-between; }
+.sub-title { font-size:9px; font-weight:600; letter-spacing:2px; text-transform:uppercase; color:var(--gold-light); }
+.sub-content { padding:8px 14px; background:#FAFAFA; }
+.sub-content .field { padding:4px 0; }
+.sub-content .field-label { min-width:130px; }
+
+/* DIVIDER */
+.divider { height:1px; background:linear-gradient(to right,transparent,var(--gold),transparent); margin:10px 0; }
+
+/* INFORMATIVE BADGE */
+.info-badge { display:inline-block; padding:2px 8px; font-size:9px; font-weight:600; letter-spacing:1px; text-transform:uppercase; background:#EEF3FF; color:var(--blue); border:1px solid #BFD0F0; margin-left:6px; }
+.info-badge.gold { background:var(--gold-pale); color:#8B6914; border-color:var(--gold-border); }
+
+/* PRICING SECTION */
+.pricing-section { background:var(--dark); padding:16px 28px; border-top:2px solid var(--gold); }
+.pricing-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:12px; }
+.price-row { display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid #333; }
+.price-row:last-child { border-bottom:none; }
+.price-label { font-size:10px; color:#888; letter-spacing:0.8px; text-transform:uppercase; }
+.price-value { font-size:13px; font-weight:600; color:var(--gold-light); font-family:'Montserrat',sans-serif; }
+.price-total-row { display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-top:1px solid var(--gold); margin-top:6px; }
+.price-total-label { font-family:'Cormorant Garamond',serif; font-size:16px; color:var(--white); letter-spacing:1px; }
+.price-total-value { font-family:'Cormorant Garamond',serif; font-size:26px; font-weight:700; color:var(--gold); }
+.price-input { background:transparent; border:none; border-bottom:1px solid #555; color:var(--white); font-family:'Montserrat',sans-serif; font-size:13px; width:140px; padding:3px 6px; text-align:right; outline:none; }
+.price-input:focus { border-bottom-color:var(--gold); }
+.price-input::placeholder { color:#555; font-size:11px; }
+.special-conditions { width:100%; background:#1A1A1A; border:1px solid #333; color:#CCC; font-family:'Montserrat',sans-serif; font-size:11px; padding:8px; resize:vertical; min-height:60px; outline:none; margin-top:6px; }
+.special-conditions:focus { border-color:var(--gold); }
+.special-conditions::placeholder { color:#555; }
+.discount-row { display:flex; align-items:center; gap:12px; margin-top:8px; padding-top:8px; border-top:1px solid #333; }
+.discount-label { font-size:10px; color:#888; letter-spacing:0.8px; text-transform:uppercase; }
+.discount-select { background:#1A1A1A; border:1px solid #444; color:#CCC; padding:4px 8px; font-size:11px; font-family:'Montserrat',sans-serif; outline:none; }
+.discount-input { background:transparent; border:none; border-bottom:1px solid #555; color:var(--white); font-size:12px; width:80px; padding:3px 6px; text-align:right; outline:none; }
+
+/* MODAL */
+.modal-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:1000; align-items:center; justify-content:center; }
+.modal-overlay.show { display:flex; }
+.modal { background:var(--white); width:520px; max-height:80vh; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,0.5); }
+.modal-header { background:var(--black); padding:14px 20px; display:flex; align-items:center; justify-content:space-between; border-bottom:2px solid var(--gold); }
+.modal-title { font-family:'Cormorant Garamond',serif; font-size:16px; color:var(--gold); letter-spacing:1px; }
+.modal-close { background:transparent; border:none; color:#888; font-size:20px; cursor:pointer; padding:0 4px; }
+.modal-close:hover { color:var(--white); }
+.modal-body { padding:20px; overflow-y:auto; }
+.modal-search { display:flex; gap:8px; margin-bottom:14px; }
+.modal-search input { flex:1; border:1px solid var(--gold-border); padding:8px 12px; font-family:'Montserrat',sans-serif; font-size:12px; outline:none; background:var(--gold-pale); }
+.modal-search input:focus { border-color:var(--gold); }
+.modal-search button { background:var(--gold); border:none; padding:8px 16px; font-size:10px; font-weight:700; letter-spacing:1px; text-transform:uppercase; cursor:pointer; color:var(--black); }
+.modal-results { border:1px solid #E8E8E8; }
+.result-item { padding:10px 14px; border-bottom:1px solid #F0F0F0; cursor:pointer; transition:background 0.15s; }
+.result-item:hover { background:var(--gold-pale); }
+.result-item:last-child { border-bottom:none; }
+.result-cot { font-size:11px; font-weight:700; color:var(--dark); }
+.result-client { font-size:12px; color:var(--dark); margin-top:2px; }
+.result-meta { font-size:10px; color:#888; margin-top:1px; }
+.result-status { float:right; font-size:9px; font-weight:700; padding:2px 8px; text-transform:uppercase; letter-spacing:1px; }
+.status-quoted { background:#FFF9EC; color:#8B6914; }
+.status-reserved { background:var(--green-light); color:var(--green); }
+.status-completed { background:#EEF3FF; color:var(--blue); }
+.status-cancelled { background:var(--red-light); color:var(--red); }
+.result-empty { padding:20px; text-align:center; color:#AAA; font-size:11px; }
+
+/* TOAST */
+.toast { position:fixed; top:20px; right:20px; padding:12px 20px; font-size:11px; font-weight:600; letter-spacing:0.5px; z-index:2000; border-left:4px solid; display:none; box-shadow:0 4px 20px rgba(0,0,0,0.3); max-width:320px; }
+.toast.show { display:block; animation:slideIn 0.3s ease; }
+.toast-success { background:var(--white); color:var(--green); border-color:var(--green); }
+.toast-error { background:var(--white); color:var(--red); border-color:var(--red); }
+.toast-warn { background:var(--white); color:var(--orange); border-color:var(--orange); }
+@keyframes slideIn { from { transform:translateX(100%); opacity:0; } to { transform:translateX(0); opacity:1; } }
+
+/* CALENDAR POPUP */
+.cal-popup { display:none; position:absolute; background:var(--white); border:1px solid var(--gold-border); box-shadow:0 8px 30px rgba(0,0,0,0.15); z-index:100; padding:12px; min-width:260px; }
+.cal-popup.show { display:block; }
+.cal-nav { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.cal-nav button { background:transparent; border:none; color:var(--gold); font-size:16px; cursor:pointer; padding:0 8px; }
+.cal-month { font-size:11px; font-weight:700; color:var(--dark); letter-spacing:1px; text-transform:uppercase; }
+.cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
+.cal-day-name { text-align:center; font-size:9px; font-weight:700; color:#AAA; padding:4px 0; text-transform:uppercase; }
+.cal-day { text-align:center; padding:6px 4px; font-size:11px; cursor:pointer; border-radius:2px; transition:all 0.15s; }
+.cal-day:hover:not(.cal-empty):not(.cal-reserved) { background:var(--gold-pale); color:var(--gold); }
+.cal-day.cal-empty { cursor:default; }
+.cal-day.cal-today { font-weight:700; color:var(--gold); }
+.cal-day.cal-selected { background:var(--gold); color:var(--black); font-weight:700; }
+.cal-day.cal-reserved { background:#FDECEA; color:var(--red); cursor:not-allowed; text-decoration:line-through; }
+.cal-legend { display:flex; gap:12px; margin-top:8px; padding-top:8px; border-top:1px solid #EEE; }
+.cal-legend-item { display:flex; align-items:center; gap:4px; font-size:9px; color:#888; }
+.cal-legend-dot { width:10px; height:10px; border-radius:50%; }
+
+/* DATE WRAPPER */
+.date-wrapper { position:relative; }
+
+/* FOOTER */
+.footer { background:var(--black); padding:10px 28px; display:flex; justify-content:space-between; align-items:center; border-top:1px solid #333; }
+.footer-info { font-size:9px; color:#555; letter-spacing:1px; }
+</style>
+</head>
+<body>
+
+<!-- LOAD MODAL -->
+<div class="modal-overlay" id="loadModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Load Quotation</div>
+      <button class="modal-close" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-search">
+        <input type="text" id="searchInput" placeholder="Search by COT# or client name..." onkeyup="searchQuotations(this.value)">
+        <button onclick="searchQuotations(document.getElementById('searchInput').value)">Search</button>
+      </div>
+      <div class="modal-results" id="searchResults">
+        <div class="result-empty">Enter a name or quotation number to search</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<div class="page">
+
+<!-- HEADER -->
+<div class="header">
+  <div>
+    <div class="brand-title">Cardona Hall</div>
+    <div class="brand-sub">Pilab Productions &nbsp;·&nbsp; Event Quotation System</div>
+  </div>
+  <div class="header-right">
+    <div class="cot-box" id="cotNumber">COT-2026-001</div>
+    <div class="cot-meta">Created: <span id="createdDate">—</span> &nbsp;·&nbsp; Status: <span class="status-pill" id="statusPill">NEW</span></div>
+  </div>
+</div>
+
+<!-- ACTIONS -->
+<div class="actions">
+  <button class="btn btn-gold" onclick="saveQuotation()">&#x2713; Save Quotation</button>
+  <button class="btn btn-outline" onclick="openLoadModal()">&#x21BA; Load Quotation</button>
+  <button class="btn btn-ghost" onclick="newQuotation()">+ New Quotation</button>
+  <button class="btn btn-reserve" onclick="confirmReservation()">&#x2605; Confirm Reservation</button>
+</div>
+
+<!-- BLOCK 1: GENERAL INFORMATION -->
+<div class="block">
+  <div class="block-header">
+    <div class="block-num">1</div>
+    <div class="block-title">General Information</div>
+  </div>
+  <div class="block-content">
+    <div class="grid-2">
+      <div>
+        <div class="field">
+          <div class="field-label">Client Name <span class="req">*</span></div>
+          <input class="field-input" id="clientName" type="text" placeholder="Full name" oninput="formatTitleCase(this)" onblur="validateField(this,'name')">
+          <span class="field-error" id="err-clientName">Required field</span>
+        </div>
+        <div class="field">
+          <div class="field-label">Country of Origin</div>
+          <input class="field-input" id="country" type="text" placeholder="e.g. Colombia" oninput="onlyLettersSpaces(this)">
+        </div>
+        <div class="field">
+          <div class="field-label">State</div>
+          <input class="field-input" id="state" type="text" placeholder="e.g. New Jersey" oninput="onlyLettersSpaces(this)">
+        </div>
+        <div class="field">
+          <div class="field-label">City</div>
+          <input class="field-input" id="city" type="text" placeholder="e.g. Passaic" oninput="onlyLettersSpaces(this)">
+        </div>
+        <div class="field">
+          <div class="field-label">Client Type</div>
+          <select class="field-select" id="clientType" onchange="onClientTypeChange()">
+            <option value="standard">Standard</option>
+            <option value="returning">Returning Client</option>
+            <option value="vip">VIP</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <div class="field">
+          <div class="field-label">Phone Number <span class="req">*</span></div>
+          <input class="field-input" id="phone" type="text" placeholder="(000) 000-0000" oninput="formatPhone(this)" onblur="validateField(this,'phone')">
+          <span class="field-error" id="err-phone">Invalid format</span>
+        </div>
+        <div class="field">
+          <div class="field-label">Email</div>
+          <input class="field-input" id="email" type="text" placeholder="client@email.com" oninput="this.value=this.value.toLowerCase()" onblur="validateEmail(this)">
+          <span class="field-error" id="err-email">Invalid email format</span>
+        </div>
+        <div class="field">
+          <div class="field-label">Event Date <span class="req">*</span></div>
+          <div class="date-wrapper">
+            <input class="field-input" id="eventDate" type="text" placeholder="MM/DD/YYYY" onchange="onDateChange()" style="max-width:160px">
+            <div class="cal-popup" id="calPopup"></div>
+          </div>
+          <span class="field-auto highlight" id="dayOfWeek">—</span>
+          <span class="field-error" id="err-eventDate">Invalid date</span>
+        </div>
+        <div class="field">
+          <div class="field-label">Number of Guests <span class="req">*</span></div>
+          <input class="field-input" id="numGuests" type="number" min="30" max="130" placeholder="30–130" oninput="onGuestsChange()" style="max-width:80px">
+          <span class="field-auto" id="guestRange">—</span>
+          <span class="field-error" id="err-numGuests">30–130 only</span>
+        </div>
+        <div class="field">
+          <div class="field-label">Event Type <span class="req">*</span></div>
+          <select class="field-select" id="eventType" onchange="onEventTypeChange()">
+            <option value="">— Select —</option>
+            <option value="quinceanera">Quinceañera / Sweet 16</option>
+            <option value="wedding">Wedding</option>
+            <option value="babyshower">Baby Shower</option>
+            <option value="kidsparty">Kids Party</option>
+            <option value="birthday">Birthday Party</option>
+            <option value="special_social">Special Event Social</option>
+            <option value="special_corporate">Special Event Corporate</option>
+          </select>
+        </div>
+        <div class="field" id="eventSubField" style="display:none">
+          <div class="field-label">Specify Event</div>
+          <input class="field-input" id="eventSubType" type="text" placeholder="e.g. Graduation, First Communion...">
+        </div>
+      </div>
+    </div>
+    <div id="lastMinuteAlert" class="alert alert-warn">&#x26A0; Last Minute Availability — Event is within 15 days. Expanded tier options unlocked.</div>
+    <div id="reservedDateAlert" class="alert alert-error">&#x26D4; This date already has a confirmed reservation. Please verify with the client.</div>
+  </div>
+</div>
+
+<!-- BLOCK 2: FULL PACKAGE -->
+<div class="block">
+  <div class="block-header">
+    <div class="block-num">2</div>
+    <div class="block-title">Full Package</div>
+    <div class="block-tag">Auto-fills all divisions &nbsp;·&nbsp; 5% discount applied</div>
+  </div>
+  <div class="block-content">
+    <div class="tier-row">
+      <div class="tier-label">Package Tier</div>
+      <div class="tier-opts" id="fullPackageTiers">
+        <button class="tier-btn na active" onclick="setFullPackage('na')">Not Applicable</button>
+        <button class="tier-btn" id="fp-essential" onclick="setFullPackage('essential')">Essential</button>
+        <button class="tier-btn" id="fp-elegant" onclick="setFullPackage('elegant')">Elegant</button>
+        <button class="tier-btn" id="fp-prestige" onclick="setFullPackage('prestige')">Prestige</button>
+        <button class="tier-btn" id="fp-legacy" onclick="setFullPackage('legacy')">Legacy</button>
+      </div>
+      <span class="tier-avail" id="fpAvail"></span>
+    </div>
+    <div id="fpAlert" class="alert alert-info" style="margin-top:4px"></div>
+  </div>
+</div>
+
+<!-- BLOCK 3: VENUE -->
+<div class="block">
+  <div class="block-header">
+    <div class="block-num">3</div>
+    <div class="block-title">Venue &amp; Host Services</div>
+  </div>
+  <div class="block-content">
+    <div class="field">
+      <div class="field-label">Tier <span class="req">*</span></div>
+      <select class="field-select" id="venueTier" onchange="onVenueTierChange()">
+        <option value="">— Select —</option>
+        <option value="essential">Essential</option>
+        <option value="elegant">Elegant</option>
+        <option value="prestige">Prestige</option>
+      </select>
+      <span class="field-auto" id="venuePriceDisplay">—</span>
+    </div>
+    <div id="venueAlert" class="alert alert-info"></div>
+  </div>
+</div>
+
+<!-- BLOCK 4: CATERING -->
+<div class="block">
+  <div class="block-header">
+    <div class="block-num">4</div>
+    <div class="block-title">Catering &amp; Hospitality</div>
+  </div>
+  <div class="block-content">
+    <div class="field">
+      <div class="field-label">Line <span class="req">*</span></div>
+      <select class="field-select" id="cateringLine" onchange="onCateringLineChange()">
+        <option value="">— Select Line —</option>
+        <option value="classic">Classic Menu</option>
+        <option value="collection">Catering Collection</option>
+        <option value="luxury">Luxury Collection</option>
+      </select>
+    </div>
+    <div class="field">
+      <div class="field-label">Plan</div>
+      <select class="field-select" id="cateringPlan" onchange="onCateringPlanChange()" disabled>
+        <option value="">— Select Plan —</option>
+      </select>
+      <span class="field-auto" id="cateringPriceDisplay">—</span>
+    </div>
+    <div class="field" id="cateringTrayField">
+      <div class="field-label">Trays / Portions</div>
+      <span class="field-auto" id="cateringTrayDisplay" style="max-width:100%;white-space:normal;line-height:1.5">—</span>
+    </div>
+    <div id="cateringAlert" class="alert alert-warn"></div>
+  </div>
+</div>
+
+<!-- BLOCK 5: DESIGN & DECOR -->
+<div class="block">
+  <div class="block-header">
+    <div class="block-num">5</div>
+    <div class="block-title">Design &amp; Decor</div>
+  </div>
+  <div class="block-content">
+    <div class="tier-row">
+      <div class="tier-label">Full Decor Plan</div>
+      <div class="tier-opts">
+        <button class="tier-btn na active" onclick="setDecorPlan('na')">Not Applicable</button>
+        <button class="tier-btn" onclick="setDecorPlan('essential')">Essential</button>
+        <button class="tier-btn" onclick="setDecorPlan('elegant')">Elegant</button>
+        <button class="tier-btn" onclick="setDecorPlan('prestige')">Prestige</button>
+        <button class="tier-btn" onclick="setDecorPlan('legacy')">Legacy (Event Design)</button>
+      </div>
+    </div>
+
+    <div id="decorLegacyPrice" style="display:none">
+      <div class="field">
+        <div class="field-label">Custom Price</div>
+        <input class="field-input" id="decorLegacyPriceVal" type="number" placeholder="Enter custom price" oninput="calcTotal()" style="max-width:140px">
+        <span class="field-note">Event Design — custom quotation (ref. $3,000)</span>
+      </div>
+      <div class="field">
+        <div class="field-label">Design Notes</div>
+        <input class="field-input" id="decorLegacyNotes" type="text" placeholder="Custom design details...">
+      </div>
+    </div>
+
+    <div id="decorSubBlocks">
+      <div class="sub-block">
+        <div class="sub-header"><div class="sub-title">Honor Table &amp; Backdrop</div></div>
+        <div class="sub-content">
+          <div class="field">
+            <div class="field-label">Tier</div>
+            <select class="field-select" id="decorHonorTier" onchange="calcTotal()">
+              <option value="">Not Applicable</option>
+              <option value="essential">Essential</option>
+              <option value="elegant">Elegant</option>
+              <option value="prestige">Prestige</option>
+              <option value="legacy">Legacy</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="sub-block">
+        <div class="sub-header"><div class="sub-title">Dining Setup</div></div>
+        <div class="sub-content">
+          <div class="grid-2">
+            <div class="field">
+              <div class="field-label">Tier</div>
+              <select class="field-select" id="decorDiningTier" onchange="calcTotal()">
+                <option value="">Not Applicable</option>
+                <option value="essential">Essential</option>
+                <option value="elegant">Elegant</option>
+                <option value="prestige">Prestige</option>
+              </select>
+            </div>
+            <div class="field">
+              <div class="field-label">Number of Tables</div>
+              <input class="field-input" id="decorDiningTables" type="number" min="5" max="13" placeholder="5–13" oninput="onTablesChange('dining')" style="max-width:70px">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sub-block">
+        <div class="sub-header"><div class="sub-title">Centerpieces</div></div>
+        <div class="sub-content">
+          <div class="grid-2">
+            <div class="field">
+              <div class="field-label">Tier</div>
+              <select class="field-select" id="decorCPTier" onchange="calcDecorPrice()">
+                <option value="">Not Applicable</option>
+                <option value="essential">Essential</option>
+                <option value="elegant">Elegant</option>
+                <option value="prestige">Prestige</option>
+              </select>
+            </div>
+            <div class="field">
+              <div class="field-label">Type</div>
+              <select class="field-select" id="decorCPType" onchange="calcDecorPrice()">
+                <option value="flowers">Flowers</option>
+                <option value="balloons">Balloons</option>
+                <option value="others">Others</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <div class="field-label">Number of Tables</div>
+            <input class="field-input" id="decorCPTables" type="number" min="5" max="13" placeholder="5–13" oninput="calcDecorPrice()" style="max-width:70px">
+            <span class="field-auto" id="decorCPPrice">—</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="sub-block">
+        <div class="sub-header"><div class="sub-title">Extras</div></div>
+        <div class="sub-content">
+          <div class="field">
+            <div class="field-label">Tier</div>
+            <select class="field-select" id="decorExtrasTier" onchange="onDecorExtrasTier()">
+              <option value="">Not Applicable</option>
+              <option value="elegant">Elegant</option>
+              <option value="prestige">Prestige</option>
+              <option value="legacy">Legacy</option>
+            </select>
+            <span class="info-badge gold" id="extrasInfo" style="display:none"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="field" style="margin-top:6px">
+      <div class="field-label">Decor Total</div>
+      <span class="field-auto highlight" id="decorTotalDisplay">—</span>
+    </div>
+  </div>
+</div>
+
+<!-- BLOCK 6: ENTERTAINMENT -->
+<div class="block">
+  <div class="block-header">
+    <div class="block-num">6</div>
+    <div class="block-title">Entertainment &amp; Production</div>
+  </div>
+  <div class="block-content">
+    <div class="tier-row">
+      <div class="tier-label">Full Entertainment Plan</div>
+      <div class="tier-opts">
+        <button class="tier-btn na active" onclick="setEntertainment('na')">Not Applicable</button>
+        <button class="tier-btn" onclick="setEntertainment('essential')">Essential</button>
+        <button class="tier-btn" onclick="setEntertainment('elegant')">Elegant</button>
+        <button class="tier-btn" onclick="setEntertainment('prestige')">Prestige</button>
+        <button class="tier-btn" onclick="setEntertainment('legacy')">Legacy</button>
+      </div>
+    </div>
+
+    <div class="field" style="margin-top:6px">
+      <div class="field-label">DJ Nationality</div>
+      <input class="field-input" id="djNationality" type="text" placeholder="e.g. Colombian, Dominican..." style="max-width:220px">
+      <span class="field-note">Elegant / Prestige / Legacy only</span>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="field">
+      <div class="field-label">Sound Only</div>
+      <select class="field-select" id="soundOnly" onchange="onSoundOnlyChange()">
+        <option value="">Not Applicable</option>
+        <option value="soundlighting">Sound &amp; Lighting</option>
+        <option value="soundlightingplus">Sound &amp; Lighting Plus</option>
+      </select>
+      <span class="field-auto" id="soundFeeDisplay" style="display:none"></span>
+    </div>
+    <div id="entAlert" class="alert alert-info"></div>
+    <div id="soundDamageAlert" class="alert alert-warn" style="display:none">&#x26A0; Sound Only Policy: Damage policy applies. Include in contract conditions.</div>
+  </div>
+</div>
+
+<!-- BLOCK 7: PHOTO & VIDEO -->
+<div class="block">
+  <div class="block-header">
+    <div class="block-num">7</div>
+    <div class="block-title">Photo &amp; Video</div>
+  </div>
+  <div class="block-content">
+    <div class="tier-row">
+      <div class="tier-label">Full Photo Plan</div>
+      <div class="tier-opts">
+        <button class="tier-btn na active" onclick="setPhotoplan('na')">Not Applicable</button>
+        <button class="tier-btn" onclick="setPhotoplan('essential')">Essential</button>
+        <button class="tier-btn" onclick="setPhotoplan('elegant')">Elegant</button>
+        <button class="tier-btn" onclick="setPhotoplan('prestige')">Prestige</button>
+        <button class="tier-btn" onclick="setPhotoplan('legacy')">Legacy</button>
+      </div>
+      <span class="info-badge" id="photoBundleInfo" style="display:none">Bundle Applied</span>
+    </div>
+
+    <div class="sub-block" style="margin-top:8px">
+      <div class="sub-header"><div class="sub-title">Photography &amp; Videography</div></div>
+      <div class="sub-content">
+        <div class="field">
+          <div class="field-label">Tier</div>
+          <select class="field-select" id="photoTier" onchange="calcTotal()">
+            <option value="">Not Applicable</option>
+            <option value="essential">Essential — 2H, 50–100 photos</option>
+            <option value="elegant">Elegant — Full Event, 200–400 photos</option>
+            <option value="prestige">Prestige — Full + Video 3H + Twitch</option>
+            <option value="legacy">Legacy — Full + Home/Church + Reels + Twitch</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="sub-block">
+      <div class="sub-header"><div class="sub-title">Photo Shoot</div></div>
+      <div class="sub-content">
+        <div class="field">
+          <div class="field-label">Plan</div>
+          <select class="field-select" id="photoShootPlan" onchange="calcTotal()">
+            <option value="">Not Applicable</option>
+            <option value="essential">Essential — Up to 2 people ($650)</option>
+            <option value="full">Full — Up to 4 people + Reel ($1,200)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="sub-block">
+      <div class="sub-header"><div class="sub-title">Prints &amp; Keepsakes</div></div>
+      <div class="sub-content">
+        <div class="field">
+          <div class="field-label">Plan</div>
+          <select class="field-select" id="printsPlan" onchange="calcTotal()">
+            <option value="">Not Applicable</option>
+            <option value="gallery">Photo Gallery — $700 (Cardona Hall only)</option>
+            <option value="frames">Frame Pequeños / table</option>
+            <option value="usb">USB Elegant — $120</option>
+          </select>
+        </div>
+        <div class="field" id="framesTableField" style="display:none">
+          <div class="field-label">Number of Tables</div>
+          <input class="field-input" id="framesTables" type="number" min="1" placeholder="Tables" oninput="calcTotal()" style="max-width:70px">
+          <span class="field-auto" id="framesPrice">—</span>
+        </div>
+        <div id="galleryAlert" class="alert alert-info"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PRICING SECTION -->
+<div class="pricing-section">
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-bottom:16px">
+    <div>
+      <div style="font-size:9px; color:#888; letter-spacing:2px; text-transform:uppercase; margin-bottom:8px">Price Breakdown</div>
+      <div class="price-row"><span class="price-label">Venue & Host Services</span><span class="price-value" id="p-venue">—</span></div>
+      <div class="price-row"><span class="price-label">Catering & Hospitality</span><span class="price-value" id="p-catering">—</span></div>
+      <div class="price-row"><span class="price-label">Design & Decor</span><span class="price-value" id="p-decor">—</span></div>
+      <div class="price-row"><span class="price-label">Entertainment & Production</span><span class="price-value" id="p-entertainment">—</span></div>
+      <div class="price-row"><span class="price-label">Photo & Video</span><span class="price-value" id="p-photo">—</span></div>
+      <div class="price-row" id="p-soundfee-row" style="display:none"><span class="price-label">Sound Only Fee (Fri/Sun)</span><span class="price-value" id="p-soundfee">$100</span></div>
+      <div class="price-row" id="p-discount-row" style="display:none"><span class="price-label">Full Package Discount (5%)</span><span class="price-value" style="color:#6EC98A" id="p-discount">—</span></div>
+    </div>
+    <div>
+      <div style="font-size:9px; color:#888; letter-spacing:2px; text-transform:uppercase; margin-bottom:8px">Special Conditions / Modifications</div>
+      <textarea class="special-conditions" id="specialConditions" placeholder="Enter any modifications, restrictions, or special agreements with the client..."></textarea>
+    </div>
+  </div>
+
+  <div class="discount-row" id="discountRow" style="display:none">
+    <span class="discount-label">Client Discount</span>
+    <select class="discount-select" id="discountType" onchange="calcTotal()">
+      <option value="pct">Percentage %</option>
+      <option value="fixed">Fixed Amount $</option>
+    </select>
+    <input class="discount-input" id="discountValue" type="number" min="0" placeholder="0" oninput="calcTotal()">
+    <span style="color:#888; font-size:10px" id="discountResult"></span>
+  </div>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px; align-items:end; margin-top:12px">
+    <div>
+      <div class="price-row" style="border-top:1px solid #444; padding-top:8px">
+        <span class="price-label" style="color:#AAA">Calculated Total</span>
+        <span class="price-value" id="p-calculated">$0</span>
+      </div>
+      <div class="price-row">
+        <span class="price-label" style="color:#AAA">Manual Override</span>
+        <input class="price-input" id="priceOverride" type="number" placeholder="Leave empty to use calculated" oninput="calcTotal()">
+      </div>
+    </div>
+    <div>
+      <div class="price-total-row">
+        <span class="price-total-label">FINAL TOTAL</span>
+        <span class="price-total-value" id="p-final">$0</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  <div class="footer-info">Cardona Hall &nbsp;·&nbsp; 72 Hoover Ave, Passaic NJ 07055 &nbsp;·&nbsp; Pilab Productions LLC</div>
+  <div style="font-size:9px; color:#555">v1.0 — Capa 2</div>
+</div>
+
+</div><!-- /page -->
+
+<script>
+// ══════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════
+const state = {
+  cotNumber: null,
+  resNumber: null,
+  status: 'new',
+  fullPackage: 'na',
+  decorPlan: 'na',
+  entertainmentPlan: 'na',
+  photoPlan: 'na',
+  isLastMinute: false,
+  dayOfWeek: null,
+  guestRange: null,
+  numGuests: 0,
+  eventType: '',
+  clientType: 'standard',
+  soundOnlyFee: 0,
+  prices: { venue:0, catering:0, decor:0, entertainment:0, photo:0 }
+};
+
+// GOOGLE SHEETS CONFIG — Replace with your actual values
+const SHEET_CONFIG = {
+  scriptUrl: 'https://script.google.com/macros/s/AKfycbyUAKZyuX8xcdSTXNkJoagPlaW4fumRWnrDuuARiMntpS76sx_6I-6TYxUpjkhjVIADAQ/exec',
+  sheetName: 'Quotations'
+};
+
+// PRICE TABLES
+const VENUE_PRICES = {
+  essential: { 'extra_small':1000, 'small':1200, 'medium':1200, 'large':null },
+  elegant:   { 'extra_small':1500, 'small':1600, 'medium':1600, 'large':1800 },
+  prestige:  { 'extra_small':2300, 'small':2500, 'medium':2500, 'large':2800 },
+  prestige_disc: { 'extra_small':2070, 'small':2250, 'medium':2250, 'large':2520 }
+};
+
+const CATERING_PRICES = {
+  classic_traditional: 20, classic_international: 25,
+  collection_essential: 30, collection_elegant: 40, collection_prestige: 45,
+  luxury_legacy: 70
+};
+
+const CATERING_TRAYS = {
+  essential: { extra_small:{mc:2,sal:1,sid:1}, small:{mc:2,sal:1,sid:2}, medium:{mc:3,sal:2,sid:2}, large:{mc:3,sal:2,sid:3} },
+  elegant:   { extra_small:{mc:2,sal:1,sid:2}, small:{mc:3,sal:2,sid:2}, medium:{mc:4,sal:2,sid:3}, large:{mc:4,sal:3,sid:3} },
+  prestige:  { extra_small:{mc:2,sal:1,sid:2}, small:{mc:3,sal:2,sid:3}, medium:{mc:4,sal:3,sid:3}, large:{mc:5,sal:3,sid:3} }
+};
+
+const DECOR_PRICES = {
+  essential: { flowers:{5:600,6:650,7:700,8:750,9:800,10:850,11:900,12:950,13:1000}, balloons:{5:600,6:650,7:700,8:750,9:800,10:850,11:900,12:950,13:1000}, others:{5:600,6:650,7:700,8:750,9:800,10:850,11:900,12:950,13:1000} },
+  elegant:   { flowers:{5:1200,6:1250,7:1350,8:1400,9:1450,10:1500,11:1550,12:1600,13:1700}, balloons:{5:950,6:1000,7:1000,8:1050,9:1100,10:1150,11:1200,12:1250,13:1300}, others:{5:950,6:1000,7:1000,8:1050,9:1100,10:1150,11:1200,12:1250,13:1300} },
+  prestige:  { flowers:{5:1600,6:1700,7:1750,8:1800,9:1850,10:1900,11:2000,12:2050,13:2100}, balloons:{5:1400,6:1450,7:1500,8:1550,9:1600,10:1650,11:1700,12:1750,13:1800}, others:{5:1560,6:1600,7:1650,8:1700,9:1750,10:1800,11:1860,12:1900,13:1950} }
+};
+
+const ENT_PRICES = { essential:900, elegant:1400, prestige:1600, legacy:3000 };
+
+const PHOTO_PRICES = {
+  photography: { essential:800, elegant:1250, prestige:2400, legacy:3000 },
+  shoot: { essential:650, full:1200 },
+  prints: { gallery:700, gallery_disc:650, frames_per_table:60, frames_disc:50, usb:120 }
+};
+
+const PHOTO_BUNDLE = { essential:1600, elegant:2100, prestige:3600, legacy:4100 };
+
+const FP_AVAILABILITY = {
+  quinceanera: ['elegant','prestige','legacy'],
+  wedding:     ['elegant','prestige','legacy'],
+  babyshower:  ['essential','elegant','prestige'],
+  kidsparty:   ['essential','elegant'],
+  birthday:    ['essential','elegant','prestige','legacy'],
+  special_social:    ['essential','elegant','prestige'],
+  special_corporate: ['elegant','prestige','legacy']
+};
+
+// ══════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════
+window.onload = () => {
+  document.getElementById('createdDate').textContent = new Date().toLocaleDateString('en-US');
+  generateCotNumber();
+  loadFromStorage();
+};
+
+function generateCotNumber() {
+  const year = new Date().getFullYear();
+  const stored = JSON.parse(localStorage.getItem('cotCounter') || '{"year":0,"count":0}');
+  let count = (stored.year === year) ? stored.count + 1 : 1;
+  localStorage.setItem('cotCounter', JSON.stringify({year, count}));
+  state.cotNumber = `COT-${year}-${String(count).padStart(3,'0')}`;
+  document.getElementById('cotNumber').textContent = state.cotNumber;
+}
+
+function loadFromStorage() {
+  const data = JSON.parse(localStorage.getItem('quotations') || '[]');
+  state.allQuotations = data;
+}
+
+// ══════════════════════════════════════════════════
+// FIELD HELPERS
+// ══════════════════════════════════════════════════
+function formatTitleCase(el) {
+  const pos = el.selectionStart;
+  el.value = el.value.replace(/\b\w/g, c => c.toUpperCase());
+  el.setSelectionRange(pos, pos);
+}
+
+function onlyLettersSpaces(el) {
+  el.value = el.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]/g, '');
+}
+
+function formatPhone(el) {
+  let v = el.value.replace(/\D/g,'');
+  if (v.length >= 10) v = `(${v.slice(0,3)}) ${v.slice(3,6)}-${v.slice(6,10)}`;
+  el.value = v;
+}
+
+function validateField(el, type) {
+  const errEl = document.getElementById('err-' + el.id);
+  if (!el.value.trim()) {
+    el.classList.add('error');
+    if (errEl) errEl.classList.add('show');
+    return false;
+  }
+  el.classList.remove('error');
+  if (errEl) errEl.classList.remove('show');
+  return true;
+}
+
+function validateEmail(el) {
+  const errEl = document.getElementById('err-email');
+  if (!el.value) { el.classList.remove('error'); errEl.classList.remove('show'); return; }
+  const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(el.value);
+  el.classList.toggle('error', !ok);
+  errEl.classList.toggle('show', !ok);
+}
+
+function showAlert(id, msg, type='info') {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.className = `alert alert-${type} show`;
+  el.textContent = msg;
+}
+function hideAlert(id) {
+  const el = document.getElementById(id);
+  if (el) el.className = 'alert';
+}
+
+// ══════════════════════════════════════════════════
+// DATE & GUESTS
+// ══════════════════════════════════════════════════
+function onDateChange() {
+  const val = document.getElementById('eventDate').value;
+  const d = new Date(val);
+  if (isNaN(d.getTime())) { document.getElementById('dayOfWeek').textContent = '—'; state.dayOfWeek = null; return; }
+  const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  state.dayOfWeek = days[d.getDay()];
+  document.getElementById('dayOfWeek').textContent = state.dayOfWeek;
+
+  // Last minute check
+  const today = new Date(); today.setHours(0,0,0,0);
+  const diff = Math.ceil((d - today) / (1000*60*60*24));
+  state.isLastMinute = diff <= 15 && diff >= 0;
+  document.getElementById('lastMinuteAlert').classList.toggle('show', state.isLastMinute);
+
+  // Reserved check
+  const reserved = (state.allQuotations || []).filter(q => q.status === 'reserved' && q.eventDate === val);
+  document.getElementById('reservedDateAlert').classList.toggle('show', reserved.length > 0);
+
+  updateVenueOptions();
+  updateCateringRules();
+  calcTotal();
+}
+
+function onGuestsChange() {
+  const v = parseInt(document.getElementById('numGuests').value);
+  const errEl = document.getElementById('err-numGuests');
+  if (isNaN(v) || v < 30 || v > 130) {
+    errEl.classList.add('show');
+    state.guestRange = null;
+    state.numGuests = 0;
+    document.getElementById('guestRange').textContent = '—';
+    return;
+  }
+  errEl.classList.remove('show');
+  state.numGuests = v;
+  if (v <= 50) state.guestRange = 'extra_small';
+  else if (v <= 70) state.guestRange = 'small';
+  else if (v <= 90) state.guestRange = 'medium';
+  else state.guestRange = 'large';
+  const labels = {extra_small:'Extra Small (30–50)', small:'Small (51–70)', medium:'Medium (71–90)', large:'Large (91–120)'};
+  document.getElementById('guestRange').textContent = labels[state.guestRange];
+  updateCateringTrays();
+  calcTotal();
+}
+
+function onEventTypeChange() {
+  state.eventType = document.getElementById('eventType').value;
+  const showSub = ['special_social','special_corporate'].includes(state.eventType);
+  document.getElementById('eventSubField').style.display = showSub ? 'flex' : 'none';
+  updateFullPackageOptions();
+  updatePhotoRules();
+  calcTotal();
+}
+
+function onClientTypeChange() {
+  state.clientType = document.getElementById('clientType').value;
+  const showDiscount = ['returning','vip'].includes(state.clientType);
+  document.getElementById('discountRow').style.display = showDiscount ? 'flex' : 'none';
+  if (state.clientType === 'vip') showAlert('fpAlert','VIP Client — All tier restrictions are lifted.','ok');
+  else hideAlert('fpAlert');
+  calcTotal();
+}
+
+// ══════════════════════════════════════════════════
+// FULL PACKAGE
+// ══════════════════════════════════════════════════
+function updateFullPackageOptions() {
+  const avail = FP_AVAILABILITY[state.eventType] || [];
+  ['essential','elegant','prestige','legacy'].forEach(t => {
+    const btn = document.getElementById('fp-' + t);
+    if (!btn) return;
+    const isAvail = state.clientType === 'vip' || avail.includes(t);
+    btn.disabled = !isAvail;
+    btn.title = isAvail ? '' : 'Not available for this event type';
+  });
+}
+
+function setFullPackage(tier) {
+  state.fullPackage = tier;
+  document.querySelectorAll('#fullPackageTiers .tier-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+
+  const isActive = tier !== 'na';
+  if (isActive) {
+    // Auto-fill all divisions
+    setVenueTier('prestige', true);
+    document.getElementById('venueTier').value = 'prestige';
+    document.getElementById('venueTier').disabled = true;
+
+    // Catering
+    document.getElementById('cateringLine').value = (tier === 'legacy') ? 'luxury' : 'collection';
+    onCateringLineChange();
+    const planMap = {essential:'essential', elegant:'elegant', prestige:'prestige', legacy:'legacy'};
+    document.getElementById('cateringPlan').value = planMap[tier] || '';
+    document.getElementById('cateringLine').disabled = true;
+    document.getElementById('cateringPlan').disabled = true;
+
+    // Decor
+    setDecorPlanAuto(tier);
+
+    // Entertainment
+    setEntertainmentAuto(tier);
+
+    // Photo
+    setPhotoPlanAuto(tier);
+
+    if (tier === 'legacy') {
+      document.getElementById('fpAlert').className = 'alert alert-info show';
+      document.getElementById('fpAlert').textContent = 'Legacy Package — Venue: Prestige | Catering: Luxury | Decor: Event Design | Entertainment: Legacy | Photo: Bundle';
+    } else {
+      hideAlert('fpAlert');
+    }
+  } else {
+    document.getElementById('venueTier').disabled = false;
+    document.getElementById('cateringLine').disabled = false;
+    document.getElementById('cateringPlan').disabled = false;
+    hideAlert('fpAlert');
+  }
+  calcTotal();
+}
+
+// ══════════════════════════════════════════════════
+// VENUE
+// ══════════════════════════════════════════════════
+function updateVenueOptions() {
+  const sel = document.getElementById('venueTier');
+  const day = state.dayOfWeek;
+  const isLM = state.isLastMinute;
+  const isVIP = state.clientType === 'vip';
+  const opts = sel.options;
+
+  for (let i = 1; i < opts.length; i++) {
+    const t = opts[i].value;
+    let allowed = true;
+    if (!isVIP) {
+      if (day === 'Saturday') allowed = (t === 'prestige') || (isLM && t === 'elegant');
+      else if (['Friday','Sunday'].includes(day)) allowed = (t !== 'essential') || isLM;
+    }
+    opts[i].disabled = !allowed;
+    opts[i].style.color = allowed ? '' : '#CCC';
+  }
+}
+
+function onVenueTierChange() {
+  const tier = document.getElementById('venueTier').value;
+  setVenueTier(tier, false);
+  updateCateringRules();
+  calcTotal();
+}
+
+function setVenueTier(tier, silent) {
+  if (!silent) document.getElementById('venueTier').value = tier;
+  const range = state.guestRange;
+  const needsDisc = ['collection','luxury'].includes(document.getElementById('cateringLine').value);
+  let price = 0;
+  if (tier && range) {
+    const table = needsDisc && tier === 'prestige' ? VENUE_PRICES.prestige_disc : VENUE_PRICES[tier];
+    price = table ? (table[range] || 0) : 0;
+  }
+  state.prices.venue = price;
+  document.getElementById('venuePriceDisplay').textContent = price ? `$${price.toLocaleString()}` : '—';
+}
+
+// ══════════════════════════════════════════════════
+// CATERING
+// ══════════════════════════════════════════════════
+function onCateringLineChange() {
+  const line = document.getElementById('cateringLine').value;
+  const planSel = document.getElementById('cateringPlan');
+  planSel.innerHTML = '<option value="">— Select Plan —</option>';
+  planSel.disabled = false;
+
+  if (line === 'classic') {
+    planSel.innerHTML += '<option value="traditional">Traditional — $20/person (Pollo a la Brasa + fixed sides)</option>';
+    planSel.innerHTML += '<option value="international">International — $25/person (2 meats + 3 sides)</option>';
+    hideAlert('cateringAlert');
+  } else if (line === 'collection') {
+    planSel.innerHTML += '<option value="essential">Essential — $30/person</option>';
+    planSel.innerHTML += '<option value="elegant">Elegant — $40/person (+ Softdrinks)</option>';
+    planSel.innerHTML += '<option value="prestige">Prestige — $45/person (+ Soft, Dessert, Jugo, Café)</option>';
+    updateCateringRules();
+  } else if (line === 'luxury') {
+    planSel.innerHTML += '<option value="legacy">Legacy — $70/person (Luxury Collection)</option>';
+    showAlert('cateringAlert','Luxury Collection — Always requires Venue Prestige.','warn');
+    ensureVenuePrestige();
+  }
+  onCateringPlanChange();
+}
+
+function updateCateringRules() {
+  const line = document.getElementById('cateringLine').value;
+  const day = state.dayOfWeek;
+  const guests = state.numGuests;
+  const venueTier = document.getElementById('venueTier').value;
+  const isVIP = state.clientType === 'vip';
+  if (isVIP) { hideAlert('cateringAlert'); return; }
+
+  if (line === 'collection') {
+    if (day === 'Saturday') {
+      if (venueTier !== 'prestige') showAlert('cateringAlert','Saturday + Catering Collection requires Venue Prestige.','warn');
+      else hideAlert('cateringAlert');
+    } else if (['Friday','Sunday'].includes(day)) {
+      if (guests >= 70 && venueTier !== 'prestige') showAlert('cateringAlert','70+ guests on Fri/Sun with Catering Collection requires Venue Prestige.','warn');
+      else hideAlert('cateringAlert');
+    } else {
+      if (!['elegant','prestige'].includes(venueTier)) showAlert('cateringAlert','Catering Collection on Mon–Thu requires Venue Elegant or Prestige.','info');
+      else hideAlert('cateringAlert');
+    }
+  } else if (line === 'luxury') {
+    if (venueTier !== 'prestige') showAlert('cateringAlert','Luxury Collection always requires Venue Prestige.','warn');
+    else hideAlert('cateringAlert');
+  } else hideAlert('cateringAlert');
+}
+
+function ensureVenuePrestige() {
+  document.getElementById('venueTier').value = 'prestige';
+  setVenueTier('prestige', true);
+}
+
+function onCateringPlanChange() {
+  const line = document.getElementById('cateringLine').value;
+  const plan = document.getElementById('cateringPlan').value;
+  let price = 0;
+
+  if (plan === 'traditional') price = CATERING_PRICES.classic_traditional * state.numGuests;
+  else if (plan === 'international') price = CATERING_PRICES.classic_international * state.numGuests;
+  else if (plan === 'essential') price = CATERING_PRICES.collection_essential * state.numGuests;
+  else if (plan === 'elegant') price = CATERING_PRICES.collection_elegant * state.numGuests;
+  else if (plan === 'prestige') price = CATERING_PRICES.collection_prestige * state.numGuests;
+  else if (plan === 'legacy') price = CATERING_PRICES.luxury_legacy * state.numGuests;
+
+  state.prices.catering = price;
+  document.getElementById('cateringPriceDisplay').textContent = price ? `$${price.toLocaleString()} (${state.numGuests} guests)` : '—';
+  updateCateringTrays();
+  calcTotal();
+}
+
+function updateCateringTrays() {
+  const plan = document.getElementById('cateringPlan').value;
+  const range = state.guestRange;
+  const trayDisplay = document.getElementById('cateringTrayDisplay');
+
+  if (['essential','elegant','prestige'].includes(plan) && range) {
+    const t = CATERING_TRAYS[plan][range];
+    const extras = plan === 'elegant' ? ' · Softdrinks ✓' : plan === 'prestige' ? ' · Softdrinks ✓ · Dessert ✓ · Jugo Natural ✓ · Café ✓' : '';
+    trayDisplay.textContent = `${t.mc} Main Course · ${t.sal} Salads · ${t.sid} Sides${extras}`;
+  } else if (plan === 'legacy') {
+    trayDisplay.textContent = 'Luxury Collection — See conditions document for full breakdown';
+  } else if (['traditional','international'].includes(plan)) {
+    trayDisplay.textContent = 'Classic Menu — Portions document required at reservation';
+  } else {
+    trayDisplay.textContent = '—';
+  }
+}
+
+// ══════════════════════════════════════════════════
+// DECOR
+// ══════════════════════════════════════════════════
+function setDecorPlan(tier) {
+  state.decorPlan = tier;
+  document.querySelectorAll('.block:nth-child(5) .tier-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+
+  const isLegacy = tier === 'legacy';
+  const isActive = tier !== 'na';
+  document.getElementById('decorLegacyPrice').style.display = isLegacy ? 'block' : 'none';
+  document.getElementById('decorSubBlocks').style.display = 'block';
+
+  if (isActive && !isLegacy) {
+    // Auto-fill sub-blocks
+    ['decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el && el.querySelector(`option[value="${tier}"]`)) el.value = tier;
+      el.disabled = true;
+    });
+    onDecorExtrasTier();
+  } else {
+    ['decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.disabled = false;
+    });
+    if (!isLegacy) onDecorExtrasTier();
+  }
+  calcDecorPrice();
+}
+
+function setDecorPlanAuto(tier) {
+  state.decorPlan = tier;
+  const btns = document.querySelectorAll('.block:nth-child(5) .tier-btn');
+  btns.forEach(b => b.classList.remove('active'));
+  const tierMap = {essential:1, elegant:2, prestige:3, legacy:4};
+  if (btns[tierMap[tier]]) btns[tierMap[tier]].classList.add('active');
+  document.getElementById('decorLegacyPrice').style.display = (tier==='legacy') ? 'block' : 'none';
+}
+
+function calcDecorPrice() {
+  const tier = document.getElementById('decorCPTier').value;
+  const type = document.getElementById('decorCPType').value;
+  const tables = parseInt(document.getElementById('decorCPTables').value);
+
+  if (tier && type && tables >= 5 && tables <= 13) {
+    const price = DECOR_PRICES[tier] && DECOR_PRICES[tier][type] ? DECOR_PRICES[tier][type][tables] : 0;
+    document.getElementById('decorCPPrice').textContent = price ? `$${price.toLocaleString()}` : '—';
+    state.prices.decor = price;
+    document.getElementById('decorTotalDisplay').textContent = price ? `$${price.toLocaleString()}` : '—';
+  } else {
+    document.getElementById('decorCPPrice').textContent = '—';
+  }
+  calcTotal();
+}
+
+function onTablesChange(type) { calcDecorPrice(); }
+
+function onDecorExtrasTier() {
+  const tier = document.getElementById('decorExtrasTier').value;
+  const badge = document.getElementById('extrasInfo');
+  const map = { essential:'Not included', elegant:'3 extras included', prestige:'5 extras included', legacy:'Unlimited extras' };
+  if (tier && map[tier]) { badge.textContent = map[tier]; badge.style.display = 'inline-block'; }
+  else badge.style.display = 'none';
+  calcTotal();
+}
+
+// ══════════════════════════════════════════════════
+// ENTERTAINMENT
+// ══════════════════════════════════════════════════
+function setEntertainment(tier) {
+  state.entertainmentPlan = tier;
+  document.querySelectorAll('.block:nth-child(6) .tier-opts .tier-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  state.prices.entertainment = tier !== 'na' ? (ENT_PRICES[tier] || 0) : 0;
+
+  const showDJ = ['elegant','prestige','legacy'].includes(tier);
+  document.getElementById('djNationality').parentElement.style.display = showDJ ? 'flex' : 'none';
+  hideAlert('entAlert');
+  calcTotal();
+}
+
+function setEntertainmentAuto(tier) {
+  state.entertainmentPlan = tier;
+  const btns = document.querySelectorAll('.block:nth-child(6) .tier-opts .tier-btn');
+  btns.forEach(b => b.classList.remove('active'));
+  const tierMap = {essential:1, elegant:2, prestige:3, legacy:4};
+  if (btns[tierMap[tier]]) btns[tierMap[tier]].classList.add('active');
+  state.prices.entertainment = ENT_PRICES[tier] || 0;
+}
+
+function onSoundOnlyChange() {
+  const val = document.getElementById('soundOnly').value;
+  const day = state.dayOfWeek;
+  const feeDisplay = document.getElementById('soundFeeDisplay');
+  const damageAlert = document.getElementById('soundDamageAlert');
+  const feeRow = document.getElementById('p-soundfee-row');
+
+  if (val) {
+    damageAlert.style.display = 'block';
+    if (['Friday','Sunday'].includes(day)) {
+      state.soundOnlyFee = 100;
+      feeDisplay.textContent = '+$100 Fri/Sun fee';
+      feeDisplay.style.display = 'inline-block';
+      feeRow.style.display = 'flex';
+    } else {
+      state.soundOnlyFee = 0;
+      feeDisplay.style.display = 'none';
+      feeRow.style.display = 'none';
+    }
+    if (!document.getElementById('entAlert').textContent) {
+      showAlert('entAlert','Sound Only selected — Entertainment Collection not active.','info');
+    }
+  } else {
+    state.soundOnlyFee = 0;
+    feeDisplay.style.display = 'none';
+    feeRow.style.display = 'none';
+    damageAlert.style.display = 'none';
+    hideAlert('entAlert');
+  }
+  calcTotal();
+}
+
+// ══════════════════════════════════════════════════
+// PHOTO
+// ══════════════════════════════════════════════════
+const BUNDLE_EVENTS = ['quinceanera','wedding'];
+
+function setPhotoplan(tier) {
+  state.photoPlan = tier;
+  document.querySelectorAll('.block:nth-child(7) .tier-opts .tier-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+
+  const isBundle = BUNDLE_EVENTS.includes(state.eventType) && tier !== 'na';
+  document.getElementById('photoBundleInfo').style.display = isBundle ? 'inline-block' : 'none';
+
+  if (tier !== 'na') {
+    const photoSel = document.getElementById('photoTier');
+    const tierOptMap = {essential:'essential', elegant:'elegant', prestige:'prestige', legacy:'legacy'};
+    photoSel.value = tierOptMap[tier] || '';
+    photoSel.disabled = true;
+
+    if (isBundle) {
+      document.getElementById('photoShootPlan').value = tier === 'essential' ? 'essential' : 'full';
+      document.getElementById('printsPlan').value = ['prestige','legacy'].includes(tier) ? 'gallery' : 'frames';
+      document.getElementById('photoShootPlan').disabled = true;
+      document.getElementById('printsPlan').disabled = true;
+    }
+  } else {
+    document.getElementById('photoTier').disabled = false;
+    document.getElementById('photoShootPlan').disabled = false;
+    document.getElementById('printsPlan').disabled = false;
+  }
+  updatePhotoRules();
+  calcTotal();
+}
+
+function setPhotoPlanAuto(tier) {
+  state.photoPlan = tier;
+  const btns = document.querySelectorAll('.block:nth-child(7) .tier-opts .tier-btn');
+  btns.forEach(b => b.classList.remove('active'));
+  const tierMap = {essential:1, elegant:2, prestige:3, legacy:4};
+  if (btns[tierMap[tier]]) btns[tierMap[tier]].classList.add('active');
+}
+
+function updatePhotoRules() {
+  const prints = document.getElementById('printsPlan').value;
+  const alertEl = document.getElementById('galleryAlert');
+  if (prints === 'gallery') {
+    showAlert('galleryAlert','Photo Gallery available at Cardona Hall only. For off-site events, use Frame Pequeños.','info');
+  } else hideAlert('galleryAlert');
+
+  const framesField = document.getElementById('framesTableField');
+  framesField.style.display = prints === 'frames' ? 'flex' : 'none';
+}
+
+// ══════════════════════════════════════════════════
+// TOTAL CALCULATION
+// ══════════════════════════════════════════════════
+function calcTotal() {
+  const p = state.prices;
+
+  // Venue
+  const venueTier = document.getElementById('venueTier').value;
+  const line = document.getElementById('cateringLine').value;
+  const needsDisc = ['collection','luxury'].includes(line);
+  if (venueTier && state.guestRange) {
+    const table = needsDisc && venueTier === 'prestige' ? VENUE_PRICES.prestige_disc : VENUE_PRICES[venueTier];
+    p.venue = table ? (table[state.guestRange] || 0) : 0;
+  } else p.venue = 0;
+
+  // Entertainment
+  if (state.entertainmentPlan !== 'na') p.entertainment = ENT_PRICES[state.entertainmentPlan] || 0;
+  else p.entertainment = 0;
+
+  // Photo
+  const photoTier = document.getElementById('photoTier').value;
+  const isBundle = BUNDLE_EVENTS.includes(state.eventType) && state.photoPlan !== 'na';
+  if (isBundle && state.photoPlan !== 'na') {
+    p.photo = PHOTO_BUNDLE[state.photoPlan] || 0;
+  } else {
+    let photoTotal = 0;
+    if (photoTier) photoTotal += PHOTO_PRICES.photography[photoTier.split(' ')[0].toLowerCase()] || 0;
+    const shootPlan = document.getElementById('photoShootPlan').value;
+    if (shootPlan) photoTotal += PHOTO_PRICES.shoot[shootPlan] || 0;
+    const printsPlan = document.getElementById('printsPlan').value;
+    const isPrestigeLegacy = ['prestige','legacy'].includes(state.photoPlan);
+    if (printsPlan === 'gallery') photoTotal += isPrestigeLegacy ? PHOTO_PRICES.prints.gallery_disc : PHOTO_PRICES.prints.gallery;
+    else if (printsPlan === 'frames') {
+      const ft = parseInt(document.getElementById('framesTables').value) || 0;
+      const fPrice = isPrestigeLegacy ? PHOTO_PRICES.prints.frames_disc : PHOTO_PRICES.prints.frames_per_table;
+      photoTotal += ft * fPrice;
+      document.getElementById('framesPrice').textContent = ft ? `$${(ft*fPrice).toLocaleString()}` : '—';
+    } else if (printsPlan === 'usb') photoTotal += PHOTO_PRICES.prints.usb;
+    p.photo = photoTotal;
+  }
+
+  // Decor legacy
+  if (state.decorPlan === 'legacy') {
+    p.decor = parseFloat(document.getElementById('decorLegacyPriceVal').value) || 0;
+  }
+
+  const subtotal = (p.venue||0) + (p.catering||0) + (p.decor||0) + (p.entertainment||0) + (p.photo||0) + state.soundOnlyFee;
+
+  // 5% Full Package discount
+  const allFilled = p.venue && p.catering && p.decor && p.entertainment && p.photo;
+  let fpDiscount = 0;
+  if (state.fullPackage !== 'na' && allFilled) {
+    fpDiscount = subtotal * 0.05;
+    document.getElementById('p-discount-row').style.display = 'flex';
+    document.getElementById('p-discount').textContent = `-$${fpDiscount.toLocaleString(undefined,{maximumFractionDigits:0})}`;
+  } else {
+    document.getElementById('p-discount-row').style.display = 'none';
+  }
+
+  // Client discount
+  let clientDiscount = 0;
+  if (['returning','vip'].includes(state.clientType)) {
+    const dtype = document.getElementById('discountType').value;
+    const dval = parseFloat(document.getElementById('discountValue').value) || 0;
+    clientDiscount = dtype === 'pct' ? (subtotal - fpDiscount) * dval / 100 : dval;
+    document.getElementById('discountResult').textContent = clientDiscount ? `-$${clientDiscount.toLocaleString(undefined,{maximumFractionDigits:0})}` : '';
+  }
+
+  const calculated = subtotal - fpDiscount - clientDiscount;
+  const override = parseFloat(document.getElementById('priceOverride').value);
+  const final = isNaN(override) ? calculated : override;
+
+  // Update display
+  document.getElementById('p-venue').textContent = p.venue ? `$${p.venue.toLocaleString()}` : '—';
+  document.getElementById('p-catering').textContent = p.catering ? `$${p.catering.toLocaleString()}` : '—';
+  document.getElementById('p-decor').textContent = p.decor ? `$${p.decor.toLocaleString()}` : '—';
+  document.getElementById('p-entertainment').textContent = p.entertainment ? `$${p.entertainment.toLocaleString()}` : '—';
+  document.getElementById('p-photo').textContent = p.photo ? `$${p.photo.toLocaleString()}` : '—';
+  document.getElementById('p-calculated').textContent = `$${calculated.toLocaleString(undefined,{maximumFractionDigits:0})}`;
+  document.getElementById('p-final').textContent = `$${final.toLocaleString(undefined,{maximumFractionDigits:0})}`;
+}
+
+// ══════════════════════════════════════════════════
+// SAVE / LOAD / NEW
+// ══════════════════════════════════════════════════
+function collectFormData() {
+  return {
+    cotNumber: state.cotNumber,
+    resNumber: state.resNumber || '',
+    status: state.status === 'new' ? 'quoted' : state.status,
+    createdDate: new Date().toISOString(),
+    clientName: document.getElementById('clientName').value,
+    country: document.getElementById('country').value,
+    state: document.getElementById('state').value,
+    city: document.getElementById('city').value,
+    clientType: document.getElementById('clientType').value,
+    phone: document.getElementById('phone').value,
+    email: document.getElementById('email').value,
+    eventDate: document.getElementById('eventDate').value,
+    dayOfWeek: state.dayOfWeek,
+    numGuests: state.numGuests,
+    guestRange: state.guestRange,
+    eventType: document.getElementById('eventType').value,
+    eventSubType: document.getElementById('eventSubType').value,
+    fullPackage: state.fullPackage,
+    venueTier: document.getElementById('venueTier').value,
+    cateringLine: document.getElementById('cateringLine').value,
+    cateringPlan: document.getElementById('cateringPlan').value,
+    decorPlan: state.decorPlan,
+    entertainmentPlan: state.entertainmentPlan,
+    photoPlan: state.photoPlan,
+    djNationality: document.getElementById('djNationality').value,
+    soundOnly: document.getElementById('soundOnly').value,
+    specialConditions: document.getElementById('specialConditions').value,
+    priceVenue: state.prices.venue,
+    priceCatering: state.prices.catering,
+    priceDecor: state.prices.decor,
+    priceEntertainment: state.prices.entertainment,
+    pricePhoto: state.prices.photo,
+    priceOverride: document.getElementById('priceOverride').value,
+    finalTotal: document.getElementById('p-final').textContent,
+  };
+}
+
+function saveQuotation() {
+  if (!document.getElementById('clientName').value.trim()) { showToast('Client name is required.','error'); return; }
+  if (!document.getElementById('eventDate').value) { showToast('Event date is required.','error'); return; }
+
+  const data = collectFormData();
+  const all = JSON.parse(localStorage.getItem('quotations') || '[]');
+  all.push(data);
+  localStorage.setItem('quotations', JSON.stringify(all));
+  state.allQuotations = all;
+
+  document.getElementById('statusPill').textContent = 'QUOTED';
+  state.status = 'quoted';
+
+  // Save to Google Sheets
+  if (SHEET_CONFIG.scriptUrl !== 'https://script.google.com/macros/s/AKfycbyUAKZyuX8xcdSTXNkJoagPlaW4fumRWnrDuuARiMntpS76sx_6I-6TYxUpjkhjVIADAQ/exec') {
+    fetch(SHEET_CONFIG.scriptUrl, { method:'POST', body:JSON.stringify(data) })
+      .then(() => showToast(`✓ Saved — ${state.cotNumber}`, 'success'))
+      .catch(() => showToast(`Saved locally — ${state.cotNumber} (Sheets sync failed)`, 'warn'));
+  } else {
+    showToast(`✓ Saved locally — ${state.cotNumber}`, 'success');
+  }
+
+  setTimeout(() => newQuotation(), 1500);
+}
+
+function newQuotation() {
+  if (!confirm('Start a new quotation? Current form will be cleared.')) return;
+  document.querySelectorAll('input:not([type=button]):not([type=submit])').forEach(el => el.value = '');
+  document.querySelectorAll('select').forEach(el => el.selectedIndex = 0);
+  document.querySelectorAll('.tier-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tier-btn.na').forEach(b => b.classList.add('active'));
+  document.querySelectorAll('.alert').forEach(a => a.className = 'alert');
+  state.fullPackage = 'na'; state.decorPlan = 'na'; state.entertainmentPlan = 'na';
+  state.photoPlan = 'na'; state.dayOfWeek = null; state.guestRange = null;
+  state.numGuests = 0; state.prices = {venue:0,catering:0,decor:0,entertainment:0,photo:0};
+  state.soundOnlyFee = 0; state.status = 'new';
+  generateCotNumber();
+  document.getElementById('createdDate').textContent = new Date().toLocaleDateString('en-US');
+  document.getElementById('statusPill').textContent = 'NEW';
+  document.getElementById('dayOfWeek').textContent = '—';
+  document.getElementById('guestRange').textContent = '—';
+  ['p-venue','p-catering','p-decor','p-entertainment','p-photo','p-calculated','p-final'].forEach(id => {
+    document.getElementById(id).textContent = id.includes('final') || id.includes('calc') ? '$0' : '—';
+  });
+  calcTotal();
+}
+
+function openLoadModal() {
+  document.getElementById('loadModal').classList.add('show');
+  document.getElementById('searchInput').value = '';
+  document.getElementById('searchResults').innerHTML = '<div class="result-empty">Enter a name or quotation number to search</div>';
+  document.getElementById('searchInput').focus();
+}
+
+function closeModal() { document.getElementById('loadModal').classList.remove('show'); }
+
+function searchQuotations(query) {
+  const all = JSON.parse(localStorage.getItem('quotations') || '[]');
+  const q = query.toLowerCase().trim();
+  const results = q ? all.filter(r =>
+    (r.cotNumber || '').toLowerCase().includes(q) ||
+    (r.clientName || '').toLowerCase().includes(q) ||
+    (r.eventDate || '').includes(q)
+  ) : all.slice(-10);
+
+  const container = document.getElementById('searchResults');
+  if (!results.length) { container.innerHTML = '<div class="result-empty">No quotations found</div>'; return; }
+
+  container.innerHTML = results.reverse().map(r => `
+    <div class="result-item" onclick="loadQuotation('${r.cotNumber}')">
+      <span class="result-status status-${r.status || 'quoted'}">${(r.status||'quoted').toUpperCase()}</span>
+      <div class="result-cot">${r.cotNumber}</div>
+      <div class="result-client">${r.clientName}</div>
+      <div class="result-meta">${r.eventType || ''} &nbsp;·&nbsp; ${r.eventDate || ''} &nbsp;·&nbsp; ${r.numGuests || 0} guests &nbsp;·&nbsp; ${r.finalTotal || ''}</div>
+    </div>
+  `).join('');
+}
+
+function loadQuotation(cotNum) {
+  const all = JSON.parse(localStorage.getItem('quotations') || '[]');
+  const rec = all.find(r => r.cotNumber === cotNum);
+  if (!rec) { showToast('Quotation not found','error'); return; }
+
+  // Populate fields
+  ['clientName','country','state','city','phone','email','eventDate','eventSubType','djNationality','specialConditions','priceOverride'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && rec[id] !== undefined) el.value = rec[id];
+  });
+  document.getElementById('clientType').value = rec.clientType || 'standard';
+  document.getElementById('numGuests').value = rec.numGuests || '';
+  document.getElementById('eventType').value = rec.eventType || '';
+  document.getElementById('soundOnly').value = rec.soundOnly || '';
+
+  state.cotNumber = rec.cotNumber;
+  state.status = rec.status;
+  state.numGuests = rec.numGuests;
+  state.guestRange = rec.guestRange;
+  state.dayOfWeek = rec.dayOfWeek;
+
+  document.getElementById('cotNumber').textContent = `${rec.cotNumber} (copy)`;
+  document.getElementById('statusPill').textContent = (rec.status||'quoted').toUpperCase();
+  document.getElementById('dayOfWeek').textContent = rec.dayOfWeek || '—';
+  document.getElementById('guestRange').textContent = rec.guestRange || '—';
+
+  closeModal();
+  showToast(`Loaded ${rec.cotNumber} — ${rec.clientName}. Modify and Save as new quotation.`, 'warn');
+  calcTotal();
+}
+
+function confirmReservation() {
+  if (state.status !== 'quoted') { showToast('Save quotation first before confirming reservation.','warn'); return; }
+  if (!confirm(`Confirm reservation for ${document.getElementById('clientName').value || 'this client'}? This will change status to RESERVED.`)) return;
+
+  const year = new Date().getFullYear();
+  const resStored = JSON.parse(localStorage.getItem('resCounter') || '{"year":0,"count":0}');
+  let resCount = (resStored.year === year) ? resStored.count + 1 : 1;
+  localStorage.setItem('resCounter', JSON.stringify({year, resCount}));
+  state.resNumber = `RES-${year}-${String(resCount).padStart(3,'0')}`;
+  state.status = 'reserved';
+
+  const all = JSON.parse(localStorage.getItem('quotations') || '[]');
+  const idx = all.findIndex(r => r.cotNumber === state.cotNumber);
+  if (idx >= 0) { all[idx].status = 'reserved'; all[idx].resNumber = state.resNumber; localStorage.setItem('quotations', JSON.stringify(all)); }
+
+  document.getElementById('statusPill').textContent = 'RESERVED';
+  document.getElementById('cotNumber').textContent = `${state.cotNumber} · ${state.resNumber}`;
+  showToast(`✓ Reservation confirmed — ${state.resNumber}`, 'success');
+}
+
+// ══════════════════════════════════════════════════
+// TOAST
+// ══════════════════════════════════════════════════
+function showToast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast toast-${type} show`;
+  setTimeout(() => t.className = 'toast', 4000);
+}
+
+// Close modal on overlay click
+document.getElementById('loadModal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+</script>
+</body>
+</html>
