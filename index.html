@@ -1410,8 +1410,8 @@ function saveQuotation() {
   state.status = 'quoted';
 
   // Save to Google Sheets
-  if (SHEET_CONFIG.scriptUrl !== 'https://script.google.com/macros/s/AKfycbyUAKZyuX8xcdSTXNkJoagPlaW4fumRWnrDuuARiMntpS76sx_6I-6TYxUpjkhjVIADAQ/exec') {
-    fetch(SHEET_CONFIG.scriptUrl, { method:'POST', body:JSON.stringify(data) })
+  if (true) {
+    fetch(SHEET_CONFIG.scriptUrl, { method:'POST', mode:'no-cors', body:JSON.stringify(data), headers:{'Content-Type':'text/plain'} })
       .then(() => showToast(`✓ Saved — ${state.cotNumber}`, 'success'))
       .catch(() => showToast(`Saved locally — ${state.cotNumber} (Sheets sync failed)`, 'warn'));
   } else {
