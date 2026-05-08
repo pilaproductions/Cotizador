@@ -87,7 +87,6 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
 .discount-label{font-size:10px;color:#888;letter-spacing:0.8px;text-transform:uppercase;}
 .discount-select{background:#1A1A1A;border:1px solid #444;color:#CCC;padding:4px 8px;font-size:11px;font-family:'Montserrat',sans-serif;outline:none;}
 .discount-input{background:transparent;border:none;border-bottom:1px solid #555;color:var(--white);font-size:12px;width:80px;padding:3px 6px;text-align:right;outline:none;}
-/* CALENDAR */
 .date-wrapper{position:relative;display:flex;align-items:center;gap:8px;}
 .date-input-wrap{position:relative;}
 .cal-icon{cursor:pointer;color:var(--gold);font-size:16px;padding:0 4px;user-select:none;}
@@ -99,7 +98,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;}
 .cal-day-name{text-align:center;font-size:9px;font-weight:700;color:#AAA;padding:4px 0;text-transform:uppercase;}
 .cal-day{text-align:center;padding:6px 2px;font-size:11px;cursor:pointer;border-radius:2px;transition:all 0.15s;min-width:32px;position:relative;}
-.cal-day:hover:not(.cal-empty):not(.cal-reserved):not(.cal-past){background:var(--gold-pale);color:var(--gold);}
+.cal-day:hover:not(.cal-empty):not(.cal-past){background:var(--gold-pale);color:var(--gold);}
 .cal-empty,.cal-past{cursor:default;color:#DDD;}
 .cal-today{font-weight:700;color:var(--gold);}
 .cal-selected{background:var(--gold)!important;color:var(--black)!important;font-weight:700;}
@@ -108,7 +107,6 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
 .cal-legend{display:flex;gap:12px;margin-top:8px;padding-top:8px;border-top:1px solid #EEE;flex-wrap:wrap;}
 .cal-legend-item{display:flex;align-items:center;gap:4px;font-size:9px;color:#888;}
 .cal-legend-dot{width:10px;height:10px;border-radius:2px;}
-/* MODAL */
 .modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:1000;align-items:center;justify-content:center;}
 .modal-overlay.show{display:flex;}
 .modal{background:var(--white);width:560px;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.5);}
@@ -129,7 +127,6 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
 .result-client{font-size:13px;color:var(--dark);font-weight:600;}
 .result-meta{font-size:10px;color:#888;margin-top:2px;}
 .result-empty{padding:20px;text-align:center;color:#AAA;font-size:11px;}
-/* CONFIRM DIALOG */
 .confirm-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:2000;align-items:center;justify-content:center;}
 .confirm-overlay.show{display:flex;}
 .confirm-box{background:var(--white);padding:28px 32px;max-width:400px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.4);}
@@ -138,7 +135,6 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
 .confirm-btns{display:flex;gap:10px;justify-content:flex-end;}
 .confirm-yes{background:var(--gold);color:var(--black);border:none;padding:8px 20px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;}
 .confirm-no{background:transparent;color:var(--red);border:1px solid var(--red);padding:8px 20px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;}
-/* TOAST */
 .toast{position:fixed;top:20px;right:20px;padding:12px 20px;font-size:11px;font-weight:600;letter-spacing:0.5px;z-index:3000;border-left:4px solid;display:none;box-shadow:0 4px 20px rgba(0,0,0,0.3);max-width:340px;}
 .toast.show{display:block;animation:slideIn 0.3s ease;}
 .toast-success{background:var(--white);color:var(--green);border-color:var(--green);}
@@ -156,12 +152,10 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
 </head>
 <body>
 
-<!-- LOADING -->
 <div class="loading-overlay" id="loadingOverlay">
   <div class="loading-box"><div class="loading-spinner"></div><div id="loadingMsg">Loading...</div></div>
 </div>
 
-<!-- CONFIRM DIALOG -->
 <div class="confirm-overlay" id="confirmOverlay">
   <div class="confirm-box">
     <div class="confirm-title" id="confirmTitle">Confirm</div>
@@ -173,7 +167,6 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
   </div>
 </div>
 
-<!-- LOAD MODAL -->
 <div class="modal-overlay" id="loadModal">
   <div class="modal">
     <div class="modal-header">
@@ -185,9 +178,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
         <input type="text" id="searchInput" placeholder="Search by COT# or client name..." oninput="filterResults(this.value)">
         <button onclick="filterResults(document.getElementById('searchInput').value)">Search</button>
       </div>
-      <div class="modal-results" id="searchResults">
-        <div class="result-empty">Loading quotations...</div>
-      </div>
+      <div class="modal-results" id="searchResults"><div class="result-empty">Loading...</div></div>
     </div>
   </div>
 </div>
@@ -213,7 +204,6 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
   <button class="btn btn-reserve" onclick="confirmReservation()">&#x2605; Confirm Reservation</button>
 </div>
 
-<!-- BLOCK 1 -->
 <div class="block">
   <div class="block-header"><div class="block-num">1</div><div class="block-title">General Information</div></div>
   <div class="block-content">
@@ -293,12 +283,11 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
       </div>
     </div>
     <div id="lastMinuteAlert" class="alert alert-warn">&#x26A0; Last Minute — Event within 15 days. Expanded options unlocked.</div>
-    <div id="externalEventAlert" class="alert alert-warn" style="display:none">&#x26A0; External event on this date — Venue blocked ($0). Other services available.</div>
-    <div id="saveDateBlockAlert" class="alert alert-error" style="display:none">&#x26D4; Date already reserved. Select a different date or confirm as external event.</div>
+    <div id="externalEventAlert" class="alert alert-ok" style="display:none">&#x2713; External event — Venue set to $0. Other services available.</div>
+    <div id="saveDateBlockAlert" class="alert alert-error" style="display:none">&#x26D4; Date already reserved. Select another date or confirm as external event to continue.</div>
   </div>
 </div>
 
-<!-- BLOCK 2 -->
 <div class="block">
   <div class="block-header"><div class="block-num">2</div><div class="block-title">Full Package</div><div class="block-tag">Auto-fills all divisions · 5% discount</div></div>
   <div class="block-content">
@@ -316,7 +305,6 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
   </div>
 </div>
 
-<!-- BLOCK 3 -->
 <div class="block">
   <div class="block-header"><div class="block-num">3</div><div class="block-title">Venue &amp; Host Services</div></div>
   <div class="block-content">
@@ -334,7 +322,6 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
   </div>
 </div>
 
-<!-- BLOCK 4 -->
 <div class="block">
   <div class="block-header"><div class="block-num">4</div><div class="block-title">Catering &amp; Hospitality</div></div>
   <div class="block-content">
@@ -362,7 +349,6 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
   </div>
 </div>
 
-<!-- BLOCK 5 -->
 <div class="block">
   <div class="block-header"><div class="block-num">5</div><div class="block-title">Design &amp; Decor</div></div>
   <div class="block-content">
@@ -450,7 +436,6 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
   </div>
 </div>
 
-<!-- BLOCK 6 -->
 <div class="block">
   <div class="block-header"><div class="block-num">6</div><div class="block-title">Entertainment &amp; Production</div></div>
   <div class="block-content">
@@ -483,7 +468,6 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
   </div>
 </div>
 
-<!-- BLOCK 7 -->
 <div class="block">
   <div class="block-header"><div class="block-num">7</div><div class="block-title">Photo &amp; Video</div></div>
   <div class="block-content">
@@ -546,7 +530,6 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
   </div>
 </div>
 
-<!-- PRICING -->
 <div class="pricing-section">
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:16px">
     <div>
@@ -592,7 +575,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
 
 <div class="footer">
   <div class="footer-info">Cardona Hall &nbsp;·&nbsp; 72 Hoover Ave, Passaic NJ 07055 &nbsp;·&nbsp; Pilab Productions LLC</div>
-  <div style="font-size:9px;color:#555">v5.0 — Capa 2</div>
+  <div style="font-size:9px;color:#555">v6.0 — Capa 2</div>
 </div>
 </div>
 
@@ -600,7 +583,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
 const SCRIPT_URL='https://script.google.com/macros/s/AKfycbyUAKZyuX8xcdSTXNkJoagPlaW4fumRWnrDuuARiMntpS76sx_6I-6TYxUpjkhjVIADAQ/exec';
 
 const state={
-  cotNumber:null,resNumber:null,status:'new',
+  cotNumber:null,resNumber:null,status:'new',isLoaded:false,
   fullPackage:'na',decorPlan:'na',entertainmentPlan:'na',photoPlan:'na',
   isLastMinute:false,dayOfWeek:null,guestRange:null,numGuests:0,
   eventType:'quinceanera',clientType:'standard',soundOnlyFee:0,
@@ -610,30 +593,33 @@ const state={
   selectedDate:null,isExternalEvent:false,calOpen:false
 };
 
-const VENUE_PRICES={
-  essential:{extra_small:1000,small:1200,medium:1200,large:null},
-  elegant:{extra_small:1500,small:1600,medium:1600,large:1800},
-  prestige:{extra_small:2300,small:2500,medium:2500,large:2800},
-  prestige_disc:{extra_small:2070,small:2250,medium:2250,large:2520}
-};
+const VENUE_PRICES={essential:{extra_small:1000,small:1200,medium:1200,large:null},elegant:{extra_small:1500,small:1600,medium:1600,large:1800},prestige:{extra_small:2300,small:2500,medium:2500,large:2800},prestige_disc:{extra_small:2070,small:2250,medium:2250,large:2520}};
 const CATERING_PPX={traditional:20,international:25,essential:30,elegant:40,prestige:45,legacy:70};
-const CATERING_TRAYS={
-  essential:{extra_small:{mc:2,sal:1,sid:1},small:{mc:2,sal:1,sid:2},medium:{mc:3,sal:2,sid:2},large:{mc:3,sal:2,sid:3}},
-  elegant:{extra_small:{mc:2,sal:1,sid:2},small:{mc:3,sal:2,sid:2},medium:{mc:4,sal:2,sid:3},large:{mc:4,sal:3,sid:3}},
-  prestige:{extra_small:{mc:2,sal:1,sid:2},small:{mc:3,sal:2,sid:3},medium:{mc:4,sal:3,sid:3},large:{mc:5,sal:3,sid:3}}
-};
-const DECOR_PRICES={
-  essential:{flowers:{5:600,6:650,7:700,8:750,9:800,10:850,11:900,12:950,13:1000},balloons:{5:600,6:650,7:700,8:750,9:800,10:850,11:900,12:950,13:1000},others:{5:600,6:650,7:700,8:750,9:800,10:850,11:900,12:950,13:1000}},
-  elegant:{flowers:{5:1200,6:1250,7:1350,8:1400,9:1450,10:1500,11:1550,12:1600,13:1700},balloons:{5:950,6:1000,7:1000,8:1050,9:1100,10:1150,11:1200,12:1250,13:1300},others:{5:950,6:1000,7:1000,8:1050,9:1100,10:1150,11:1200,12:1250,13:1300}},
-  prestige:{flowers:{5:1600,6:1700,7:1750,8:1800,9:1850,10:1900,11:2000,12:2050,13:2100},balloons:{5:1400,6:1450,7:1500,8:1550,9:1600,10:1650,11:1700,12:1750,13:1800},others:{5:1560,6:1600,7:1650,8:1700,9:1750,10:1800,11:1860,12:1900,13:1950}}
-};
+const CATERING_TRAYS={essential:{extra_small:{mc:2,sal:1,sid:1},small:{mc:2,sal:1,sid:2},medium:{mc:3,sal:2,sid:2},large:{mc:3,sal:2,sid:3}},elegant:{extra_small:{mc:2,sal:1,sid:2},small:{mc:3,sal:2,sid:2},medium:{mc:4,sal:2,sid:3},large:{mc:4,sal:3,sid:3}},prestige:{extra_small:{mc:2,sal:1,sid:2},small:{mc:3,sal:2,sid:3},medium:{mc:4,sal:3,sid:3},large:{mc:5,sal:3,sid:3}}};
+const DECOR_PRICES={essential:{flowers:{5:600,6:650,7:700,8:750,9:800,10:850,11:900,12:950,13:1000},balloons:{5:600,6:650,7:700,8:750,9:800,10:850,11:900,12:950,13:1000},others:{5:600,6:650,7:700,8:750,9:800,10:850,11:900,12:950,13:1000}},elegant:{flowers:{5:1200,6:1250,7:1350,8:1400,9:1450,10:1500,11:1550,12:1600,13:1700},balloons:{5:950,6:1000,7:1000,8:1050,9:1100,10:1150,11:1200,12:1250,13:1300},others:{5:950,6:1000,7:1000,8:1050,9:1100,10:1150,11:1200,12:1250,13:1300}},prestige:{flowers:{5:1600,6:1700,7:1750,8:1800,9:1850,10:1900,11:2000,12:2050,13:2100},balloons:{5:1400,6:1450,7:1500,8:1550,9:1600,10:1650,11:1700,12:1750,13:1800},others:{5:1560,6:1600,7:1650,8:1700,9:1750,10:1800,11:1860,12:1900,13:1950}}};
 const ENT_PRICES={essential:900,elegant:1400,prestige:1600,legacy:3000};
 const PHOTO_PRICES={photography:{essential:800,elegant:1250,prestige:2400,legacy:3000},shoot:{essential:650,full:1200},prints:{gallery:700,gallery_disc:650,frames_per_table:60,frames_disc:50,usb:120}};
 const PHOTO_BUNDLE={essential:1600,elegant:2100,prestige:3600,legacy:4100};
 const FP_AVAIL={quinceanera:['elegant','prestige','legacy'],wedding:['elegant','prestige','legacy'],babyshower:['essential','elegant','prestige'],kidsparty:['essential','elegant'],birthday:['essential','elegant','prestige','legacy'],special_social:['essential','elegant','prestige'],special_corporate:['elegant','prestige','legacy']};
 const BUNDLE_EVENTS=['quinceanera','wedding'];
 
-// INIT
+// FORMAT DATE — always MM/DD/YYYY, strip time
+function formatDateOnly(val){
+  if(!val) return '';
+  // If it's a Date object or timestamp
+  if(val instanceof Date) return `${String(val.getMonth()+1).padStart(2,'0')}/${String(val.getDate()).padStart(2,'0')}/${val.getFullYear()}`;
+  // If string, take only date part before any space/T
+  const str = String(val).split('T')[0].split(' ')[0];
+  // If already MM/DD/YYYY
+  if(/^\d{2}\/\d{2}\/\d{4}$/.test(str)) return str;
+  // If YYYY-MM-DD
+  if(/^\d{4}-\d{2}-\d{2}$/.test(str)){
+    const p=str.split('-');
+    return `${p[1]}/${p[2]}/${p[0]}`;
+  }
+  return str;
+}
+
 window.onload=async()=>{
   document.getElementById('createdDate').textContent=new Date().toLocaleDateString('en-US');
   showLoading('Connecting to database...');
@@ -642,7 +628,6 @@ window.onload=async()=>{
   hideLoading();
   renderCalendar();
   onEventTypeChange();
-  // Close calendar on outside click
   document.addEventListener('click',e=>{
     const popup=document.getElementById('calPopup');
     const wrap=document.querySelector('.date-input-wrap');
@@ -657,19 +642,16 @@ window.onload=async()=>{
 function showLoading(msg){document.getElementById('loadingMsg').textContent=msg||'Loading...';document.getElementById('loadingOverlay').classList.add('show');}
 function hideLoading(){document.getElementById('loadingOverlay').classList.remove('show');}
 
-// SHEETS
 async function loadAllQuotations(){
   try{
     const res=await fetch(SCRIPT_URL+'?nocache='+Date.now());
     const data=await res.json();
     state.allQuotations=Array.isArray(data)?data:[];
-    // Only dates with RESERVED status block the calendar
     state.reservedDates=state.allQuotations
       .filter(q=>(q['Status']||'').toLowerCase()==='reserved')
-      .map(q=>q['Event Date']);
+      .map(q=>formatDateOnly(q['Event Date']));
   }catch(e){
-    state.allQuotations=[];
-    state.reservedDates=[];
+    state.allQuotations=[];state.reservedDates=[];
     showToast('Could not connect to database','warn');
   }
 }
@@ -680,6 +662,7 @@ async function generateCotNumber(){
   let maxNum=0;
   yearQuotes.forEach(q=>{const n=parseInt((q['COT#']||'').split('-')[2]||0);if(n>maxNum)maxNum=n;});
   state.cotNumber=`COT-${year}-${String(maxNum+1).padStart(3,'0')}`;
+  state.isLoaded=false;
   document.getElementById('cotNumber').textContent=state.cotNumber;
 }
 
@@ -703,18 +686,8 @@ function renderCalendar(){
   const today=new Date();today.setHours(0,0,0,0);
   const firstDay=new Date(year,month,1).getDay();
   const daysInMonth=new Date(year,month+1,0).getDate();
-
-  let html=`<div class="cal-nav">
-    <button onclick="calNav(event,-1)">&#8249;</button>
-    <span class="cal-month-label">${monthNames[month]} ${year}</span>
-    <button onclick="calNav(event,1)">&#8250;</button>
-  </div>
-  <div class="cal-grid">
-    <div class="cal-day-name">Su</div><div class="cal-day-name">Mo</div><div class="cal-day-name">Tu</div>
-    <div class="cal-day-name">We</div><div class="cal-day-name">Th</div><div class="cal-day-name">Fr</div><div class="cal-day-name">Sa</div>`;
-
+  let html=`<div class="cal-nav"><button onclick="calNav(event,-1)">&#8249;</button><span class="cal-month-label">${monthNames[month]} ${year}</span><button onclick="calNav(event,1)">&#8250;</button></div><div class="cal-grid"><div class="cal-day-name">Su</div><div class="cal-day-name">Mo</div><div class="cal-day-name">Tu</div><div class="cal-day-name">We</div><div class="cal-day-name">Th</div><div class="cal-day-name">Fr</div><div class="cal-day-name">Sa</div>`;
   for(let i=0;i<firstDay;i++) html+='<div class="cal-day cal-empty"></div>';
-
   for(let d=1;d<=daysInMonth;d++){
     const dateObj=new Date(year,month,d);
     const dateStr=`${String(month+1).padStart(2,'0')}/${String(d).padStart(2,'0')}/${year}`;
@@ -723,22 +696,14 @@ function renderCalendar(){
     const isSelected=state.selectedDate===dateStr;
     const isReserved=state.reservedDates.includes(dateStr);
     let cls='cal-day';
-    if(isPast)cls+=' cal-past';
-    if(isToday)cls+=' cal-today';
-    if(isSelected)cls+=' cal-selected';
-    if(isReserved)cls+=' cal-reserved';
+    if(isPast) cls+=' cal-past';
+    if(isToday) cls+=' cal-today';
+    if(isSelected) cls+=' cal-selected';
+    if(isReserved) cls+=' cal-reserved';
     const click=!isPast?`onclick="selectDate(event,'${dateStr}',${isReserved})"`:'' ;
-    const title=isReserved?'Reserved date — click to set as external event':'';
-    html+=`<div class="${cls}" ${click} title="${title}">${d}</div>`;
+    html+=`<div class="${cls}" ${click} title="${isReserved?'Reserved date':''}">${d}</div>`;
   }
-
-  html+=`</div>
-  <div class="cal-legend">
-    <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--gold)"></div>Selected</div>
-    <div class="cal-legend-item"><div class="cal-legend-dot" style="background:#FDECEA;border:1px solid var(--red)"></div>Reserved</div>
-    <div class="cal-legend-item"><div class="cal-legend-dot" style="background:#EEE"></div>Past</div>
-  </div>`;
-
+  html+=`</div><div class="cal-legend"><div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--gold)"></div>Selected</div><div class="cal-legend-item"><div class="cal-legend-dot" style="background:#FDECEA;border:1px solid var(--red)"></div>Reserved</div><div class="cal-legend-item"><div class="cal-legend-dot" style="background:#EEE"></div>Past</div></div>`;
   popup.innerHTML=html;
 }
 
@@ -753,54 +718,40 @@ function calNav(e,dir){
 function selectDate(e,dateStr,isReserved){
   e.stopPropagation();
   if(isReserved){
-    // Show confirm dialog
-    showConfirm(
-      'Reserved Date',
-      'This date already has a confirmed event. Is this an external event? (Venue will be set to $0)',
+    showConfirm('Reserved Date','This date has a confirmed event. Is this an external event? Venue will be set to $0.',
       ()=>{
-        // YES — external event
-        state.selectedDate=dateStr;
-        state.isExternalEvent=true;
+        // YES - external event
+        state.selectedDate=dateStr;state.isExternalEvent=true;
         document.getElementById('eventDate').value=dateStr;
-        document.getElementById('calPopup').classList.remove('show');
-        state.calOpen=false;
+        document.getElementById('calPopup').classList.remove('show');state.calOpen=false;
         document.getElementById('externalEventAlert').style.display='block';
         document.getElementById('saveDateBlockAlert').style.display='none';
-        // Block venue
         document.getElementById('venueTier').value='';
         document.getElementById('venueTier').disabled=true;
         state.prices.venue=0;
-        onDateChange();
-        renderCalendar();
+        onDateChange();renderCalendar();
       },
       ()=>{
-        // NO — block save, show message
-        state.selectedDate=dateStr;
-        state.isExternalEvent=false;
+        // NO - block save
+        state.selectedDate=dateStr;state.isExternalEvent=false;
         document.getElementById('eventDate').value=dateStr;
-        document.getElementById('calPopup').classList.remove('show');
-        state.calOpen=false;
+        document.getElementById('calPopup').classList.remove('show');state.calOpen=false;
         document.getElementById('saveDateBlockAlert').style.display='block';
         document.getElementById('externalEventAlert').style.display='none';
-        onDateChange();
-        renderCalendar();
+        onDateChange();renderCalendar();
       }
     );
   } else {
-    state.selectedDate=dateStr;
-    state.isExternalEvent=false;
+    state.selectedDate=dateStr;state.isExternalEvent=false;
     document.getElementById('eventDate').value=dateStr;
-    document.getElementById('calPopup').classList.remove('show');
-    state.calOpen=false;
+    document.getElementById('calPopup').classList.remove('show');state.calOpen=false;
     document.getElementById('venueTier').disabled=false;
     document.getElementById('externalEventAlert').style.display='none';
     document.getElementById('saveDateBlockAlert').style.display='none';
-    onDateChange();
-    renderCalendar();
+    onDateChange();renderCalendar();
   }
 }
 
-// CONFIRM DIALOG
 function showConfirm(title,msg,onYes,onNo){
   document.getElementById('confirmTitle').textContent=title;
   document.getElementById('confirmMsg').textContent=msg;
@@ -809,14 +760,13 @@ function showConfirm(title,msg,onYes,onNo){
   document.getElementById('confirmNo').onclick=()=>{document.getElementById('confirmOverlay').classList.remove('show');if(onNo)onNo();};
 }
 
-// DATE
 function onDateChange(){
   const val=document.getElementById('eventDate').value;
   if(!val){state.dayOfWeek=null;return;}
   const parts=val.split('/');
-  if(parts.length!==3)return;
+  if(parts.length!==3) return;
   const d=new Date(parseInt(parts[2]),parseInt(parts[0])-1,parseInt(parts[1]));
-  if(isNaN(d.getTime()))return;
+  if(isNaN(d.getTime())) return;
   const days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   state.dayOfWeek=days[d.getDay()];
   const dow=document.getElementById('dayOfWeek');
@@ -826,9 +776,7 @@ function onDateChange(){
   state.isLastMinute=diff<=15&&diff>=0;
   document.getElementById('lastMinuteAlert').classList.toggle('show',state.isLastMinute);
   clearErr('eventDate');
-  updateVenueOptions();
-  updateCateringRules();
-  calcTotal();
+  updateVenueOptions();updateCateringRules();calcTotal();
 }
 
 function onGuestsChange(){
@@ -836,8 +784,7 @@ function onGuestsChange(){
   if(isNaN(v)||v<30||v>130){
     document.getElementById('err-numGuests').classList.add('show');
     state.guestRange=null;state.numGuests=0;
-    document.getElementById('guestRange').style.display='none';
-    return;
+    document.getElementById('guestRange').style.display='none';return;
   }
   document.getElementById('err-numGuests').classList.remove('show');
   state.numGuests=v;
@@ -848,18 +795,14 @@ function onGuestsChange(){
   const labels={extra_small:'Extra Small (30–50)',small:'Small (51–70)',medium:'Medium (71–90)',large:'Large (91–120)'};
   const el=document.getElementById('guestRange');
   el.textContent=labels[state.guestRange];el.style.display='inline-block';
-  clearErr('numGuests');
-  updateCateringTrays();
-  calcTotal();
+  clearErr('numGuests');updateCateringTrays();calcTotal();
 }
 
 function onEventTypeChange(){
   state.eventType=document.getElementById('eventType').value;
   const showSub=['special_social','special_corporate'].includes(state.eventType);
   document.getElementById('eventSubField').style.display=showSub?'flex':'none';
-  updateFullPackageOptions();
-  updatePhotoRules();
-  calcTotal();
+  updateFullPackageOptions();updatePhotoRules();calcTotal();
 }
 
 function onClientTypeChange(){
@@ -868,7 +811,6 @@ function onClientTypeChange(){
   calcTotal();
 }
 
-// VALIDATION
 function formatTitleCase(el){const pos=el.selectionStart;el.value=el.value.replace(/\b\w/g,c=>c.toUpperCase());el.setSelectionRange(pos,pos);}
 function onlyLettersSpaces(el){el.value=el.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]/g,'');}
 function formatPhone(el){let v=el.value.replace(/\D/g,'');if(v.length>=10)v=`(${v.slice(0,3)}) ${v.slice(3,6)}-${v.slice(6,10)}`;el.value=v;}
@@ -886,7 +828,6 @@ function validateRequired(){
   return ok;
 }
 
-// FULL PACKAGE
 function updateFullPackageOptions(){
   const avail=FP_AVAIL[state.eventType]||[];
   ['essential','elegant','prestige','legacy'].forEach(t=>{
@@ -900,35 +841,22 @@ function setFullPackage(tier,btn){
   document.querySelectorAll('#fullPackageTiers .tier-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   if(tier!=='na'){
-    document.getElementById('venueTier').value='prestige';
-    if(!state.isExternalEvent)document.getElementById('venueTier').disabled=true;
+    if(!state.isExternalEvent){document.getElementById('venueTier').value='prestige';document.getElementById('venueTier').disabled=true;}
     const lineMap={essential:'collection',elegant:'collection',prestige:'collection',legacy:'luxury'};
-    document.getElementById('cateringLine').value=lineMap[tier];
-    document.getElementById('cateringLine').disabled=true;
+    document.getElementById('cateringLine').value=lineMap[tier];document.getElementById('cateringLine').disabled=true;
     onCateringLineChange();
-    document.getElementById('cateringPlan').value=tier==='legacy'?'legacy':tier;
-    document.getElementById('cateringPlan').disabled=true;
+    document.getElementById('cateringPlan').value=tier==='legacy'?'legacy':tier;document.getElementById('cateringPlan').disabled=true;
     onCateringPlanChange();
-    const decorBtns=document.querySelectorAll('#decorTierBtns .tier-btn');
-    decorBtns.forEach(b=>b.classList.remove('active'));
-    const di={essential:1,elegant:2,prestige:3,legacy:4};
-    if(decorBtns[di[tier]])decorBtns[di[tier]].classList.add('active');
-    state.decorPlan=tier;
-    document.getElementById('decorLegacyPrice').style.display=tier==='legacy'?'block':'none';
-    ['decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier'].forEach(id=>{
-      const el=document.getElementById(id);
-      if(el&&el.querySelector(`option[value="${tier}"]`)){el.value=tier;el.disabled=true;}
-    });
+    const decorBtns=document.querySelectorAll('#decorTierBtns .tier-btn');decorBtns.forEach(b=>b.classList.remove('active'));
+    const di={essential:1,elegant:2,prestige:3,legacy:4};if(decorBtns[di[tier]])decorBtns[di[tier]].classList.add('active');
+    state.decorPlan=tier;document.getElementById('decorLegacyPrice').style.display=tier==='legacy'?'block':'none';
+    ['decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier'].forEach(id=>{const el=document.getElementById(id);if(el&&el.querySelector(`option[value="${tier}"]`)){el.value=tier;el.disabled=true;}});
     onDecorExtrasTier();
-    const entBtns=document.querySelectorAll('#entTierBtns .tier-btn');
-    entBtns.forEach(b=>b.classList.remove('active'));
-    const ei={essential:1,elegant:2,prestige:3,legacy:4};
-    if(entBtns[ei[tier]])entBtns[ei[tier]].classList.add('active');
+    const entBtns=document.querySelectorAll('#entTierBtns .tier-btn');entBtns.forEach(b=>b.classList.remove('active'));
+    const ei={essential:1,elegant:2,prestige:3,legacy:4};if(entBtns[ei[tier]])entBtns[ei[tier]].classList.add('active');
     state.entertainmentPlan=tier;state.prices.entertainment=ENT_PRICES[tier]||0;
-    const photoBtns=document.querySelectorAll('#photoTierBtns .tier-btn');
-    photoBtns.forEach(b=>b.classList.remove('active'));
-    const pi={essential:1,elegant:2,prestige:3,legacy:4};
-    if(photoBtns[pi[tier]])photoBtns[pi[tier]].classList.add('active');
+    const photoBtns=document.querySelectorAll('#photoTierBtns .tier-btn');photoBtns.forEach(b=>b.classList.remove('active'));
+    const pi={essential:1,elegant:2,prestige:3,legacy:4};if(photoBtns[pi[tier]])photoBtns[pi[tier]].classList.add('active');
     state.photoPlan=tier;
     const isBundle=BUNDLE_EVENTS.includes(state.eventType);
     document.getElementById('photoBundleInfo').style.display=isBundle?'inline-block':'none';
@@ -940,7 +868,8 @@ function setFullPackage(tier,btn){
     document.getElementById('fpAlert').className='alert alert-info show';
     document.getElementById('fpAlert').textContent=`Full Package ${tier.charAt(0).toUpperCase()+tier.slice(1)} — all divisions auto-filled.`;
   } else {
-    ['venueTier','cateringLine','cateringPlan','decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier','photoTier','photoShootPlan','printsPlan'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=false;});
+    const ids=['venueTier','cateringLine','cateringPlan','decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier','photoTier','photoShootPlan','printsPlan'];
+    ids.forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=false;});
     if(state.isExternalEvent)document.getElementById('venueTier').disabled=true;
     state.decorPlan='na';state.entertainmentPlan='na';state.photoPlan='na';
     document.getElementById('photoBundleInfo').style.display='none';
@@ -949,7 +878,6 @@ function setFullPackage(tier,btn){
   calcTotal();
 }
 
-// VENUE
 function updateVenueOptions(){
   if(state.isExternalEvent)return;
   const sel=document.getElementById('venueTier');
@@ -970,52 +898,33 @@ function onVenueTierChange(){
   const line=document.getElementById('cateringLine').value;
   const needsDisc=['collection','luxury'].includes(line);
   let price=0;
-  if(tier&&state.guestRange){
-    const table=needsDisc&&tier==='prestige'?VENUE_PRICES.prestige_disc:VENUE_PRICES[tier];
-    price=table?(table[state.guestRange]||0):0;
-  }
+  if(tier&&state.guestRange){const table=needsDisc&&tier==='prestige'?VENUE_PRICES.prestige_disc:VENUE_PRICES[tier];price=table?(table[state.guestRange]||0):0;}
   state.prices.venue=price;
   const el=document.getElementById('venuePriceDisplay');
   if(price){el.textContent='$'+price.toLocaleString();el.style.display='inline-block';}else el.style.display='none';
   updateCateringRules();calcTotal();
 }
 
-// CATERING
 function onCateringLineChange(){
   const line=document.getElementById('cateringLine').value;
   const planSel=document.getElementById('cateringPlan');
-  planSel.innerHTML='<option value="">— Select Plan —</option>';
-  planSel.disabled=!line;
-  if(line==='classic'){
-    planSel.innerHTML+='<option value="traditional">Traditional — $20/person</option>';
-    planSel.innerHTML+='<option value="international">International — $25/person</option>';
-  }else if(line==='collection'){
-    planSel.innerHTML+='<option value="essential">Essential — $30/person</option>';
-    planSel.innerHTML+='<option value="elegant">Elegant — $40/person</option>';
-    planSel.innerHTML+='<option value="prestige">Prestige — $45/person</option>';
-    updateCateringRules();
-  }else if(line==='luxury'){
-    planSel.innerHTML+='<option value="legacy">Legacy — $70/person</option>';
-    showAlert('cateringAlert','Luxury Collection — Always requires Venue Prestige.','warn');
-    if(!state.isExternalEvent){document.getElementById('venueTier').value='prestige';onVenueTierChange();}
-  }
+  planSel.innerHTML='<option value="">— Select Plan —</option>';planSel.disabled=!line;
+  if(line==='classic'){planSel.innerHTML+='<option value="traditional">Traditional — $20/person</option><option value="international">International — $25/person</option>';}
+  else if(line==='collection'){planSel.innerHTML+='<option value="essential">Essential — $30/person</option><option value="elegant">Elegant — $40/person</option><option value="prestige">Prestige — $45/person</option>';updateCateringRules();}
+  else if(line==='luxury'){planSel.innerHTML+='<option value="legacy">Legacy — $70/person</option>';showAlert('cateringAlert','Luxury Collection — Always requires Venue Prestige.','warn');if(!state.isExternalEvent){document.getElementById('venueTier').value='prestige';onVenueTierChange();}}
   onCateringPlanChange();
 }
 
 function updateCateringRules(){
-  const line=document.getElementById('cateringLine').value;
-  const day=state.dayOfWeek;const guests=state.numGuests;
-  const vt=document.getElementById('venueTier').value;
+  const line=document.getElementById('cateringLine').value;const day=state.dayOfWeek;const guests=state.numGuests;const vt=document.getElementById('venueTier').value;
   if(state.clientType==='vip'||!line){hideAlert('cateringAlert');return;}
   if(line==='collection'){
     if(day==='Saturday'&&vt!=='prestige')showAlert('cateringAlert','Saturday + Catering Collection requires Venue Prestige.','warn');
     else if(['Friday','Sunday'].includes(day)&&guests>=70&&vt!=='prestige')showAlert('cateringAlert','70+ guests Fri/Sun with Catering Collection requires Venue Prestige.','warn');
     else if(['Monday','Tuesday','Wednesday','Thursday'].includes(day)&&!['elegant','prestige'].includes(vt))showAlert('cateringAlert','Catering Collection Mon–Thu requires Venue Elegant or Prestige.','info');
     else hideAlert('cateringAlert');
-  }else if(line==='luxury'){
-    if(vt!=='prestige')showAlert('cateringAlert','Luxury Collection requires Venue Prestige.','warn');
-    else hideAlert('cateringAlert');
-  }else hideAlert('cateringAlert');
+  }else if(line==='luxury'){if(vt!=='prestige')showAlert('cateringAlert','Luxury Collection requires Venue Prestige.','warn');else hideAlert('cateringAlert');}
+  else hideAlert('cateringAlert');
 }
 
 function onCateringPlanChange(){
@@ -1028,120 +937,76 @@ function onCateringPlanChange(){
 }
 
 function updateCateringTrays(){
-  const plan=document.getElementById('cateringPlan').value;
-  const range=state.guestRange;
-  const el=document.getElementById('cateringTrayDisplay');
-  if(['essential','elegant','prestige'].includes(plan)&&range){
-    const t=CATERING_TRAYS[plan][range];
-    const extras=plan==='elegant'?' · Softdrinks ✓':plan==='prestige'?' · Softdrinks ✓ · Dessert ✓ · Jugo Natural ✓ · Café ✓':'';
-    el.textContent=`${t.mc} Main Course · ${t.sal} Salads · ${t.sid} Sides${extras}`;
-  }else if(plan==='legacy')el.textContent='Luxury — See conditions document';
+  const plan=document.getElementById('cateringPlan').value;const range=state.guestRange;const el=document.getElementById('cateringTrayDisplay');
+  if(['essential','elegant','prestige'].includes(plan)&&range){const t=CATERING_TRAYS[plan][range];const extras=plan==='elegant'?' · Softdrinks ✓':plan==='prestige'?' · Softdrinks ✓ · Dessert ✓ · Jugo Natural ✓ · Café ✓':'';el.textContent=`${t.mc} Main Course · ${t.sal} Salads · ${t.sid} Sides${extras}`;}
+  else if(plan==='legacy')el.textContent='Luxury — See conditions document';
   else if(['traditional','international'].includes(plan))el.textContent='Classic Menu — Portions doc required at reservation';
   else el.textContent='—';
 }
 
-// DECOR
 function setDecorPlan(tier,btn){
   state.decorPlan=tier;
-  document.querySelectorAll('#decorTierBtns .tier-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
+  document.querySelectorAll('#decorTierBtns .tier-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
   document.getElementById('decorLegacyPrice').style.display=tier==='legacy'?'block':'none';
-  if(tier!=='na'&&tier!=='legacy'){
-    ['decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier'].forEach(id=>{
-      const el=document.getElementById(id);
-      if(el&&el.querySelector(`option[value="${tier}"]`)){el.value=tier;el.disabled=true;}
-    });
-    onDecorExtrasTier();
-  }else{
-    ['decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=false;});
-  }
+  if(tier!=='na'&&tier!=='legacy'){['decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier'].forEach(id=>{const el=document.getElementById(id);if(el&&el.querySelector(`option[value="${tier}"]`)){el.value=tier;el.disabled=true;}});onDecorExtrasTier();}
+  else{['decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=false;});}
   calcDecorPrice();
 }
 
 function calcDecorPrice(){
-  const tier=document.getElementById('decorCPTier').value;
-  const type=document.getElementById('decorCPType').value;
-  const tables=parseInt(document.getElementById('decorCPTables').value);
-  let price=0;
-  if(tier&&type&&tables>=5&&tables<=13&&DECOR_PRICES[tier])price=DECOR_PRICES[tier][type][tables]||0;
-  const cpEl=document.getElementById('decorCPPrice');
-  if(price){cpEl.textContent='$'+price.toLocaleString();cpEl.style.display='inline-block';}else cpEl.style.display='none';
+  const tier=document.getElementById('decorCPTier').value;const type=document.getElementById('decorCPType').value;const tables=parseInt(document.getElementById('decorCPTables').value);
+  let price=0;if(tier&&type&&tables>=5&&tables<=13&&DECOR_PRICES[tier])price=DECOR_PRICES[tier][type][tables]||0;
+  const cpEl=document.getElementById('decorCPPrice');if(price){cpEl.textContent='$'+price.toLocaleString();cpEl.style.display='inline-block';}else cpEl.style.display='none';
   state.prices.decor=price;
-  const totalEl=document.getElementById('decorTotalDisplay');
-  if(price){totalEl.textContent='$'+price.toLocaleString();totalEl.style.display='inline-block';}else totalEl.style.display='none';
+  const totalEl=document.getElementById('decorTotalDisplay');if(price){totalEl.textContent='$'+price.toLocaleString();totalEl.style.display='inline-block';}else totalEl.style.display='none';
   calcTotal();
 }
 
 function onDecorExtrasTier(){
-  const tier=document.getElementById('decorExtrasTier').value;
-  const badge=document.getElementById('extrasInfo');
+  const tier=document.getElementById('decorExtrasTier').value;const badge=document.getElementById('extrasInfo');
   const map={elegant:'3 extras included',prestige:'5 extras included',legacy:'Unlimited extras'};
   if(tier&&map[tier]){badge.textContent=map[tier];badge.style.display='inline-block';}else badge.style.display='none';
   calcTotal();
 }
 
-// ENTERTAINMENT
 function setEntertainment(tier,btn){
   state.entertainmentPlan=tier;
-  document.querySelectorAll('#entTierBtns .tier-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  state.prices.entertainment=tier!=='na'?(ENT_PRICES[tier]||0):0;
-  calcTotal();
+  document.querySelectorAll('#entTierBtns .tier-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
+  state.prices.entertainment=tier!=='na'?(ENT_PRICES[tier]||0):0;calcTotal();
 }
 
 function onSoundOnlyChange(){
-  const val=document.getElementById('soundOnly').value;
-  const day=state.dayOfWeek;
-  const feeEl=document.getElementById('soundFeeDisplay');
-  const dmgEl=document.getElementById('soundDamageAlert');
-  const feeRow=document.getElementById('p-soundfee-row');
-  if(val){
-    dmgEl.style.display='block';
-    if(['Friday','Sunday'].includes(day)){
-      state.soundOnlyFee=100;feeEl.textContent='+$100 Fri/Sun fee';feeEl.style.display='inline-block';feeRow.style.display='flex';
-    }else{state.soundOnlyFee=0;feeEl.style.display='none';feeRow.style.display='none';}
-  }else{state.soundOnlyFee=0;feeEl.style.display='none';feeRow.style.display='none';dmgEl.style.display='none';}
+  const val=document.getElementById('soundOnly').value;const day=state.dayOfWeek;
+  const feeEl=document.getElementById('soundFeeDisplay');const dmgEl=document.getElementById('soundDamageAlert');const feeRow=document.getElementById('p-soundfee-row');
+  if(val){dmgEl.style.display='block';if(['Friday','Sunday'].includes(day)){state.soundOnlyFee=100;feeEl.textContent='+$100 Fri/Sun fee';feeEl.style.display='inline-block';feeRow.style.display='flex';}else{state.soundOnlyFee=0;feeEl.style.display='none';feeRow.style.display='none';}}
+  else{state.soundOnlyFee=0;feeEl.style.display='none';feeRow.style.display='none';dmgEl.style.display='none';}
   calcTotal();
 }
 
-// PHOTO
 function setPhotoPlan(tier,btn){
   state.photoPlan=tier;
-  document.querySelectorAll('#photoTierBtns .tier-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
+  document.querySelectorAll('#photoTierBtns .tier-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
   const isBundle=BUNDLE_EVENTS.includes(state.eventType)&&tier!=='na';
   document.getElementById('photoBundleInfo').style.display=isBundle?'inline-block':'none';
   if(tier!=='na'){
     document.getElementById('photoTier').value=tier;document.getElementById('photoTier').disabled=true;
-    if(isBundle){
-      document.getElementById('photoShootPlan').value=tier==='essential'?'essential':'full';document.getElementById('photoShootPlan').disabled=true;
-      document.getElementById('printsPlan').value=['prestige','legacy'].includes(tier)?'gallery':'frames';document.getElementById('printsPlan').disabled=true;
-    }
-  }else{
-    document.getElementById('photoTier').disabled=false;document.getElementById('photoShootPlan').disabled=false;document.getElementById('printsPlan').disabled=false;
-  }
+    if(isBundle){document.getElementById('photoShootPlan').value=tier==='essential'?'essential':'full';document.getElementById('photoShootPlan').disabled=true;document.getElementById('printsPlan').value=['prestige','legacy'].includes(tier)?'gallery':'frames';document.getElementById('printsPlan').disabled=true;}
+  }else{document.getElementById('photoTier').disabled=false;document.getElementById('photoShootPlan').disabled=false;document.getElementById('printsPlan').disabled=false;}
   updatePhotoRules();calcTotal();
 }
 
 function updatePhotoRules(){
   const prints=document.getElementById('printsPlan').value;
-  if(prints==='gallery')showAlert('galleryAlert','Photo Gallery available at Cardona Hall only.','info');
-  else hideAlert('galleryAlert');
+  if(prints==='gallery')showAlert('galleryAlert','Photo Gallery available at Cardona Hall only.','info');else hideAlert('galleryAlert');
   document.getElementById('framesTableField').style.display=prints==='frames'?'flex':'none';
 }
 
 function onPrintsPlanChange(){updatePhotoRules();calcTotal();}
 
-// TOTAL
 function calcTotal(){
   const p=state.prices;
   if(state.isExternalEvent)p.venue=0;
-  else{
-    const vt=document.getElementById('venueTier').value;
-    const line=document.getElementById('cateringLine').value;
-    const needsDisc=['collection','luxury'].includes(line);
-    if(vt&&state.guestRange){const table=needsDisc&&vt==='prestige'?VENUE_PRICES.prestige_disc:VENUE_PRICES[vt];p.venue=table?(table[state.guestRange]||0):0;}else p.venue=0;
-  }
+  else{const vt=document.getElementById('venueTier').value;const line=document.getElementById('cateringLine').value;const needsDisc=['collection','luxury'].includes(line);if(vt&&state.guestRange){const table=needsDisc&&vt==='prestige'?VENUE_PRICES.prestige_disc:VENUE_PRICES[vt];p.venue=table?(table[state.guestRange]||0):0;}else p.venue=0;}
   document.getElementById('p-venue').textContent=p.venue?'$'+p.venue.toLocaleString():(state.isExternalEvent?'$0 (External)':'—');
   document.getElementById('p-catering').textContent=p.catering?'$'+p.catering.toLocaleString():'—';
   if(state.decorPlan==='legacy')p.decor=parseFloat(document.getElementById('decorLegacyPriceVal').value)||0;
@@ -1150,18 +1015,9 @@ function calcTotal(){
   const photoTier=document.getElementById('photoTier').value;
   const isBundle=BUNDLE_EVENTS.includes(state.eventType)&&state.photoPlan!=='na';
   if(isBundle&&state.photoPlan!=='na'){p.photo=PHOTO_BUNDLE[state.photoPlan]||0;}
-  else{
-    let pt=photoTier?(PHOTO_PRICES.photography[photoTier]||0):0;
-    const sp=document.getElementById('photoShootPlan').value;if(sp)pt+=PHOTO_PRICES.shoot[sp]||0;
-    const pp=document.getElementById('printsPlan').value;const isPL=['prestige','legacy'].includes(state.photoPlan);
-    if(pp==='gallery')pt+=isPL?PHOTO_PRICES.prints.gallery_disc:PHOTO_PRICES.prints.gallery;
-    else if(pp==='frames'){const ft=parseInt(document.getElementById('framesTables').value)||0;const fp=isPL?PHOTO_PRICES.prints.frames_disc:PHOTO_PRICES.prints.frames_per_table;pt+=ft*fp;const fEl=document.getElementById('framesPrice');if(ft){fEl.textContent='$'+(ft*fp).toLocaleString();fEl.style.display='inline-block';}else fEl.style.display='none';}
-    else if(pp==='usb')pt+=PHOTO_PRICES.prints.usb;
-    p.photo=pt;
-  }
+  else{let pt=photoTier?(PHOTO_PRICES.photography[photoTier]||0):0;const sp=document.getElementById('photoShootPlan').value;if(sp)pt+=PHOTO_PRICES.shoot[sp]||0;const pp=document.getElementById('printsPlan').value;const isPL=['prestige','legacy'].includes(state.photoPlan);if(pp==='gallery')pt+=isPL?PHOTO_PRICES.prints.gallery_disc:PHOTO_PRICES.prints.gallery;else if(pp==='frames'){const ft=parseInt(document.getElementById('framesTables').value)||0;const fp=isPL?PHOTO_PRICES.prints.frames_disc:PHOTO_PRICES.prints.frames_per_table;pt+=ft*fp;const fEl=document.getElementById('framesPrice');if(ft){fEl.textContent='$'+(ft*fp).toLocaleString();fEl.style.display='inline-block';}else fEl.style.display='none';}else if(pp==='usb')pt+=PHOTO_PRICES.prints.usb;p.photo=pt;}
   document.getElementById('p-photo').textContent=p.photo?'$'+p.photo.toLocaleString():'—';
   const subtotal=(p.venue||0)+(p.catering||0)+(p.decor||0)+(p.entertainment||0)+(p.photo||0)+state.soundOnlyFee;
-  const allFilled=p.venue||state.isExternalEvent?p.catering&&p.entertainment&&p.photo:false;
   let fpDisc=0;
   if(state.fullPackage!=='na'&&p.catering&&p.entertainment&&p.photo){fpDisc=subtotal*0.05;document.getElementById('p-discount-row').style.display='flex';document.getElementById('p-discount').textContent='-$'+fpDisc.toLocaleString(undefined,{maximumFractionDigits:0});}
   else document.getElementById('p-discount-row').style.display='none';
@@ -1174,7 +1030,6 @@ function calcTotal(){
   document.getElementById('p-final').textContent='$'+final.toLocaleString(undefined,{maximumFractionDigits:0});
 }
 
-// SAVE
 function collectData(){
   return{
     'COT#':state.cotNumber,'RES#':state.resNumber||'',
@@ -1216,13 +1071,20 @@ function collectData(){
 async function saveQuotation(){
   if(!validateRequired()){showToast('Please fill all required fields','error');return;}
   if(document.getElementById('saveDateBlockAlert').style.display==='block'){showToast('Date is reserved — select another date or confirm as external event','error');return;}
+  // If loaded from existing, generate new COT# first
+  if(state.isLoaded){
+    showLoading('Generating new quotation number...');
+    await loadAllQuotations();
+    await generateCotNumber();
+    hideLoading();
+  }
   showLoading('Saving quotation...');
   try{
     await saveToSheets(collectData());
     await loadAllQuotations();
     showToast('✓ Saved — '+state.cotNumber,'success');
     document.getElementById('statusPill').textContent='QUOTED';
-    state.status='quoted';
+    state.status='quoted';state.isLoaded=false;
     setTimeout(()=>newQuotation(),2000);
   }catch(e){showToast('Error saving — try again','error');}
   hideLoading();
@@ -1236,12 +1098,11 @@ async function newQuotation(){
   document.querySelectorAll('.tier-btn.na').forEach(b=>b.classList.add('active'));
   document.querySelectorAll('.alert').forEach(a=>a.className='alert');
   document.querySelectorAll('.field-error').forEach(e=>e.classList.remove('show'));
-  document.querySelectorAll('.field-input.error,.field-select.error').forEach(e=>e.classList.remove('error'));
   ['externalEventAlert','saveDateBlockAlert','soundDamageAlert'].forEach(id=>document.getElementById(id).style.display='none');
   state.fullPackage='na';state.decorPlan='na';state.entertainmentPlan='na';state.photoPlan='na';
   state.dayOfWeek=null;state.guestRange=null;state.numGuests=0;
   state.prices={venue:0,catering:0,decor:0,entertainment:0,photo:0};
-  state.soundOnlyFee=0;state.status='new';state.resNumber=null;state.selectedDate=null;state.isExternalEvent=false;
+  state.soundOnlyFee=0;state.status='new';state.resNumber=null;state.selectedDate=null;state.isExternalEvent=false;state.isLoaded=false;
   ['dayOfWeek','guestRange','venuePriceDisplay','cateringPriceDisplay','decorCPPrice','decorTotalDisplay','soundFeeDisplay','photoBundleInfo','extrasInfo','framesPrice'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
   ['p-soundfee-row','p-discount-row','discountRow','decorLegacyPrice','framesTableField','eventSubField'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
   ['p-venue','p-catering','p-decor','p-entertainment','p-photo'].forEach(id=>document.getElementById(id).textContent='—');
@@ -1254,21 +1115,16 @@ async function newQuotation(){
   await generateCotNumber();
   document.getElementById('createdDate').textContent=new Date().toLocaleDateString('en-US');
   document.getElementById('cotNumber').textContent=state.cotNumber;
-  onEventTypeChange();
-  hideLoading();
+  onEventTypeChange();hideLoading();
 }
 
-// LOAD MODAL
 let allLoadedQuotations=[];
 async function openLoadModal(){
   document.getElementById('loadModal').classList.add('show');
   document.getElementById('searchInput').value='';
   document.getElementById('searchResults').innerHTML='<div class="result-empty">Loading...</div>';
   await loadAllQuotations();
-  // Only show Quoted status
-  allLoadedQuotations=state.allQuotations
-    .filter(q=>(q['Status']||'').toLowerCase()==='quoted')
-    .reverse();
+  allLoadedQuotations=state.allQuotations.filter(q=>(q['Status']||'').toLowerCase()==='quoted').reverse();
   renderResults(allLoadedQuotations);
   document.getElementById('searchInput').focus();
 }
@@ -1287,7 +1143,7 @@ function renderResults(results){
     <div class="result-item" onclick="loadQuotation('${r['COT#']}')">
       <div class="result-client">${r['Client Name']||'—'}</div>
       <div class="result-cot">${r['COT#']||''}</div>
-      <div class="result-meta">${r['Event Type']||''} &nbsp;·&nbsp; ${r['Event Date']||''} &nbsp;·&nbsp; ${r['Guests']||0} guests &nbsp;·&nbsp; ${r['Final Total']||''}</div>
+      <div class="result-meta">${r['Event Type']||''} &nbsp;·&nbsp; ${formatDateOnly(r['Event Date'])} &nbsp;·&nbsp; ${r['Guests']||0} guests &nbsp;·&nbsp; ${r['Final Total']||''}</div>
     </div>
   `).join('');
 }
@@ -1295,7 +1151,7 @@ function renderResults(results){
 function loadQuotation(cotNum){
   const rec=allLoadedQuotations.find(r=>r['COT#']===cotNum);
   if(!rec){showToast('Not found','error');return;}
-  const fieldMap={clientName:'Client Name',country:'Country',state:'State',city:'City',phone:'Phone',email:'Email',eventDate:'Event Date',eventSubType:'Event Sub-Type',djNationality:'DJ Nationality',specialConditions:'Special Conditions',priceOverride:'Price Override'};
+  const fieldMap={clientName:'Client Name',country:'Country',state:'State',city:'City',phone:'Phone',email:'Email',eventSubType:'Event Sub-Type',djNationality:'DJ Nationality',specialConditions:'Special Conditions',priceOverride:'Price Override'};
   Object.entries(fieldMap).forEach(([id,key])=>{const el=document.getElementById(id);if(el&&rec[key]!==undefined)el.value=rec[key];});
   document.getElementById('clientType').value=rec['Client Type']||'standard';
   document.getElementById('eventType').value=rec['Event Type']||'quinceanera';
@@ -1303,32 +1159,41 @@ function loadQuotation(cotNum){
   onCateringLineChange();
   document.getElementById('cateringPlan').value=rec['Catering Plan']||'';
   document.getElementById('soundOnly').value=rec['Sound Only']||'';
-  state.cotNumber=rec['COT#'];state.status=rec['Status']||'quoted';
+  // Set date correctly
+  const dateVal=formatDateOnly(rec['Event Date']);
+  if(dateVal){
+    state.selectedDate=dateVal;
+    document.getElementById('eventDate').value=dateVal;
+    // Set calendar to correct month/year
+    const parts=dateVal.split('/');
+    if(parts.length===3){state.calMonth=parseInt(parts[0])-1;state.calYear=parseInt(parts[2]);}
+  }
+  if(rec['Guests'])document.getElementById('numGuests').value=rec['Guests'];
+  state.cotNumber=rec['COT#'];state.status='quoted';state.isLoaded=true;
   state.fullPackage=rec['Full Package']||'na';state.decorPlan=rec['Decor Plan']||'na';
   state.entertainmentPlan=rec['Entertainment Plan']||'na';state.photoPlan=rec['Photo Plan']||'na';
   state.prices.venue=parseFloat(rec['Price Venue'])||0;state.prices.catering=parseFloat(rec['Price Catering'])||0;
   state.prices.decor=parseFloat(rec['Price Decor'])||0;state.prices.entertainment=parseFloat(rec['Price Entertainment'])||0;
   state.prices.photo=parseFloat(rec['Price Photo'])||0;
-  if(rec['Event Date']){state.selectedDate=rec['Event Date'];onDateChange();}
-  if(rec['Guests'])document.getElementById('numGuests').value=rec['Guests'];
   onGuestsChange();onEventTypeChange();onCateringPlanChange();
-  if(rec['Venue Tier']&&rec['Venue Tier']!=='EXTERNAL'){document.getElementById('venueTier').value=rec['Venue Tier'];}
-  onVenueTierChange();
-  document.getElementById('cotNumber').textContent=rec['COT#']+' (copy)';
-  document.getElementById('statusPill').textContent='QUOTED';
+  if(rec['Venue Tier']&&rec['Venue Tier']!=='EXTERNAL')document.getElementById('venueTier').value=rec['Venue Tier'];
+  onVenueTierChange();onDateChange();
+  // Show COT as loaded — new number will be generated on save
+  document.getElementById('cotNumber').textContent=rec['COT#']+' → NEW ON SAVE';
+  document.getElementById('statusPill').textContent='LOADED';
   closeModal();
-  showToast('Loaded '+rec['COT#']+' — '+rec['Client Name']+'. Modify and save as new quotation.','warn');
+  showToast('Loaded '+rec['COT#']+' — modify and save as new quotation','warn');
   calcTotal();
 }
 
 function closeModal(){document.getElementById('loadModal').classList.remove('show');}
 
-// RESERVATION
 async function confirmReservation(){
-  if(state.status==='reserved'){showToast('This quotation is already reserved','warn');return;}
+  if(state.isLoaded){showToast('Save as new quotation first before reserving','warn');return;}
+  if(state.status==='reserved'){showToast('Already reserved','warn');return;}
   if(!validateRequired()){showToast('Please fill all required fields first','error');return;}
   if(document.getElementById('saveDateBlockAlert').style.display==='block'){showToast('Cannot reserve a blocked date','error');return;}
-  showConfirm('Confirm Reservation','Confirm reservation for '+document.getElementById('clientName').value+'? This action cannot be undone.',async()=>{
+  showConfirm('Confirm Reservation','Confirm reservation for '+document.getElementById('clientName').value+'? This cannot be undone.',async()=>{
     const year=new Date().getFullYear();
     const yearRes=state.allQuotations.filter(q=>(q['RES#']||'').startsWith('RES-'+year));
     let maxRes=0;yearRes.forEach(q=>{const n=parseInt((q['RES#']||'').split('-')[2]||0);if(n>maxRes)maxRes=n;});
@@ -1336,9 +1201,7 @@ async function confirmReservation(){
     state.status='reserved';
     showLoading('Confirming reservation...');
     const data=collectData();data['Status']='reserved';data['RES#']=state.resNumber;
-    await saveToSheets(data);
-    await loadAllQuotations();
-    hideLoading();
+    await saveToSheets(data);await loadAllQuotations();hideLoading();
     document.getElementById('statusPill').textContent='RESERVED';
     document.getElementById('cotNumber').textContent=state.cotNumber+' · '+state.resNumber;
     showToast('✓ Reservation confirmed — '+state.resNumber,'success');
