@@ -583,7 +583,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
 const SCRIPT_URL='https://script.google.com/macros/s/AKfycbyUAKZyuX8xcdSTXNkJoagPlaW4fumRWnrDuuARiMntpS76sx_6I-6TYxUpjkhjVIADAQ/exec';
 
 const state={
-  cotNumber:null,resNumber:null,status:'new',isLoaded:false,
+  cotNumber:null,resNumber:null,status:'new',isLoaded:false,loadedSnapshot:null,
   fullPackage:'na',decorPlan:'na',entertainmentPlan:'na',photoPlan:'na',
   isLastMinute:false,dayOfWeek:null,guestRange:null,numGuests:0,
   eventType:'quinceanera',clientType:'standard',soundOnlyFee:0,
@@ -1068,11 +1068,26 @@ function collectData(){
   };
 }
 
+function hasChanges(){
+  if(!state.loadedSnapshot) return true;
+  const current=collectData();
+  const keys=['Client Name','Phone','Email','Event Date','Guests','Event Type','Full Package','Venue Tier','Catering Line','Catering Plan','Decor Plan','Entertainment Plan','Photo Plan','Sound Only','Special Conditions','Price Override','Final Total'];
+  return keys.some(k=>String(current[k]||'').trim()!==String(state.loadedSnapshot[k]||'').trim());
+}
+
 async function saveQuotation(){
   if(!validateRequired()){showToast('Please fill all required fields','error');return;}
   if(document.getElementById('saveDateBlockAlert').style.display==='block'){showToast('Date is reserved — select another date or confirm as external event','error');return;}
-  // If loaded from existing, generate new COT# first
-  if(state.isLoaded){
+  // If loaded and no changes, skip save
+  if(state.isLoaded&&!hasChanges()){
+    showToast('No changes detected — quotation not saved again','info');
+    state.isLoaded=false;
+    document.getElementById('cotNumber').textContent=state.cotNumber;
+    document.getElementById('statusPill').textContent='QUOTED';
+    return;
+  }
+  // If loaded and has changes, generate new COT#
+  if(state.isLoaded&&hasChanges()){
     showLoading('Generating new quotation number...');
     await loadAllQuotations();
     await generateCotNumber();
@@ -1084,7 +1099,7 @@ async function saveQuotation(){
     await loadAllQuotations();
     showToast('✓ Saved — '+state.cotNumber,'success');
     document.getElementById('statusPill').textContent='QUOTED';
-    state.status='quoted';state.isLoaded=false;
+    state.status='quoted';state.isLoaded=false;state.loadedSnapshot=null;
     setTimeout(()=>newQuotation(),2000);
   }catch(e){showToast('Error saving — try again','error');}
   hideLoading();
@@ -1102,7 +1117,7 @@ async function newQuotation(){
   state.fullPackage='na';state.decorPlan='na';state.entertainmentPlan='na';state.photoPlan='na';
   state.dayOfWeek=null;state.guestRange=null;state.numGuests=0;
   state.prices={venue:0,catering:0,decor:0,entertainment:0,photo:0};
-  state.soundOnlyFee=0;state.status='new';state.resNumber=null;state.selectedDate=null;state.isExternalEvent=false;state.isLoaded=false;
+  state.soundOnlyFee=0;state.status='new';state.resNumber=null;state.selectedDate=null;state.isExternalEvent=false;state.isLoaded=false;state.loadedSnapshot=null;
   ['dayOfWeek','guestRange','venuePriceDisplay','cateringPriceDisplay','decorCPPrice','decorTotalDisplay','soundFeeDisplay','photoBundleInfo','extrasInfo','framesPrice'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
   ['p-soundfee-row','p-discount-row','discountRow','decorLegacyPrice','framesTableField','eventSubField'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
   ['p-venue','p-catering','p-decor','p-entertainment','p-photo'].forEach(id=>document.getElementById(id).textContent='—');
@@ -1178,22 +1193,35 @@ function loadQuotation(cotNum){
   onGuestsChange();onEventTypeChange();onCateringPlanChange();
   if(rec['Venue Tier']&&rec['Venue Tier']!=='EXTERNAL')document.getElementById('venueTier').value=rec['Venue Tier'];
   onVenueTierChange();onDateChange();
-  // Show COT as loaded — new number will be generated on save
-  document.getElementById('cotNumber').textContent=rec['COT#']+' → NEW ON SAVE';
+  // Save snapshot for change detection
+  state.loadedSnapshot={...rec};
+  // Show COT — new number only generated if changes detected on save
+  document.getElementById('cotNumber').textContent=rec['COT#'];
   document.getElementById('statusPill').textContent='LOADED';
   closeModal();
-  showToast('Loaded '+rec['COT#']+' — modify and save as new quotation','warn');
+  showToast('Loaded '+rec['COT#']+' — '+rec['Client Name']+'. Modify to save as new quotation, or reserve directly.','warn');
   calcTotal();
 }
 
 function closeModal(){document.getElementById('loadModal').classList.remove('show');}
 
 async function confirmReservation(){
-  if(state.isLoaded){showToast('Save as new quotation first before reserving','warn');return;}
   if(state.status==='reserved'){showToast('Already reserved','warn');return;}
   if(!validateRequired()){showToast('Please fill all required fields first','error');return;}
+  // Block if date is reserved — regardless of external event popup answer
+  const eventDate=document.getElementById('eventDate').value;
+  const dateAlreadyReserved=state.reservedDates.includes(eventDate);
+  if(dateAlreadyReserved&&!state.isExternalEvent){showToast('Cannot reserve — this date already has a confirmed event','error');return;}
   if(document.getElementById('saveDateBlockAlert').style.display==='block'){showToast('Cannot reserve a blocked date','error');return;}
   showConfirm('Confirm Reservation','Confirm reservation for '+document.getElementById('clientName').value+'? This cannot be undone.',async()=>{
+    // If loaded with no changes, use same COT#. If new or changed, use current cotNumber.
+    if(state.isLoaded&&!hasChanges()){
+      // Reserve the original quotation directly — no new record needed for COT
+    } else if(state.isLoaded&&hasChanges()){
+      // Has changes — generate new COT# first
+      await loadAllQuotations();
+      await generateCotNumber();
+    }
     const year=new Date().getFullYear();
     const yearRes=state.allQuotations.filter(q=>(q['RES#']||'').startsWith('RES-'+year));
     let maxRes=0;yearRes.forEach(q=>{const n=parseInt((q['RES#']||'').split('-')[2]||0);if(n>maxRes)maxRes=n;});
@@ -1202,6 +1230,7 @@ async function confirmReservation(){
     showLoading('Confirming reservation...');
     const data=collectData();data['Status']='reserved';data['RES#']=state.resNumber;
     await saveToSheets(data);await loadAllQuotations();hideLoading();
+    state.isLoaded=false;state.loadedSnapshot=null;
     document.getElementById('statusPill').textContent='RESERVED';
     document.getElementById('cotNumber').textContent=state.cotNumber+' · '+state.resNumber;
     showToast('✓ Reservation confirmed — '+state.resNumber,'success');
