@@ -335,7 +335,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
         <div class="sub-header"><div class="sub-title">Dining Setup</div><div class="sub-price" id="dining-price"></div></div>
         <div class="sub-content">
           <div class="grid-2">
-            <div class="field"><div class="field-label">Tier</div><select class="field-select" id="decorDiningTier" onchange="calcTotal()"><option value="">Not Applicable</option><option value="essential">Essential</option><option value="elegant">Elegant</option><option value="prestige">Prestige</option></select></div>
+            <div class="field"><div class="field-label">Tier</div><select class="field-select" id="decorDiningTier" onchange="calcTotal()"><option value="">Not Applicable</option><option value="essential">Essential</option><option value="elegant">Elegant</option><option value="prestige">Prestige</option><option value="legacy">Legacy</option></select></div>
             <div class="field"><div class="field-label">Tables (auto)</div><span class="field-auto highlight" id="decorDiningTablesDisplay">—</span></div>
           </div>
         </div>
@@ -344,7 +344,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
         <div class="sub-header"><div class="sub-title">Centerpieces</div><div class="sub-price" id="cp-price"></div></div>
         <div class="sub-content">
           <div class="grid-2">
-            <div class="field"><div class="field-label">Tier</div><select class="field-select" id="decorCPTier" onchange="calcDecorPrice()"><option value="">Not Applicable</option><option value="essential">Essential</option><option value="elegant">Elegant</option><option value="prestige">Prestige</option></select></div>
+            <div class="field"><div class="field-label">Tier</div><select class="field-select" id="decorCPTier" onchange="calcDecorPrice()"><option value="">Not Applicable</option><option value="essential">Essential</option><option value="elegant">Elegant</option><option value="prestige">Prestige</option><option value="legacy">Legacy</option></select></div>
             <div class="field"><div class="field-label">Type</div><select class="field-select" id="decorCPType" onchange="calcDecorPrice()"><option value="flowers">Flowers</option><option value="balloons">Balloons</option><option value="others">Others</option></select></div>
           </div>
           <div class="field"><div class="field-label">Tables (auto)</div><span class="field-auto highlight" id="decorCPTablesDisplay">—</span></div>
@@ -352,7 +352,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
       </div>
       <div class="sub-block">
         <div class="sub-header"><div class="sub-title">Extras</div><div class="sub-price" id="extras-price"></div></div>
-        <div class="sub-content"><div class="field"><div class="field-label">Tier</div><select class="field-select" id="decorExtrasTier" onchange="onDecorExtrasTier()"><option value="">Not Applicable</option><option value="elegant">Elegant</option><option value="prestige">Prestige</option></select><span class="info-badge gold" id="extrasInfo" style="display:none"></span></div></div>
+        <div class="sub-content"><div class="field"><div class="field-label">Tier</div><select class="field-select" id="decorExtrasTier" onchange="onDecorExtrasTier()"><option value="">Not Applicable</option><option value="elegant">Elegant</option><option value="prestige">Prestige</option><option value="legacy">Legacy</option></select><span class="info-badge gold" id="extrasInfo" style="display:none"></span></div></div>
       </div>
     </div>
     <div class="field" style="margin-top:6px"><div class="field-label">Decor Total</div><span class="field-auto highlight" id="decorTotalDisplay" style="display:none"></span></div>
@@ -364,15 +364,6 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
   <div class="block-header"><div class="block-num">6</div><div class="block-title">Entertainment &amp; Production</div><div class="block-price" id="ent-header-price"></div><div class="block-discount" id="ent-header-discount"></div></div>
   <div class="block-content">
     <div class="field">
-      <div class="field-label">Sound System</div>
-      <select class="field-select" id="soundPlan" onchange="onSoundPlanChange()">
-        <option value="">— Select —</option>
-        <option value="soundlighting">Sound &amp; Lighting — $400</option>
-        <option value="soundlightingplus">Sound &amp; Lighting Plus — $600</option>
-      </select>
-      <span class="field-auto green" id="soundDiscountDisplay" style="display:none"></span>
-    </div>
-    <div class="field">
       <div class="field-label">Entertainment Plan</div>
       <select class="field-select" id="entPlan" onchange="onEntPlanChange()">
         <option value="">Not Applicable</option>
@@ -382,6 +373,15 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
         <option value="legacy">Legacy — $3,000</option>
       </select>
       <span class="field-auto green" id="entDiscountDisplay" style="display:none"></span>
+    </div>
+    <div class="field">
+      <div class="field-label">Sound System</div>
+      <select class="field-select" id="soundPlan" onchange="onSoundPlanChange()">
+        <option value="">— Select —</option>
+        <option value="soundlighting">Sound &amp; Lighting — $400</option>
+        <option value="soundlightingplus">Sound &amp; Lighting Plus — $600</option>
+      </select>
+      <span class="field-auto green" id="soundDiscountDisplay" style="display:none"></span>
     </div>
     <div id="entAlert" class="alert alert-info"></div>
     <div id="soundDamageAlert" class="alert alert-warn" style="display:none">&#x26A0; Sound System selected — Damage policy required in contract.</div>
@@ -496,7 +496,7 @@ const state={
   calYear:new Date().getFullYear(),calMonth:new Date().getMonth(),selectedDate:null,
   allQuotations:[],reservedDates:[],
   prices:{venue:0,catering:0,decor:0,entertainment:0,photo:0},
-  discounts:{venue:0,entertainment:0,photo:0,fullPackage:0}
+  discounts:{venue:0,decor:0,entertainment:0,photo:0,fullPackage:0}
 };
 
 // ── PRICE TABLES ───────────────────────────────────────────
@@ -732,8 +732,9 @@ function setFullPackage(tier,btn){
     onCateringLineChange();
     document.getElementById('cateringPlan').value=tier==='legacy'?'legacy':tier;document.getElementById('cateringPlan').disabled=true;
     onCateringPlanChange();
-    // Lock decor
-    const decorBtns=document.querySelectorAll('#decorTierBtns .tier-btn');decorBtns.forEach(b=>b.classList.remove('active'));
+    // Lock decor tier buttons
+    document.querySelectorAll('#decorTierBtns .tier-btn').forEach(b=>{b.disabled=true;b.classList.remove('active');});
+    const decorBtns=document.querySelectorAll('#decorTierBtns .tier-btn');
     const di={essential:1,elegant:2,prestige:3,legacy:4};if(decorBtns[di[tier]])decorBtns[di[tier]].classList.add('active');
     setDecorPlanInternal(tier);
     // Lock entertainment
@@ -742,15 +743,18 @@ function setFullPackage(tier,btn){
     // Lock sound based on tier
     const soundMap={essential:'soundlighting',elegant:'soundlightingplus',prestige:'soundlightingplus',legacy:'soundlightingplus'};
     document.getElementById('soundPlan').value=soundMap[tier];document.getElementById('soundPlan').disabled=true;
-    // Lock photo
-    const photoBtns=document.querySelectorAll('#photoTierBtns .tier-btn');photoBtns.forEach(b=>b.classList.remove('active'));
-    const pi={elegant:0,prestige:1,legacy:2};if(pi[tier]!==undefined)photoBtns[pi[tier]]?.classList.add('active');
+    // Lock photo tier buttons
+    document.querySelectorAll('#photoTierBtns .tier-btn').forEach(b=>{b.disabled=true;b.classList.remove('active');});
+    const photoBtns=document.querySelectorAll('#photoTierBtns .tier-btn');
+    const pi={elegant:1,prestige:2,legacy:3};if(pi[tier]!==undefined)photoBtns[pi[tier]]?.classList.add('active');
     if(['elegant','prestige','legacy'].includes(tier)){setPhotoPlanInternal(tier);}
     document.getElementById('fpAlert').className='alert alert-info show';
     document.getElementById('fpAlert').textContent=`Full Package ${tier.charAt(0).toUpperCase()+tier.slice(1)} — all divisions auto-filled and locked.`;
   } else {
     // Unlock all
     ['venueTier','cateringLine','cateringPlan','entPlan','soundPlan','decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier','photoTier','photoShootPlan','printsPlan'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=false;});
+    document.querySelectorAll('#decorTierBtns .tier-btn').forEach(b=>b.disabled=false);
+    document.querySelectorAll('#photoTierBtns .tier-btn').forEach(b=>b.disabled=false);
     if(state.isExternalEvent)document.getElementById('venueTier').disabled=true;
     state.decorPlan='na';state.photoPlan='na';
     document.getElementById('photoBundleInfo').style.display='none';
@@ -867,12 +871,18 @@ function setDecorPlanInternal(tier){
   document.getElementById('decorLegacyPrice').style.display=tier==='legacy'?'block':'none';
   const subIds=['decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier'];
   if(tier==='na'){
+    // Unlock all sub-components for individual selection
     subIds.forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=false;});
-    // Re-enable all options except legacy in individual mode
-    const honorSel=document.getElementById('decorHonorTier');
-    // Remove legacy option if was added
+    document.getElementById('decorCPType').disabled=false;
   } else if(tier==='legacy'){
-    subIds.forEach(id=>{const el=document.getElementById(id);if(el){el.disabled=true;}});
+    // Auto-fill all with legacy and lock
+    ['decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier'].forEach(id=>{
+      const el=document.getElementById(id);if(!el)return;
+      if(el.querySelector('option[value="legacy"]'))el.value='legacy';
+      el.disabled=true;
+    });
+    document.getElementById('decorCPType').value='others';
+    document.getElementById('decorCPType').disabled=false;
   } else {
     // Auto-fill and lock all except CP type
     ['decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier'].forEach(id=>{
@@ -882,38 +892,52 @@ function setDecorPlanInternal(tier){
         else{if(el.querySelector(`option[value="${tier}"]`))el.value=tier;el.disabled=true;}
       } else {
         if(el.querySelector(`option[value="${tier}"]`))el.value=tier;
-        if(id!=='decorCPTier')el.disabled=true;
-        else el.disabled=false; // CP tier locked but type open
+        el.disabled=true;
       }
     });
-    // Essential: flowers by default
     if(tier==='essential')document.getElementById('decorCPType').value='flowers';
-    // CP tier also locked in full plan
     document.getElementById('decorCPTier').disabled=true;
-    // CP type stays open
     document.getElementById('decorCPType').disabled=false;
   }
   onDecorExtrasTier();calcDecorPrice();
 }
 
 function calcDecorPrice(){
-  const tier=document.getElementById('decorCPTier').value;
-  const type=document.getElementById('decorCPType').value;
-  const tables=state.numTables;
   let price=0;
-  if(tier&&type&&tables>=5&&DECOR_PRICES[tier])price=DECOR_PRICES[tier][type][tables]||0;
-  if(state.decorPlan==='legacy')price=parseFloat(document.getElementById('decorLegacyPriceVal').value)||0;
+  if(state.decorPlan==='legacy'){
+    price=parseFloat(document.getElementById('decorLegacyPriceVal').value)||0;
+  } else if(state.decorPlan==='na'){
+    // Individual sub-component mode — sum what's selected
+    // Honor Table (no price table — informational only, no $ value defined per tier individually)
+    // CP is the main priced component
+    const cpTier=document.getElementById('decorCPTier').value;
+    const cpType=document.getElementById('decorCPType').value;
+    const tables=state.numTables;
+    if(cpTier&&cpType&&tables>=5&&DECOR_PRICES[cpTier])price=DECOR_PRICES[cpTier][cpType]?.[tables]||0;
+  } else {
+    // Full plan: price comes from CP tier/type
+    const cpTier=document.getElementById('decorCPTier').value;
+    const cpType=document.getElementById('decorCPType').value;
+    const tables=state.numTables;
+    if(cpTier&&cpType&&tables>=5&&DECOR_PRICES[cpTier])price=DECOR_PRICES[cpTier][cpType]?.[tables]||0;
+  }
+  // Prestige 10% discount
+  let decorDisc=0;
+  if(state.decorPlan==='prestige'&&price>0){decorDisc=price*0.10;price=price-decorDisc;}
   state.prices.decor=price;
-  const cpEl=document.getElementById('decorCPPrice');if(cpEl){if(price&&state.decorPlan!=='legacy'){cpEl.textContent=fmtMoney(price);cpEl.style.display='inline-block';}else cpEl.style.display='none';}
-  const totalEl=document.getElementById('decorTotalDisplay');if(price){totalEl.textContent=fmtMoney(price);totalEl.style.display='inline-block';}else totalEl.style.display='none';
-  document.getElementById('decor-header-price').textContent=price?fmtMoney(price):'';
+  state.discounts.decor=decorDisc;
+  const totalEl=document.getElementById('decorTotalDisplay');
+  if(price){totalEl.textContent=fmtMoney(price);totalEl.style.display='inline-block';}else{totalEl.style.display='none';}
+  const hdr=document.getElementById('decor-header-price');hdr.textContent=price?fmtMoney(price):'';
+  const hdrDisc=document.getElementById('decor-header-discount');
+  hdrDisc.textContent=decorDisc>0?`-10% (-${fmtMoney(decorDisc)})`:'';
   calcTotal();
 }
 
 function onDecorExtrasTier(){
   const tier=document.getElementById('decorExtrasTier').value;
   const badge=document.getElementById('extrasInfo');
-  const map={elegant:'3 extras included',prestige:'5 extras included'};
+  const map={elegant:'3 extras included',prestige:'5 extras included',legacy:'Legacy extras included'};
   if(tier&&map[tier]){badge.textContent=map[tier];badge.style.display='inline-block';}else badge.style.display='none';
   calcTotal();
 }
@@ -937,6 +961,17 @@ function onSoundPlanChange(){
 }
 
 function onEntPlanChange(){
+  const entVal=document.getElementById('entPlan').value;
+  const soundSel=document.getElementById('soundPlan');
+  const soundMap={essential:'soundlighting',elegant:'soundlightingplus',prestige:'soundlightingplus',legacy:'soundlightingplus'};
+  if(entVal){
+    soundSel.value=soundMap[entVal];
+    soundSel.disabled=true;
+    document.getElementById('soundDamageAlert').style.display='block';
+  } else {
+    soundSel.disabled=false;
+    // if sound was auto-set, allow user to clear it
+  }
   updateEntDiscounts();calcTotal();
 }
 
@@ -1032,16 +1067,20 @@ function calcTotal(){
   // Catering
   document.getElementById('p-catering').textContent=p.catering?fmtMoney(p.catering):'—';
 
-  // Decor
-  if(state.decorPlan==='legacy')p.decor=parseFloat(document.getElementById('decorLegacyPriceVal').value)||0;
+  // Decor — price already computed in calcDecorPrice (includes legacy and prestige discount)
+  if(state.decorPlan==='legacy')calcDecorPrice();// re-read field value
   document.getElementById('p-decor').textContent=p.decor?fmtMoney(p.decor):'—';
+  const decorDiscEl=document.getElementById('decor-header-discount');
+  if(!decorDiscEl.textContent&&state.discounts.decor>0)decorDiscEl.textContent=`-10% (-${fmtMoney(state.discounts.decor)})`;
 
   // Entertainment
-  let soundBase=soundVal?(SOUND_PRICES[soundVal]||0):0;
+  // When an entertainment plan is selected, sound is included — don't add sound cost separately
+  let soundBase=0;
   let entBase=entVal?(ENT_PRICES[entVal]||0):0;
+  if(!entVal&&soundVal){soundBase=SOUND_PRICES[soundVal]||0;}// sound only when no plan
   let soundDisc=0,entDisc=0;
   if(!isExt){
-    if(soundVal){
+    if(!entVal&&soundVal){
       if(['Monday','Tuesday','Wednesday','Thursday'].includes(day))soundDisc=soundBase*0.40;
       else if(['Friday','Sunday'].includes(day))soundDisc=soundBase*0.10;
     }
@@ -1107,12 +1146,12 @@ function calcTotal(){
   // Build discount summary
   buildDiscountSummary(d,fpDisc,subtotal);
 
-  const totalDiscounts=(d.venue||0)+(d.entertainment||0)+(d.photo||0)+fpDisc;
+  const totalDiscounts=(d.venue||0)+(d.decor||0)+(d.entertainment||0)+(d.photo||0)+fpDisc;
   const calculated=subtotal-fpDisc;// venue/ent/photo discounts already subtracted from their prices
   const override=parseFloat(document.getElementById('priceOverride').value);
   const final=isNaN(override)?calculated:override;
 
-  document.getElementById('p-subtotal').textContent=fmtMoney(subtotal+(d.venue||0)+(d.entertainment||0)+(d.photo||0));
+  document.getElementById('p-subtotal').textContent=fmtMoney(subtotal+(d.venue||0)+(d.decor||0)+(d.entertainment||0)+(d.photo||0));
   document.getElementById('p-discounts-total').textContent=totalDiscounts?'-'+fmtMoney(totalDiscounts):'$0';
   document.getElementById('p-calculated').textContent=fmtMoney(calculated);
   document.getElementById('p-final').textContent=fmtMoney(final)||'$0';
@@ -1124,6 +1163,7 @@ function calcTotal(){
 function buildDiscountSummary(d,fpDisc,subtotal){
   const rows=[];
   if(d.venue>0)rows.push({label:'Venue discount',value:d.venue});
+  if(d.decor>0)rows.push({label:'Decor Prestige discount (10%)',value:d.decor});
   if(d.entertainment>0)rows.push({label:'Entertainment discount (day rate)',value:d.entertainment});
   if(d.photo>0)rows.push({label:`Photo bundle discount (${state.photoPlan})`,value:d.photo});
   if(fpDisc>0)rows.push({label:'Full Package discount (lowest tier)',value:fpDisc});
@@ -1199,17 +1239,19 @@ async function newQuotation(){
   state.fullPackage='na';state.decorPlan='na';state.photoPlan='na';
   state.dayOfWeek=null;state.guestRange=null;state.numGuests=0;state.numTables=0;
   state.prices={venue:0,catering:0,decor:0,entertainment:0,photo:0};
-  state.discounts={venue:0,entertainment:0,photo:0,fullPackage:0};
+  state.discounts={venue:0,decor:0,entertainment:0,photo:0,fullPackage:0};
   state.status='new';state.resNumber=null;state.selectedDate=null;state.isExternalEvent=false;state.isLoaded=false;state.loadedSnapshot=null;
   ['dayOfWeek','guestRange','venuePriceDisplay','cateringPriceDisplay','decorCPPrice','decorTotalDisplay','soundDiscountDisplay','entDiscountDisplay','photoBundleInfo','extrasInfo','framesPrice','framesTablesDisplay'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
   ['framesInfoField','decorLegacyPrice','eventSubField','discountSummaryBlock'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
   ['p-venue','p-catering','p-decor','p-entertainment','p-photo'].forEach(id=>document.getElementById(id).textContent='—');
-  ['pd-venue','pd-entertainment','pd-photo','venue-header-price','venue-header-discount','catering-header-price','decor-header-price','ent-header-price','ent-header-discount','photo-header-price','photo-header-discount','fp-header-price','fp-header-discount'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='';});
+  ['pd-venue','pd-entertainment','pd-photo','venue-header-price','venue-header-discount','catering-header-price','decor-header-price','decor-header-discount','ent-header-price','ent-header-discount','photo-header-price','photo-header-discount','fp-header-price','fp-header-discount'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='';});
   document.getElementById('p-subtotal').textContent='$0';document.getElementById('p-discounts-total').textContent='$0';
   document.getElementById('p-calculated').textContent='$0';document.getElementById('p-final').textContent='$0';
   document.getElementById('cateringTrayDisplay').textContent='—';document.getElementById('statusPill').textContent='NEW';
   document.getElementById('venueDiscountDisplay').style.display='none';
   ['venueTier','cateringLine','cateringPlan','entPlan','soundPlan','decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier','photoTier','photoShootPlan','printsPlan'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=false;});
+  document.querySelectorAll('#decorTierBtns .tier-btn').forEach(b=>b.disabled=false);
+  document.querySelectorAll('#photoTierBtns .tier-btn').forEach(b=>b.disabled=false);
   showLoading('Preparing new quotation...');
   await loadAllQuotations();await generateCotNumber();
   document.getElementById('createdDate').textContent=new Date().toLocaleDateString('en-US');
@@ -1266,6 +1308,36 @@ function loadQuotation(cotNum){
   onGuestsChange();onEventTypeChange();onCateringPlanChange();
   if(rec['Venue Tier']&&rec['Venue Tier']!=='EXTERNAL')document.getElementById('venueTier').value=rec['Venue Tier'];
   onVenueTierChange&&onVenueTierChange();onDateChange();
+
+  // Restore Block 5 — Decor
+  const decorPlan=rec['Decor Plan']||'na';
+  document.querySelectorAll('#decorTierBtns .tier-btn').forEach(b=>b.classList.remove('active'));
+  const decorBtnMap={na:0,essential:1,elegant:2,prestige:3,legacy:4};
+  const decorBtns=document.querySelectorAll('#decorTierBtns .tier-btn');
+  if(decorBtns[decorBtnMap[decorPlan]])decorBtns[decorBtnMap[decorPlan]].classList.add('active');
+  setDecorPlanInternal(decorPlan);
+
+  // Restore Block 6 — Entertainment
+  const entPlanVal=rec['Entertainment Plan']||'';
+  document.getElementById('entPlan').value=entPlanVal;
+  const soundMap={essential:'soundlighting',elegant:'soundlightingplus',prestige:'soundlightingplus',legacy:'soundlightingplus'};
+  const soundSel=document.getElementById('soundPlan');
+  if(entPlanVal){
+    soundSel.value=soundMap[entPlanVal];soundSel.disabled=true;
+    document.getElementById('soundDamageAlert').style.display='block';
+  } else {
+    soundSel.value=rec['Sound Plan']||'';soundSel.disabled=false;
+    document.getElementById('soundDamageAlert').style.display=soundSel.value?'block':'none';
+  }
+  updateEntDiscounts();
+
+  // Restore Block 7 — Photo
+  const photoPlanVal=rec['Photo Plan']||'na';
+  document.querySelectorAll('#photoTierBtns .tier-btn').forEach(b=>b.classList.remove('active'));
+  const photoBtnMap={na:0,elegant:1,prestige:2,legacy:3};
+  const photoBtns=document.querySelectorAll('#photoTierBtns .tier-btn');
+  if(photoBtns[photoBtnMap[photoPlanVal]])photoBtns[photoBtnMap[photoPlanVal]].classList.add('active');
+  setPhotoPlanInternal(photoPlanVal);
   state.loadedSnapshot={...rec};
   document.getElementById('cotNumber').textContent=rec['COT#'];
   document.getElementById('statusPill').textContent='LOADED';
