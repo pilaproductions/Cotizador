@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cardona Hall — Quotation System</title>
+<title>Cardona Hall — Quotation System v8</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{--gold:#C9A84C;--gold-light:#E8D5A3;--gold-pale:#FDF8EE;--gold-border:#D4B86A;--black:#0A0A0A;--dark:#1A1A1A;--dark2:#242424;--gray:#5A5A5A;--gray-light:#F5F5F5;--white:#FFFFFF;--red:#8B2020;--red-light:#FDECEA;--green:#1E5C2E;--green-light:#EAF4ED;--blue:#1A3A6B;--orange:#B85C00;--orange-light:#FFF3E0;}
 *{margin:0;padding:0;box-sizing:border-box;}
 body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:var(--dark);padding:20px;}
-.page{max-width:980px;margin:0 auto;background:var(--white);box-shadow:0 0 60px rgba(0,0,0,0.7);}
+.page{max-width:1000px;margin:0 auto;background:var(--white);box-shadow:0 0 60px rgba(0,0,0,0.7);}
 .header{background:var(--black);padding:18px 28px;display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid var(--gold);}
 .brand-title{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:700;color:var(--gold);letter-spacing:2px;text-transform:uppercase;}
 .brand-sub{font-size:9px;color:#888;letter-spacing:3px;text-transform:uppercase;margin-top:2px;}
@@ -31,7 +31,8 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
 .block-header{background:var(--black);padding:8px 28px;display:flex;align-items:center;gap:10px;}
 .block-num{width:22px;height:22px;background:var(--gold);color:var(--black);font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .block-title{font-family:'Cormorant Garamond',serif;font-size:14px;font-weight:600;color:var(--white);letter-spacing:2px;text-transform:uppercase;}
-.block-tag{margin-left:auto;font-size:8px;letter-spacing:1.5px;text-transform:uppercase;color:#666;background:#1A1A1A;padding:2px 8px;border:1px solid #333;}
+.block-price{margin-left:auto;font-size:13px;font-weight:700;color:var(--gold);font-family:'Montserrat',sans-serif;letter-spacing:1px;}
+.block-discount{font-size:9px;color:#6EC98A;margin-left:8px;font-weight:600;}
 .block-content{padding:14px 28px;}
 .field{display:flex;align-items:center;padding:6px 0;border-bottom:1px solid #F0F0F0;min-height:34px;gap:8px;}
 .field:last-child{border-bottom:none;}
@@ -44,6 +45,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
 .field-select:disabled{background:var(--gray-light);color:#AAA;border-color:#DDD;background-image:none;cursor:default;}
 .field-auto{padding:3px 10px;font-size:11px;color:var(--gray);background:var(--gray-light);border:1px solid #E0E0E0;font-style:italic;white-space:nowrap;}
 .field-auto.highlight{background:#FFF9EC;color:var(--orange);border-color:var(--gold-border);font-style:normal;font-weight:600;}
+.field-auto.green{background:var(--green-light);color:var(--green);border-color:#A8D5B5;font-style:normal;font-weight:600;}
 .field-error{font-size:10px;color:var(--red);font-weight:600;margin-left:4px;display:none;}
 .field-error.show{display:inline-block;}
 .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:0 32px;}
@@ -62,19 +64,23 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
 .tier-btn.na{border-style:dashed;font-size:9px;}
 .tier-btn:disabled{opacity:0.3;cursor:not-allowed;}
 .sub-block{margin:8px 0;border:1px solid #E8E8E8;}
-.sub-header{background:var(--dark2);padding:5px 14px;}
+.sub-header{background:var(--dark2);padding:5px 14px;display:flex;align-items:center;justify-content:space-between;}
 .sub-title{font-size:9px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--gold-light);}
+.sub-price{font-size:10px;font-weight:700;color:var(--gold);font-family:'Montserrat',sans-serif;}
 .sub-content{padding:8px 14px;background:#FAFAFA;}
 .sub-content .field{padding:4px 0;}
 .sub-content .field-label{min-width:130px;}
 .divider{height:1px;background:linear-gradient(to right,transparent,var(--gold),transparent);margin:10px 0;}
 .info-badge{display:inline-block;padding:2px 8px;font-size:9px;font-weight:600;letter-spacing:1px;text-transform:uppercase;background:#EEF3FF;color:var(--blue);border:1px solid #BFD0F0;margin-left:6px;}
 .info-badge.gold{background:var(--gold-pale);color:#8B6914;border-color:var(--gold-border);}
+.info-badge.green{background:var(--green-light);color:var(--green);border-color:#A8D5B5;}
+/* PRICING SECTION */
 .pricing-section{background:var(--dark);padding:16px 28px;border-top:2px solid var(--gold);}
 .price-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #333;}
 .price-row:last-child{border-bottom:none;}
 .price-label{font-size:10px;color:#888;letter-spacing:0.8px;text-transform:uppercase;}
 .price-value{font-size:13px;font-weight:600;color:var(--gold-light);}
+.price-discount{font-size:10px;color:#6EC98A;margin-left:8px;}
 .price-total-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-top:1px solid var(--gold);margin-top:6px;}
 .price-total-label{font-family:'Cormorant Garamond',serif;font-size:16px;color:var(--white);letter-spacing:1px;}
 .price-total-value{font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:700;color:var(--gold);}
@@ -83,10 +89,17 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
 .price-input::placeholder{color:#555;font-size:11px;}
 .special-conditions{width:100%;background:#1A1A1A;border:1px solid #333;color:#CCC;font-family:'Montserrat',sans-serif;font-size:11px;padding:8px;resize:vertical;min-height:60px;outline:none;margin-top:6px;}
 .special-conditions:focus{border-color:var(--gold);}
-.discount-row{display:flex;align-items:center;gap:12px;margin-top:8px;padding-top:8px;border-top:1px solid #333;}
-.discount-label{font-size:10px;color:#888;letter-spacing:0.8px;text-transform:uppercase;}
-.discount-select{background:#1A1A1A;border:1px solid #444;color:#CCC;padding:4px 8px;font-size:11px;font-family:'Montserrat',sans-serif;outline:none;}
-.discount-input{background:transparent;border:none;border-bottom:1px solid #555;color:var(--white);font-size:12px;width:80px;padding:3px 6px;text-align:right;outline:none;}
+/* DISCOUNT SUMMARY */
+.discount-summary{background:#0D1A0D;border:1px solid #2A4A2A;padding:12px 16px;margin-top:12px;}
+.discount-summary-title{font-size:9px;color:#6EC98A;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;font-weight:700;}
+.discount-row-item{display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #1A2A1A;}
+.discount-row-item:last-child{border-bottom:none;}
+.discount-row-label{font-size:10px;color:#888;}
+.discount-row-value{font-size:10px;color:#6EC98A;font-weight:600;}
+.discount-total-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-top:1px solid #2A4A2A;margin-top:4px;}
+.discount-total-label{font-size:10px;color:#AAA;font-weight:600;text-transform:uppercase;letter-spacing:1px;}
+.discount-total-value{font-size:13px;color:#6EC98A;font-weight:700;}
+/* CALENDAR */
 .date-wrapper{position:relative;display:flex;align-items:center;gap:8px;}
 .date-input-wrap{position:relative;}
 .cal-icon{cursor:pointer;color:var(--gold);font-size:16px;padding:0 4px;user-select:none;}
@@ -107,6 +120,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
 .cal-legend{display:flex;gap:12px;margin-top:8px;padding-top:8px;border-top:1px solid #EEE;flex-wrap:wrap;}
 .cal-legend-item{display:flex;align-items:center;gap:4px;font-size:9px;color:#888;}
 .cal-legend-dot{width:10px;height:10px;border-radius:2px;}
+/* MODAL */
 .modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:1000;align-items:center;justify-content:center;}
 .modal-overlay.show{display:flex;}
 .modal{background:var(--white);width:560px;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.5);}
@@ -127,6 +141,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
 .result-client{font-size:13px;color:var(--dark);font-weight:600;}
 .result-meta{font-size:10px;color:#888;margin-top:2px;}
 .result-empty{padding:20px;text-align:center;color:#AAA;font-size:11px;}
+/* CONFIRM */
 .confirm-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:2000;align-items:center;justify-content:center;}
 .confirm-overlay.show{display:flex;}
 .confirm-box{background:var(--white);padding:28px 32px;max-width:400px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.4);}
@@ -135,11 +150,13 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
 .confirm-btns{display:flex;gap:10px;justify-content:flex-end;}
 .confirm-yes{background:var(--gold);color:var(--black);border:none;padding:8px 20px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;}
 .confirm-no{background:transparent;color:var(--red);border:1px solid var(--red);padding:8px 20px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;}
+/* TOAST */
 .toast{position:fixed;top:20px;right:20px;padding:12px 20px;font-size:11px;font-weight:600;letter-spacing:0.5px;z-index:3000;border-left:4px solid;display:none;box-shadow:0 4px 20px rgba(0,0,0,0.3);max-width:340px;}
 .toast.show{display:block;animation:slideIn 0.3s ease;}
 .toast-success{background:var(--white);color:var(--green);border-color:var(--green);}
 .toast-error{background:var(--white);color:var(--red);border-color:var(--red);}
 .toast-warn{background:var(--white);color:var(--orange);border-color:var(--orange);}
+.toast-info{background:var(--white);color:var(--blue);border-color:var(--blue);}
 @keyframes slideIn{from{transform:translateX(100%);opacity:0;}to{transform:translateX(0);opacity:1;}}
 .loading-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:900;align-items:center;justify-content:center;}
 .loading-overlay.show{display:flex;}
@@ -151,52 +168,19 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
 </style>
 </head>
 <body>
-
-<div class="loading-overlay" id="loadingOverlay">
-  <div class="loading-box"><div class="loading-spinner"></div><div id="loadingMsg">Loading...</div></div>
-</div>
-
-<div class="confirm-overlay" id="confirmOverlay">
-  <div class="confirm-box">
-    <div class="confirm-title" id="confirmTitle">Confirm</div>
-    <div class="confirm-msg" id="confirmMsg"></div>
-    <div class="confirm-btns">
-      <button class="confirm-no" id="confirmNo">No</button>
-      <button class="confirm-yes" id="confirmYes">Yes</button>
-    </div>
-  </div>
-</div>
-
-<div class="modal-overlay" id="loadModal">
-  <div class="modal">
-    <div class="modal-header">
-      <div class="modal-title">Load Quotation</div>
-      <button class="modal-close" onclick="closeModal()">&times;</button>
-    </div>
-    <div class="modal-body">
-      <div class="modal-search">
-        <input type="text" id="searchInput" placeholder="Search by COT# or client name..." oninput="filterResults(this.value)">
-        <button onclick="filterResults(document.getElementById('searchInput').value)">Search</button>
-      </div>
-      <div class="modal-results" id="searchResults"><div class="result-empty">Loading...</div></div>
-    </div>
-  </div>
-</div>
-
+<div class="loading-overlay" id="loadingOverlay"><div class="loading-box"><div class="loading-spinner"></div><div id="loadingMsg">Loading...</div></div></div>
+<div class="confirm-overlay" id="confirmOverlay"><div class="confirm-box"><div class="confirm-title" id="confirmTitle">Confirm</div><div class="confirm-msg" id="confirmMsg"></div><div class="confirm-btns"><button class="confirm-no" id="confirmNo">No</button><button class="confirm-yes" id="confirmYes">Yes</button></div></div></div>
+<div class="modal-overlay" id="loadModal"><div class="modal"><div class="modal-header"><div class="modal-title">Load Quotation</div><button class="modal-close" onclick="closeModal()">&times;</button></div><div class="modal-body"><div class="modal-search"><input type="text" id="searchInput" placeholder="Search by COT# or client name..." oninput="filterResults(this.value)"><button onclick="filterResults(document.getElementById('searchInput').value)">Search</button></div><div class="modal-results" id="searchResults"><div class="result-empty">Loading...</div></div></div></div></div>
 <div class="toast" id="toast"></div>
 
 <div class="page">
 <div class="header">
-  <div>
-    <div class="brand-title">Cardona Hall</div>
-    <div class="brand-sub">Pilab Productions &nbsp;·&nbsp; Event Quotation System</div>
-  </div>
+  <div><div class="brand-title">Cardona Hall</div><div class="brand-sub">Pilab Productions &nbsp;·&nbsp; Event Quotation System v8</div></div>
   <div class="header-right">
     <div class="cot-box" id="cotNumber">COT-2026-—</div>
     <div class="cot-meta">Created: <span id="createdDate">—</span> &nbsp;·&nbsp; Status: <span class="status-pill" id="statusPill">NEW</span></div>
   </div>
 </div>
-
 <div class="actions">
   <button class="btn btn-gold" onclick="saveQuotation()">&#x2713; Save Quotation</button>
   <button class="btn btn-outline" onclick="openLoadModal()">&#x21BA; Load Quotation</button>
@@ -204,55 +188,25 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
   <button class="btn btn-reserve" onclick="confirmReservation()">&#x2605; Confirm Reservation</button>
 </div>
 
+<!-- BLOCK 1: GENERAL INFO -->
 <div class="block">
   <div class="block-header"><div class="block-num">1</div><div class="block-title">General Information</div></div>
   <div class="block-content">
     <div class="grid-2">
       <div>
-        <div class="field">
-          <div class="field-label">Client Name <span class="req">*</span></div>
-          <input class="field-input" id="clientName" type="text" placeholder="Full name" oninput="formatTitleCase(this);clearErr('clientName')">
-          <span class="field-error" id="err-clientName">Required</span>
-        </div>
-        <div class="field">
-          <div class="field-label">Country of Origin</div>
-          <input class="field-input" id="country" type="text" placeholder="e.g. Colombia" oninput="onlyLettersSpaces(this)">
-        </div>
-        <div class="field">
-          <div class="field-label">State</div>
-          <input class="field-input" id="state" type="text" placeholder="e.g. New Jersey" oninput="onlyLettersSpaces(this)">
-        </div>
-        <div class="field">
-          <div class="field-label">City</div>
-          <input class="field-input" id="city" type="text" placeholder="e.g. Passaic" oninput="onlyLettersSpaces(this)">
-        </div>
-        <div class="field">
-          <div class="field-label">Client Type</div>
-          <select class="field-select" id="clientType" onchange="onClientTypeChange()">
-            <option value="standard">Standard</option>
-            <option value="returning">Returning Client</option>
-            <option value="vip">VIP</option>
-          </select>
-        </div>
+        <div class="field"><div class="field-label">Client Name <span class="req">*</span></div><input class="field-input" id="clientName" type="text" placeholder="Full name" oninput="formatTitleCase(this);clearErr('clientName')"><span class="field-error" id="err-clientName">Required</span></div>
+        <div class="field"><div class="field-label">Country of Origin</div><input class="field-input" id="country" type="text" placeholder="e.g. Colombia" oninput="onlyLettersSpaces(this)"></div>
+        <div class="field"><div class="field-label">State</div><input class="field-input" id="state" type="text" placeholder="e.g. New Jersey" oninput="onlyLettersSpaces(this)"></div>
+        <div class="field"><div class="field-label">City</div><input class="field-input" id="city" type="text" placeholder="e.g. Passaic" oninput="onlyLettersSpaces(this)"></div>
+        <div class="field"><div class="field-label">Client Type</div><select class="field-select" id="clientType" onchange="onClientTypeChange()"><option value="standard">Standard</option><option value="returning">Returning Client</option><option value="vip">VIP</option></select></div>
       </div>
       <div>
-        <div class="field">
-          <div class="field-label">Phone Number <span class="req">*</span></div>
-          <input class="field-input" id="phone" type="text" placeholder="(000) 000-0000" oninput="formatPhone(this);clearErr('phone')">
-          <span class="field-error" id="err-phone">Required</span>
-        </div>
-        <div class="field">
-          <div class="field-label">Email</div>
-          <input class="field-input" id="email" type="text" placeholder="client@email.com" oninput="this.value=this.value.toLowerCase()" onblur="validateEmail(this)">
-          <span class="field-error" id="err-email">Invalid email</span>
-        </div>
+        <div class="field"><div class="field-label">Phone Number <span class="req">*</span></div><input class="field-input" id="phone" type="text" placeholder="(000) 000-0000" oninput="formatPhone(this);clearErr('phone')"><span class="field-error" id="err-phone">Required</span></div>
+        <div class="field"><div class="field-label">Email</div><input class="field-input" id="email" type="text" placeholder="client@email.com" oninput="this.value=this.value.toLowerCase()" onblur="validateEmail(this)"><span class="field-error" id="err-email">Invalid email</span></div>
         <div class="field">
           <div class="field-label">Event Date <span class="req">*</span></div>
           <div class="date-wrapper">
-            <div class="date-input-wrap">
-              <input class="field-input" id="eventDate" type="text" placeholder="Click calendar" readonly style="cursor:pointer;max-width:140px" onclick="toggleCalendar(event)">
-              <div class="cal-popup" id="calPopup"></div>
-            </div>
+            <div class="date-input-wrap"><input class="field-input" id="eventDate" type="text" placeholder="Click calendar" readonly style="cursor:pointer;max-width:140px" onclick="toggleCalendar(event)"><div class="cal-popup" id="calPopup"></div></div>
             <span class="cal-icon" onclick="toggleCalendar(event)">&#128197;</span>
             <span class="field-auto highlight" id="dayOfWeek" style="display:none"></span>
           </div>
@@ -260,13 +214,19 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
         </div>
         <div class="field">
           <div class="field-label">Number of Guests <span class="req">*</span></div>
-          <input class="field-input" id="numGuests" type="number" min="30" max="130" placeholder="30–130" oninput="onGuestsChange()" style="max-width:80px">
+          <input class="field-input" id="numGuests" type="number" min="30" max="120" placeholder="30–120" oninput="onGuestsChange()" style="max-width:80px">
           <span class="field-auto" id="guestRange" style="display:none"></span>
-          <span class="field-error" id="err-numGuests">30–130 only</span>
+          <span class="field-error" id="err-numGuests">30–120 only</span>
+        </div>
+        <div class="field">
+          <div class="field-label">Number of Children</div>
+          <input class="field-input" id="numChildren" type="number" min="0" value="0" placeholder="0" style="max-width:70px">
+          <span style="font-size:9px;color:#AAA;font-style:italic;margin-left:8px">Children 5+ count as adults</span>
         </div>
         <div class="field">
           <div class="field-label">Event Type <span class="req">*</span></div>
           <select class="field-select" id="eventType" onchange="onEventTypeChange()">
+            <option value="">— Select —</option>
             <option value="quinceanera">Quinceañera / Sweet 16</option>
             <option value="wedding">Wedding</option>
             <option value="babyshower">Baby Shower</option>
@@ -275,55 +235,58 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
             <option value="special_social">Special Event Social</option>
             <option value="special_corporate">Special Event Corporate</option>
           </select>
+          <span class="field-error" id="err-eventType">Required</span>
         </div>
-        <div class="field" id="eventSubField" style="display:none">
-          <div class="field-label">Specify Event</div>
-          <input class="field-input" id="eventSubType" type="text" placeholder="e.g. Graduation, First Communion...">
-        </div>
+        <div class="field" id="eventSubField" style="display:none"><div class="field-label">Specify Event</div><input class="field-input" id="eventSubType" type="text" placeholder="e.g. Graduation, First Communion..."></div>
       </div>
     </div>
     <div id="lastMinuteAlert" class="alert alert-warn">&#x26A0; Last Minute — Event within 15 days. Expanded options unlocked.</div>
-    <div id="externalEventAlert" class="alert alert-ok" style="display:none">&#x2713; External event — Venue set to $0. Other services available.</div>
-    <div id="saveDateBlockAlert" class="alert alert-error" style="display:none">&#x26D4; Date already reserved. Select another date or confirm as external event to continue.</div>
+    <div id="externalEventAlert" class="alert alert-ok" style="display:none">&#x2713; External event — Venue $0. No discounts apply.</div>
+    <div id="saveDateBlockAlert" class="alert alert-error" style="display:none">&#x26D4; Date already reserved. Select another date or confirm as external event.</div>
   </div>
 </div>
 
+<!-- BLOCK 2: FULL PACKAGE -->
 <div class="block">
-  <div class="block-header"><div class="block-num">2</div><div class="block-title">Full Package</div><div class="block-tag">Auto-fills all divisions · 5% discount</div></div>
+  <div class="block-header"><div class="block-num">2</div><div class="block-title">Full Package</div><div class="block-price" id="fp-header-price"></div><div class="block-discount" id="fp-header-discount"></div></div>
   <div class="block-content">
     <div class="tier-row">
       <div class="tier-label">Package Tier</div>
       <div class="tier-opts" id="fullPackageTiers">
         <button class="tier-btn na active" onclick="setFullPackage('na',this)">Not Applicable</button>
         <button class="tier-btn" id="fp-essential" onclick="setFullPackage('essential',this)">Essential</button>
-        <button class="tier-btn" id="fp-elegant" onclick="setFullPackage('elegant',this)">Elegant</button>
-        <button class="tier-btn" id="fp-prestige" onclick="setFullPackage('prestige',this)">Prestige</button>
-        <button class="tier-btn" id="fp-legacy" onclick="setFullPackage('legacy',this)">Legacy</button>
+        <button class="tier-btn" id="fp-elegant" onclick="setFullPackage('elegant',this)">Elegant <span style="font-size:8px;color:#6EC98A">5%</span></button>
+        <button class="tier-btn" id="fp-prestige" onclick="setFullPackage('prestige',this)">Prestige <span style="font-size:8px;color:#6EC98A">5%</span></button>
+        <button class="tier-btn" id="fp-legacy" onclick="setFullPackage('legacy',this)">Legacy <span style="font-size:8px;color:#6EC98A">7%</span></button>
       </div>
     </div>
     <div id="fpAlert" class="alert alert-info"></div>
+    <div class="alert alert-info show" style="margin-top:4px;font-size:9px">Discounts: Essential=0% · Elegant=5% · Prestige=5% · Legacy=7% · Requires all 5 divisions selected · No discount on Classic Menu or Sound Only</div>
   </div>
 </div>
 
+<!-- BLOCK 3: VENUE -->
 <div class="block">
-  <div class="block-header"><div class="block-num">3</div><div class="block-title">Venue &amp; Host Services</div></div>
+  <div class="block-header"><div class="block-num">3</div><div class="block-title">Venue &amp; Host Services</div><div class="block-price" id="venue-header-price"></div><div class="block-discount" id="venue-header-discount"></div></div>
   <div class="block-content">
     <div class="field">
       <div class="field-label">Tier</div>
       <select class="field-select" id="venueTier" onchange="onVenueTierChange()">
         <option value="">— Select —</option>
-        <option value="essential">Essential</option>
-        <option value="elegant">Elegant</option>
-        <option value="prestige">Prestige</option>
+        <option value="essential">Essential (Mon–Thu)</option>
+        <option value="elegant">Elegant (Fri/Sun)</option>
+        <option value="prestige">Prestige (Saturday)</option>
       </select>
       <span class="field-auto highlight" id="venuePriceDisplay" style="display:none"></span>
     </div>
+    <div id="venueDiscountDisplay" style="display:none;margin-top:4px"></div>
     <div id="venueAlert" class="alert alert-info"></div>
   </div>
 </div>
 
+<!-- BLOCK 4: CATERING -->
 <div class="block">
-  <div class="block-header"><div class="block-num">4</div><div class="block-title">Catering &amp; Hospitality</div></div>
+  <div class="block-header"><div class="block-num">4</div><div class="block-title">Catering &amp; Hospitality</div><div class="block-price" id="catering-header-price"></div><div class="block-discount" id="catering-header-discount"></div></div>
   <div class="block-content">
     <div class="field">
       <div class="field-label">Line</div>
@@ -341,16 +304,14 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
       </select>
       <span class="field-auto highlight" id="cateringPriceDisplay" style="display:none"></span>
     </div>
-    <div class="field">
-      <div class="field-label">Trays / Portions</div>
-      <span class="field-auto" id="cateringTrayDisplay">—</span>
-    </div>
+    <div class="field"><div class="field-label">Trays / Portions</div><span class="field-auto" id="cateringTrayDisplay">—</span></div>
     <div id="cateringAlert" class="alert alert-warn"></div>
   </div>
 </div>
 
+<!-- BLOCK 5: DESIGN & DECOR -->
 <div class="block">
-  <div class="block-header"><div class="block-num">5</div><div class="block-title">Design &amp; Decor</div></div>
+  <div class="block-header"><div class="block-num">5</div><div class="block-title">Design &amp; Decor</div><div class="block-price" id="decor-header-price"></div><div class="block-discount" id="decor-header-discount"></div></div>
   <div class="block-content">
     <div class="tier-row">
       <div class="tier-label">Full Decor Plan</div>
@@ -363,263 +324,239 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
       </div>
     </div>
     <div id="decorLegacyPrice" style="display:none">
-      <div class="field">
-        <div class="field-label">Custom Price</div>
-        <input class="field-input" id="decorLegacyPriceVal" type="number" placeholder="Custom price" oninput="calcTotal()" style="max-width:140px">
-        <span style="font-size:9px;color:#AAA;font-style:italic;margin-left:8px">Event Design — ref. $3,000</span>
-      </div>
+      <div class="field"><div class="field-label">Custom Price</div><input class="field-input" id="decorLegacyPriceVal" type="number" placeholder="Custom price" oninput="calcTotal()" style="max-width:140px"><span style="font-size:9px;color:#AAA;font-style:italic;margin-left:8px">Event Design — ref. $3,000</span></div>
     </div>
     <div id="decorSubBlocks">
       <div class="sub-block">
-        <div class="sub-header"><div class="sub-title">Honor Table &amp; Backdrop</div></div>
-        <div class="sub-content">
-          <div class="field"><div class="field-label">Tier</div>
-            <select class="field-select" id="decorHonorTier" onchange="calcTotal()">
-              <option value="">Not Applicable</option><option value="essential">Essential</option><option value="elegant">Elegant</option><option value="prestige">Prestige</option><option value="legacy">Legacy</option>
-            </select>
-          </div>
-        </div>
+        <div class="sub-header"><div class="sub-title">Honor Table &amp; Backdrop</div><div class="sub-price" id="honor-price"></div></div>
+        <div class="sub-content"><div class="field"><div class="field-label">Tier</div><select class="field-select" id="decorHonorTier" onchange="calcTotal()"><option value="">Not Applicable</option><option value="essential">Essential</option><option value="elegant">Elegant</option><option value="prestige">Prestige</option><option value="legacy">Legacy</option></select></div></div>
       </div>
       <div class="sub-block">
-        <div class="sub-header"><div class="sub-title">Dining Setup</div></div>
+        <div class="sub-header"><div class="sub-title">Dining Setup</div><div class="sub-price" id="dining-price"></div></div>
         <div class="sub-content">
           <div class="grid-2">
-            <div class="field"><div class="field-label">Tier</div>
-              <select class="field-select" id="decorDiningTier" onchange="calcTotal()">
-                <option value="">Not Applicable</option><option value="essential">Essential</option><option value="elegant">Elegant</option><option value="prestige">Prestige</option>
-              </select>
-            </div>
-            <div class="field"><div class="field-label">Tables</div>
-              <input class="field-input" id="decorDiningTables" type="number" min="5" max="13" placeholder="5–13" oninput="calcTotal()" style="max-width:70px">
-            </div>
+            <div class="field"><div class="field-label">Tier</div><select class="field-select" id="decorDiningTier" onchange="calcTotal()"><option value="">Not Applicable</option><option value="essential">Essential</option><option value="elegant">Elegant</option><option value="prestige">Prestige</option></select></div>
+            <div class="field"><div class="field-label">Tables (auto)</div><span class="field-auto highlight" id="decorDiningTablesDisplay">—</span></div>
           </div>
         </div>
       </div>
       <div class="sub-block">
-        <div class="sub-header"><div class="sub-title">Centerpieces</div></div>
+        <div class="sub-header"><div class="sub-title">Centerpieces</div><div class="sub-price" id="cp-price"></div></div>
         <div class="sub-content">
           <div class="grid-2">
-            <div class="field"><div class="field-label">Tier</div>
-              <select class="field-select" id="decorCPTier" onchange="calcDecorPrice()">
-                <option value="">Not Applicable</option><option value="essential">Essential</option><option value="elegant">Elegant</option><option value="prestige">Prestige</option>
-              </select>
-            </div>
-            <div class="field"><div class="field-label">Type</div>
-              <select class="field-select" id="decorCPType" onchange="calcDecorPrice()">
-                <option value="flowers">Flowers</option><option value="balloons">Balloons</option><option value="others">Others</option>
-              </select>
-            </div>
+            <div class="field"><div class="field-label">Tier</div><select class="field-select" id="decorCPTier" onchange="calcDecorPrice()"><option value="">Not Applicable</option><option value="essential">Essential</option><option value="elegant">Elegant</option><option value="prestige">Prestige</option></select></div>
+            <div class="field"><div class="field-label">Type</div><select class="field-select" id="decorCPType" onchange="calcDecorPrice()"><option value="flowers">Flowers</option><option value="balloons">Balloons</option><option value="others">Others</option></select></div>
           </div>
-          <div class="field">
-            <div class="field-label">Tables</div>
-            <input class="field-input" id="decorCPTables" type="number" min="5" max="13" placeholder="5–13" oninput="calcDecorPrice()" style="max-width:70px">
-            <span class="field-auto highlight" id="decorCPPrice" style="display:none"></span>
-          </div>
+          <div class="field"><div class="field-label">Tables (auto)</div><span class="field-auto highlight" id="decorCPTablesDisplay">—</span></div>
         </div>
       </div>
       <div class="sub-block">
-        <div class="sub-header"><div class="sub-title">Extras</div></div>
-        <div class="sub-content">
-          <div class="field"><div class="field-label">Tier</div>
-            <select class="field-select" id="decorExtrasTier" onchange="onDecorExtrasTier()">
-              <option value="">Not Applicable</option><option value="elegant">Elegant</option><option value="prestige">Prestige</option><option value="legacy">Legacy</option>
-            </select>
-            <span class="info-badge gold" id="extrasInfo" style="display:none"></span>
-          </div>
-        </div>
+        <div class="sub-header"><div class="sub-title">Extras</div><div class="sub-price" id="extras-price"></div></div>
+        <div class="sub-content"><div class="field"><div class="field-label">Tier</div><select class="field-select" id="decorExtrasTier" onchange="onDecorExtrasTier()"><option value="">Not Applicable</option><option value="elegant">Elegant</option><option value="prestige">Prestige</option></select><span class="info-badge gold" id="extrasInfo" style="display:none"></span></div></div>
       </div>
     </div>
-    <div class="field" style="margin-top:6px">
-      <div class="field-label">Decor Total</div>
-      <span class="field-auto highlight" id="decorTotalDisplay" style="display:none"></span>
-    </div>
+    <div class="field" style="margin-top:6px"><div class="field-label">Decor Total</div><span class="field-auto highlight" id="decorTotalDisplay" style="display:none"></span></div>
   </div>
 </div>
 
+<!-- BLOCK 6: ENTERTAINMENT -->
 <div class="block">
-  <div class="block-header"><div class="block-num">6</div><div class="block-title">Entertainment &amp; Production</div></div>
+  <div class="block-header"><div class="block-num">6</div><div class="block-title">Entertainment &amp; Production</div><div class="block-price" id="ent-header-price"></div><div class="block-discount" id="ent-header-discount"></div></div>
   <div class="block-content">
-    <div class="tier-row">
-      <div class="tier-label">Full Entertainment</div>
-      <div class="tier-opts" id="entTierBtns">
-        <button class="tier-btn na active" onclick="setEntertainment('na',this)">Not Applicable</button>
-        <button class="tier-btn" onclick="setEntertainment('essential',this)">Essential</button>
-        <button class="tier-btn" onclick="setEntertainment('elegant',this)">Elegant</button>
-        <button class="tier-btn" onclick="setEntertainment('prestige',this)">Prestige</button>
-        <button class="tier-btn" onclick="setEntertainment('legacy',this)">Legacy</button>
-      </div>
-    </div>
-    <div class="field" style="margin-top:6px">
-      <div class="field-label">DJ Nationality</div>
-      <input class="field-input" id="djNationality" type="text" placeholder="e.g. Colombian, Dominican..." style="max-width:220px">
-    </div>
-    <div class="divider"></div>
     <div class="field">
-      <div class="field-label">Sound Only</div>
-      <select class="field-select" id="soundOnly" onchange="onSoundOnlyChange()">
-        <option value="">Not Applicable</option>
-        <option value="soundlighting">Sound &amp; Lighting</option>
-        <option value="soundlightingplus">Sound &amp; Lighting Plus</option>
+      <div class="field-label">Sound System</div>
+      <select class="field-select" id="soundPlan" onchange="onSoundPlanChange()">
+        <option value="">— Select —</option>
+        <option value="soundlighting">Sound &amp; Lighting — $400</option>
+        <option value="soundlightingplus">Sound &amp; Lighting Plus — $600</option>
       </select>
-      <span class="field-auto" id="soundFeeDisplay" style="display:none"></span>
+      <span class="field-auto green" id="soundDiscountDisplay" style="display:none"></span>
+    </div>
+    <div class="field">
+      <div class="field-label">Entertainment Plan</div>
+      <select class="field-select" id="entPlan" onchange="onEntPlanChange()">
+        <option value="">Not Applicable</option>
+        <option value="essential">Essential — $900</option>
+        <option value="elegant">Elegant — $1,400</option>
+        <option value="prestige">Prestige — $1,600</option>
+        <option value="legacy">Legacy — $3,000</option>
+      </select>
+      <span class="field-auto green" id="entDiscountDisplay" style="display:none"></span>
     </div>
     <div id="entAlert" class="alert alert-info"></div>
-    <div id="soundDamageAlert" class="alert alert-warn" style="display:none">&#x26A0; Sound Only — Damage policy must be included in contract.</div>
+    <div id="soundDamageAlert" class="alert alert-warn" style="display:none">&#x26A0; Sound System selected — Damage policy required in contract.</div>
   </div>
 </div>
 
+<!-- BLOCK 7: PHOTO & VIDEO -->
 <div class="block">
-  <div class="block-header"><div class="block-num">7</div><div class="block-title">Photo &amp; Video</div></div>
+  <div class="block-header"><div class="block-num">7</div><div class="block-title">Photo &amp; Video</div><div class="block-price" id="photo-header-price"></div><div class="block-discount" id="photo-header-discount"></div></div>
   <div class="block-content">
     <div class="tier-row">
       <div class="tier-label">Full Photo Plan</div>
       <div class="tier-opts" id="photoTierBtns">
         <button class="tier-btn na active" onclick="setPhotoPlan('na',this)">Not Applicable</button>
-        <button class="tier-btn" onclick="setPhotoPlan('essential',this)">Essential</button>
-        <button class="tier-btn" onclick="setPhotoPlan('elegant',this)">Elegant</button>
-        <button class="tier-btn" onclick="setPhotoPlan('prestige',this)">Prestige</button>
-        <button class="tier-btn" onclick="setPhotoPlan('legacy',this)">Legacy</button>
+        <button class="tier-btn" onclick="setPhotoPlan('elegant',this)">Elegant <span style="font-size:8px;color:#6EC98A">10%</span></button>
+        <button class="tier-btn" onclick="setPhotoPlan('prestige',this)">Prestige <span style="font-size:8px;color:#6EC98A">15%</span></button>
+        <button class="tier-btn" onclick="setPhotoPlan('legacy',this)">Legacy <span style="font-size:8px;color:#6EC98A">20%</span></button>
       </div>
       <span class="info-badge" id="photoBundleInfo" style="display:none">Bundle Applied</span>
     </div>
     <div class="sub-block" style="margin-top:8px">
-      <div class="sub-header"><div class="sub-title">Photography &amp; Videography</div></div>
-      <div class="sub-content">
-        <div class="field"><div class="field-label">Tier</div>
-          <select class="field-select" id="photoTier" onchange="calcTotal()">
-            <option value="">Not Applicable</option>
-            <option value="essential">Essential — 2H, 50–100 photos ($800)</option>
-            <option value="elegant">Elegant — Full Event, 200–400 photos ($1,250)</option>
-            <option value="prestige">Prestige — Full + Video 3H + Twitch ($2,400)</option>
-            <option value="legacy">Legacy — Full + Home/Church + Reels ($3,000)</option>
-          </select>
-        </div>
-      </div>
+      <div class="sub-header"><div class="sub-title">Photography &amp; Videography</div><div class="sub-price" id="photog-price"></div></div>
+      <div class="sub-content"><div class="field"><div class="field-label">Tier</div>
+        <select class="field-select" id="photoTier" onchange="calcTotal()">
+          <option value="">Not Applicable</option>
+          <option value="essential">Essential — $600 (not Sat)</option>
+          <option value="elegant">Elegant — $1,200</option>
+          <option value="prestige">Prestige — $2,400</option>
+          <option value="legacy">Legacy — $2,800</option>
+        </select>
+      </div></div>
     </div>
     <div class="sub-block">
-      <div class="sub-header"><div class="sub-title">Photo Shoot</div></div>
-      <div class="sub-content">
-        <div class="field"><div class="field-label">Plan</div>
-          <select class="field-select" id="photoShootPlan" onchange="calcTotal()">
-            <option value="">Not Applicable</option>
-            <option value="essential">Essential — Up to 2 people ($650)</option>
-            <option value="full">Full — Up to 4 people + Reel ($1,200)</option>
-          </select>
-        </div>
-      </div>
+      <div class="sub-header"><div class="sub-title">Photo Shoot</div><div class="sub-price" id="shoot-price"></div></div>
+      <div class="sub-content"><div class="field"><div class="field-label">Plan</div>
+        <select class="field-select" id="photoShootPlan" onchange="calcTotal()">
+          <option value="">Not Applicable</option>
+          <option value="essential">Essential — Up to 2 people ($600)</option>
+          <option value="full">Full — Up to 4 people + Reel ($750)</option>
+        </select>
+      </div></div>
     </div>
     <div class="sub-block">
-      <div class="sub-header"><div class="sub-title">Prints &amp; Keepsakes</div></div>
+      <div class="sub-header"><div class="sub-title">Prints &amp; Keepsakes</div><div class="sub-price" id="prints-price"></div></div>
       <div class="sub-content">
         <div class="field"><div class="field-label">Plan</div>
           <select class="field-select" id="printsPlan" onchange="onPrintsPlanChange()">
             <option value="">Not Applicable</option>
-            <option value="gallery">Photo Gallery ($700 — Cardona Hall only)</option>
-            <option value="frames">Frame Pequeños / table ($60/table)</option>
-            <option value="usb">USB Elegant ($120)</option>
+            <option value="gallery">Photo Gallery — $650 (Cardona Hall only)</option>
+            <option value="frames">Frame Pequeños — $50/table (auto)</option>
           </select>
         </div>
-        <div class="field" id="framesTableField" style="display:none">
-          <div class="field-label">Tables</div>
-          <input class="field-input" id="framesTables" type="number" min="1" placeholder="Tables" oninput="calcTotal()" style="max-width:70px">
-          <span class="field-auto highlight" id="framesPrice" style="display:none"></span>
-        </div>
+        <div class="field" id="framesInfoField" style="display:none"><div class="field-label">Tables (auto)</div><span class="field-auto highlight" id="framesTablesDisplay">—</span><span class="field-auto green" id="framesPrice" style="display:none"></span></div>
         <div id="galleryAlert" class="alert alert-info"></div>
       </div>
     </div>
+    <div id="photoDiscountSummary" style="display:none;margin-top:6px"></div>
   </div>
 </div>
 
+<!-- PRICING SECTION -->
 <div class="pricing-section">
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:16px">
     <div>
       <div style="font-size:9px;color:#888;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">Price Breakdown</div>
-      <div class="price-row"><span class="price-label">Venue &amp; Host Services</span><span class="price-value" id="p-venue">—</span></div>
+      <div class="price-row"><span class="price-label">Venue &amp; Host Services</span><span class="price-value" id="p-venue">—</span><span class="price-discount" id="pd-venue"></span></div>
       <div class="price-row"><span class="price-label">Catering &amp; Hospitality</span><span class="price-value" id="p-catering">—</span></div>
       <div class="price-row"><span class="price-label">Design &amp; Decor</span><span class="price-value" id="p-decor">—</span></div>
-      <div class="price-row"><span class="price-label">Entertainment &amp; Production</span><span class="price-value" id="p-entertainment">—</span></div>
-      <div class="price-row"><span class="price-label">Photo &amp; Video</span><span class="price-value" id="p-photo">—</span></div>
-      <div class="price-row" id="p-soundfee-row" style="display:none"><span class="price-label">Sound Only Fee (Fri/Sun)</span><span class="price-value" id="p-soundfee">$100</span></div>
-      <div class="price-row" id="p-discount-row" style="display:none"><span class="price-label">Full Package (5%)</span><span class="price-value" style="color:#6EC98A" id="p-discount">—</span></div>
+      <div class="price-row"><span class="price-label">Entertainment &amp; Production</span><span class="price-value" id="p-entertainment">—</span><span class="price-discount" id="pd-entertainment"></span></div>
+      <div class="price-row"><span class="price-label">Photo &amp; Video</span><span class="price-value" id="p-photo">—</span><span class="price-discount" id="pd-photo"></span></div>
     </div>
     <div>
       <div style="font-size:9px;color:#888;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">Special Conditions / Modifications</div>
       <textarea class="special-conditions" id="specialConditions" placeholder="Modifications, restrictions, special agreements..."></textarea>
     </div>
   </div>
-  <div class="discount-row" id="discountRow" style="display:none">
-    <span class="discount-label">Client Discount</span>
-    <select class="discount-select" id="discountType" onchange="calcTotal()"><option value="pct">%</option><option value="fixed">$</option></select>
-    <input class="discount-input" id="discountValue" type="number" min="0" placeholder="0" oninput="calcTotal()">
-    <span style="color:#888;font-size:10px" id="discountResult"></span>
+
+  <!-- DISCOUNT SUMMARY -->
+  <div class="discount-summary" id="discountSummaryBlock" style="display:none">
+    <div class="discount-summary-title">&#x25BC; Discount Summary</div>
+    <div id="discountSummaryRows"></div>
+    <div class="discount-total-row"><span class="discount-total-label">Total Discounts Applied</span><span class="discount-total-value" id="discountTotalValue">$0</span></div>
   </div>
+
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:end;margin-top:12px">
     <div>
-      <div class="price-row" style="border-top:1px solid #444;padding-top:8px">
-        <span class="price-label" style="color:#AAA">Calculated Total</span>
-        <span class="price-value" id="p-calculated">$0</span>
-      </div>
-      <div class="price-row">
-        <span class="price-label" style="color:#AAA">Manual Override</span>
-        <input class="price-input" id="priceOverride" type="number" placeholder="Leave empty to use calculated" oninput="calcTotal()">
-      </div>
+      <div class="price-row" style="border-top:1px solid #444;padding-top:8px"><span class="price-label" style="color:#AAA">Subtotal (before discounts)</span><span class="price-value" id="p-subtotal">$0</span></div>
+      <div class="price-row"><span class="price-label" style="color:#AAA">Total Discounts</span><span class="price-value" style="color:#6EC98A" id="p-discounts-total">$0</span></div>
+      <div class="price-row"><span class="price-label" style="color:#AAA">Calculated Total</span><span class="price-value" id="p-calculated">$0</span></div>
+      <div class="price-row"><span class="price-label" style="color:#AAA">Manual Override</span><input class="price-input" id="priceOverride" type="number" placeholder="Leave empty to use calculated" oninput="calcTotal()"></div>
     </div>
-    <div>
-      <div class="price-total-row">
-        <span class="price-total-label">FINAL TOTAL</span>
-        <span class="price-total-value" id="p-final">$0</span>
-      </div>
-    </div>
+    <div><div class="price-total-row"><span class="price-total-label">FINAL TOTAL</span><span class="price-total-value" id="p-final">$0</span></div></div>
   </div>
 </div>
 
 <div class="footer">
   <div class="footer-info">Cardona Hall &nbsp;·&nbsp; 72 Hoover Ave, Passaic NJ 07055 &nbsp;·&nbsp; Pilab Productions LLC</div>
-  <div style="font-size:9px;color:#555">v6.0 — Capa 2</div>
+  <div style="font-size:9px;color:#555">v8.0 — Capa 2</div>
 </div>
 </div>
 
 <script>
 const SCRIPT_URL='https://script.google.com/macros/s/AKfycbyUAKZyuX8xcdSTXNkJoagPlaW4fumRWnrDuuARiMntpS76sx_6I-6TYxUpjkhjVIADAQ/exec';
 
+// ── STATE ──────────────────────────────────────────────────
 const state={
   cotNumber:null,resNumber:null,status:'new',isLoaded:false,loadedSnapshot:null,
-  fullPackage:'na',decorPlan:'na',entertainmentPlan:'na',photoPlan:'na',
-  isLastMinute:false,dayOfWeek:null,guestRange:null,numGuests:0,
-  eventType:'quinceanera',clientType:'standard',soundOnlyFee:0,
-  prices:{venue:0,catering:0,decor:0,entertainment:0,photo:0},
+  fullPackage:'na',decorPlan:'na',photoPlan:'na',
+  isLastMinute:false,dayOfWeek:null,guestRange:null,numTables:0,numGuests:0,
+  eventType:'',clientType:'standard',
+  isExternalEvent:false,calOpen:false,
+  calYear:new Date().getFullYear(),calMonth:new Date().getMonth(),selectedDate:null,
   allQuotations:[],reservedDates:[],
-  calYear:new Date().getFullYear(),calMonth:new Date().getMonth(),
-  selectedDate:null,isExternalEvent:false,calOpen:false
+  prices:{venue:0,catering:0,decor:0,entertainment:0,photo:0},
+  discounts:{venue:0,entertainment:0,photo:0,fullPackage:0}
 };
 
-const VENUE_PRICES={essential:{extra_small:1000,small:1200,medium:1200,large:null},elegant:{extra_small:1500,small:1600,medium:1600,large:1800},prestige:{extra_small:2300,small:2500,medium:2500,large:2800},prestige_disc:{extra_small:2070,small:2250,medium:2250,large:2520}};
-const CATERING_PPX={traditional:20,international:25,essential:30,elegant:40,prestige:45,legacy:70};
-const CATERING_TRAYS={essential:{extra_small:{mc:2,sal:1,sid:1},small:{mc:2,sal:1,sid:2},medium:{mc:3,sal:2,sid:2},large:{mc:3,sal:2,sid:3}},elegant:{extra_small:{mc:2,sal:1,sid:2},small:{mc:3,sal:2,sid:2},medium:{mc:4,sal:2,sid:3},large:{mc:4,sal:3,sid:3}},prestige:{extra_small:{mc:2,sal:1,sid:2},small:{mc:3,sal:2,sid:3},medium:{mc:4,sal:3,sid:3},large:{mc:5,sal:3,sid:3}}};
-const DECOR_PRICES={essential:{flowers:{5:600,6:650,7:700,8:750,9:800,10:850,11:900,12:950,13:1000},balloons:{5:600,6:650,7:700,8:750,9:800,10:850,11:900,12:950,13:1000},others:{5:600,6:650,7:700,8:750,9:800,10:850,11:900,12:950,13:1000}},elegant:{flowers:{5:1200,6:1250,7:1350,8:1400,9:1450,10:1500,11:1550,12:1600,13:1700},balloons:{5:950,6:1000,7:1000,8:1050,9:1100,10:1150,11:1200,12:1250,13:1300},others:{5:950,6:1000,7:1000,8:1050,9:1100,10:1150,11:1200,12:1250,13:1300}},prestige:{flowers:{5:1600,6:1700,7:1750,8:1800,9:1850,10:1900,11:2000,12:2050,13:2100},balloons:{5:1400,6:1450,7:1500,8:1550,9:1600,10:1650,11:1700,12:1750,13:1800},others:{5:1560,6:1600,7:1650,8:1700,9:1750,10:1800,11:1860,12:1900,13:1950}}};
-const ENT_PRICES={essential:900,elegant:1400,prestige:1600,legacy:3000};
-const PHOTO_PRICES={photography:{essential:800,elegant:1250,prestige:2400,legacy:3000},shoot:{essential:650,full:1200},prints:{gallery:700,gallery_disc:650,frames_per_table:60,frames_disc:50,usb:120}};
-const PHOTO_BUNDLE={essential:1600,elegant:2100,prestige:3600,legacy:4100};
-const FP_AVAIL={quinceanera:['elegant','prestige','legacy'],wedding:['elegant','prestige','legacy'],babyshower:['essential','elegant','prestige'],kidsparty:['essential','elegant'],birthday:['essential','elegant','prestige','legacy'],special_social:['essential','elegant','prestige'],special_corporate:['elegant','prestige','legacy']};
-const BUNDLE_EVENTS=['quinceanera','wedding'];
+// ── PRICE TABLES ───────────────────────────────────────────
+const VENUE_PRICES={
+  essential:{extra_small:1000,small:1000,medium:1200,large:null},
+  elegant:{extra_small:1500,small:1600,medium:1800,large:2000},
+  prestige:{extra_small:2300,small:2300,medium:2500,large:2800}
+};
 
-// FORMAT DATE — always MM/DD/YYYY, strip time
-function formatDateOnly(val){
-  if(!val) return '';
-  // If it's a Date object or timestamp
-  if(val instanceof Date) return `${String(val.getMonth()+1).padStart(2,'0')}/${String(val.getDate()).padStart(2,'0')}/${val.getFullYear()}`;
-  // If string, take only date part before any space/T
-  const str = String(val).split('T')[0].split(' ')[0];
-  // If already MM/DD/YYYY
-  if(/^\d{2}\/\d{2}\/\d{4}$/.test(str)) return str;
-  // If YYYY-MM-DD
-  if(/^\d{4}-\d{2}-\d{2}$/.test(str)){
-    const p=str.split('-');
-    return `${p[1]}/${p[2]}/${p[0]}`;
-  }
-  return str;
+// Guest range → tables lookup
+const GUEST_TABLES={30:5,40:6,50:7,60:8,70:9,80:10,90:10,100:11,110:12,120:13};
+function guestsToTables(g){
+  // Find highest bracket <= g
+  const brackets=Object.keys(GUEST_TABLES).map(Number).sort((a,b)=>a-b);
+  let t=5;
+  for(const b of brackets){if(g>=b)t=GUEST_TABLES[b];}
+  return t;
+}
+function guestsToRange(g){
+  if(g<=49)return 'extra_small';
+  if(g<=69)return 'small';
+  if(g<=89)return 'medium';
+  return 'large';
 }
 
+const CATERING_PPX={traditional:20,international:25,essential:30,elegant:40,prestige:45,legacy:70};
+const CATERING_TRAYS={
+  essential:{extra_small:{mc:2,sal:1,sid:1},small:{mc:2,sal:1,sid:2},medium:{mc:3,sal:2,sid:2},large:{mc:3,sal:2,sid:3}},
+  elegant:{extra_small:{mc:2,sal:1,sid:2},small:{mc:3,sal:2,sid:2},medium:{mc:4,sal:2,sid:3},large:{mc:4,sal:3,sid:3}},
+  prestige:{extra_small:{mc:2,sal:1,sid:2},small:{mc:3,sal:2,sid:3},medium:{mc:4,sal:3,sid:3},large:{mc:5,sal:3,sid:3}}
+};
+const DECOR_PRICES={
+  essential:{flowers:{5:600,6:650,7:700,8:750,9:800,10:850,11:900,12:950,13:1000},balloons:{5:600,6:650,7:700,8:750,9:800,10:850,11:900,12:950,13:1000},others:{5:600,6:650,7:700,8:750,9:800,10:850,11:900,12:950,13:1000}},
+  elegant:{flowers:{5:1200,6:1250,7:1350,8:1400,9:1450,10:1500,11:1550,12:1600,13:1700},balloons:{5:950,6:1000,7:1000,8:1050,9:1100,10:1150,11:1200,12:1250,13:1300},others:{5:950,6:1000,7:1000,8:1050,9:1100,10:1150,11:1200,12:1250,13:1300}},
+  prestige:{flowers:{5:1600,6:1700,7:1750,8:1800,9:1850,10:1900,11:2000,12:2050,13:2100},balloons:{5:1400,6:1450,7:1500,8:1550,9:1600,10:1650,11:1700,12:1750,13:1800},others:{5:1560,6:1600,7:1650,8:1700,9:1750,10:1800,11:1860,12:1900,13:1950}}
+};
+const SOUND_PRICES={soundlighting:400,soundlightingplus:600};
+const ENT_PRICES={essential:900,elegant:1400,prestige:1600,legacy:3000};
+const PHOTO_PRICES={photography:{essential:600,elegant:1200,prestige:2400,legacy:2800},shoot:{essential:600,full:750},prints:{gallery:650,frames_per_table:50}};
+const PHOTO_BUNDLE_DISC={elegant:0.10,prestige:0.15,legacy:0.20};
+const PHOTO_BUNDLE_INCLUDES={
+  elegant:{photo:'elegant',shoot:'',prints:'frames'},
+  prestige:{photo:'prestige',shoot:'essential',prints:'frames'},
+  legacy:{photo:'legacy',shoot:'full',prints:'gallery'}
+};
+const FP_AVAIL={quinceanera:['elegant','prestige','legacy'],wedding:['elegant','prestige','legacy'],babyshower:['essential','elegant','prestige'],kidsparty:['essential','elegant'],birthday:['essential','elegant','prestige','legacy'],special_social:['essential','elegant','prestige'],special_corporate:['elegant','prestige','legacy']};
+const FP_DISC={essential:0,elegant:0.05,prestige:0.05,legacy:0.07};
+const BUNDLE_EVENTS=['quinceanera','wedding'];
+const TIER_ORDER=['essential','elegant','prestige','legacy'];
+
+function formatDateOnly(val){
+  if(!val)return '';
+  const str=String(val).split('T')[0].split(' ')[0];
+  if(/^\d{2}\/\d{2}\/\d{4}$/.test(str))return str;
+  if(/^\d{4}-\d{2}-\d{2}$/.test(str)){const p=str.split('-');return `${p[1]}/${p[2]}/${p[0]}`;}
+  return str;
+}
+function fmtMoney(n){return n?'$'+Math.round(n).toLocaleString():'—';}
+
+// ── INIT ───────────────────────────────────────────────────
 window.onload=async()=>{
   document.getElementById('createdDate').textContent=new Date().toLocaleDateString('en-US');
   showLoading('Connecting to database...');
@@ -627,15 +564,11 @@ window.onload=async()=>{
   await generateCotNumber();
   hideLoading();
   renderCalendar();
-  onEventTypeChange();
   document.addEventListener('click',e=>{
     const popup=document.getElementById('calPopup');
     const wrap=document.querySelector('.date-input-wrap');
     const icon=document.querySelector('.cal-icon');
-    if(state.calOpen&&!wrap.contains(e.target)&&e.target!==icon){
-      popup.classList.remove('show');
-      state.calOpen=false;
-    }
+    if(state.calOpen&&!wrap.contains(e.target)&&e.target!==icon){popup.classList.remove('show');state.calOpen=false;}
   });
 };
 
@@ -647,21 +580,15 @@ async function loadAllQuotations(){
     const res=await fetch(SCRIPT_URL+'?nocache='+Date.now());
     const data=await res.json();
     state.allQuotations=Array.isArray(data)?data:[];
-    state.reservedDates=state.allQuotations
-      .filter(q=>(q['Status']||'').toLowerCase()==='reserved')
-      .map(q=>formatDateOnly(q['Event Date']));
-  }catch(e){
-    state.allQuotations=[];state.reservedDates=[];
-    showToast('Could not connect to database','warn');
-  }
+    state.reservedDates=state.allQuotations.filter(q=>(q['Status']||'').toLowerCase()==='reserved').map(q=>formatDateOnly(q['Event Date']));
+  }catch(e){state.allQuotations=[];state.reservedDates=[];showToast('Could not connect to database','warn');}
 }
 
 async function generateCotNumber(){
   const year=new Date().getFullYear();
-  const yearQuotes=state.allQuotations.filter(q=>(q['COT#']||'').startsWith('COT-'+year));
-  let maxNum=0;
-  yearQuotes.forEach(q=>{const n=parseInt((q['COT#']||'').split('-')[2]||0);if(n>maxNum)maxNum=n;});
-  state.cotNumber=`COT-${year}-${String(maxNum+1).padStart(3,'0')}`;
+  const yq=state.allQuotations.filter(q=>(q['COT#']||'').startsWith('COT-'+year));
+  let max=0;yq.forEach(q=>{const n=parseInt((q['COT#']||'').split('-')[2]||0);if(n>max)max=n;});
+  state.cotNumber=`COT-${year}-${String(max+1).padStart(3,'0')}`;
   state.isLoaded=false;
   document.getElementById('cotNumber').textContent=state.cotNumber;
 }
@@ -670,144 +597,99 @@ async function saveToSheets(data){
   await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(data),headers:{'Content-Type':'text/plain'}});
 }
 
-// CALENDAR
+// ── CALENDAR ───────────────────────────────────────────────
 function toggleCalendar(e){
   e.stopPropagation();
   const popup=document.getElementById('calPopup');
   state.calOpen=!popup.classList.contains('show');
   popup.classList.toggle('show');
-  if(state.calOpen) renderCalendar();
+  if(state.calOpen)renderCalendar();
 }
-
 function renderCalendar(){
   const popup=document.getElementById('calPopup');
   const year=state.calYear,month=state.calMonth;
-  const monthNames=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const mNames=['January','February','March','April','May','June','July','August','September','October','November','December'];
   const today=new Date();today.setHours(0,0,0,0);
   const firstDay=new Date(year,month,1).getDay();
-  const daysInMonth=new Date(year,month+1,0).getDate();
-  let html=`<div class="cal-nav"><button onclick="calNav(event,-1)">&#8249;</button><span class="cal-month-label">${monthNames[month]} ${year}</span><button onclick="calNav(event,1)">&#8250;</button></div><div class="cal-grid"><div class="cal-day-name">Su</div><div class="cal-day-name">Mo</div><div class="cal-day-name">Tu</div><div class="cal-day-name">We</div><div class="cal-day-name">Th</div><div class="cal-day-name">Fr</div><div class="cal-day-name">Sa</div>`;
-  for(let i=0;i<firstDay;i++) html+='<div class="cal-day cal-empty"></div>';
-  for(let d=1;d<=daysInMonth;d++){
-    const dateObj=new Date(year,month,d);
-    const dateStr=`${String(month+1).padStart(2,'0')}/${String(d).padStart(2,'0')}/${year}`;
-    const isPast=dateObj<today;
-    const isToday=dateObj.getTime()===today.getTime();
-    const isSelected=state.selectedDate===dateStr;
-    const isReserved=state.reservedDates.includes(dateStr);
+  const dim=new Date(year,month+1,0).getDate();
+  let html=`<div class="cal-nav"><button onclick="calNav(event,-1)">&#8249;</button><span class="cal-month-label">${mNames[month]} ${year}</span><button onclick="calNav(event,1)">&#8250;</button></div><div class="cal-grid"><div class="cal-day-name">Su</div><div class="cal-day-name">Mo</div><div class="cal-day-name">Tu</div><div class="cal-day-name">We</div><div class="cal-day-name">Th</div><div class="cal-day-name">Fr</div><div class="cal-day-name">Sa</div>`;
+  for(let i=0;i<firstDay;i++)html+='<div class="cal-day cal-empty"></div>';
+  for(let d=1;d<=dim;d++){
+    const dt=new Date(year,month,d);
+    const ds=`${String(month+1).padStart(2,'0')}/${String(d).padStart(2,'0')}/${year}`;
+    const isPast=dt<today,isTod=dt.getTime()===today.getTime(),isSel=state.selectedDate===ds,isRes=state.reservedDates.includes(ds);
     let cls='cal-day';
-    if(isPast) cls+=' cal-past';
-    if(isToday) cls+=' cal-today';
-    if(isSelected) cls+=' cal-selected';
-    if(isReserved) cls+=' cal-reserved';
-    const click=!isPast?`onclick="selectDate(event,'${dateStr}',${isReserved})"`:'' ;
-    html+=`<div class="${cls}" ${click} title="${isReserved?'Reserved date':''}">${d}</div>`;
+    if(isPast)cls+=' cal-past';if(isTod)cls+=' cal-today';if(isSel)cls+=' cal-selected';if(isRes)cls+=' cal-reserved';
+    html+=`<div class="${cls}" ${!isPast?`onclick="selectDate(event,'${ds}',${isRes})"`:''}>${d}</div>`;
   }
-  html+=`</div><div class="cal-legend"><div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--gold)"></div>Selected</div><div class="cal-legend-item"><div class="cal-legend-dot" style="background:#FDECEA;border:1px solid var(--red)"></div>Reserved</div><div class="cal-legend-item"><div class="cal-legend-dot" style="background:#EEE"></div>Past</div></div>`;
+  html+=`</div><div class="cal-legend"><div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--gold)"></div>Selected</div><div class="cal-legend-item"><div class="cal-legend-dot" style="background:#FDECEA;border:1px solid var(--red)"></div>Reserved</div></div>`;
   popup.innerHTML=html;
 }
+function calNav(e,dir){e.stopPropagation();state.calMonth+=dir;if(state.calMonth>11){state.calMonth=0;state.calYear++;}if(state.calMonth<0){state.calMonth=11;state.calYear--;}renderCalendar();}
 
-function calNav(e,dir){
+function selectDate(e,ds,isRes){
   e.stopPropagation();
-  state.calMonth+=dir;
-  if(state.calMonth>11){state.calMonth=0;state.calYear++;}
-  if(state.calMonth<0){state.calMonth=11;state.calYear--;}
-  renderCalendar();
-}
-
-function selectDate(e,dateStr,isReserved){
-  e.stopPropagation();
-  if(isReserved){
-    showConfirm('Reserved Date','This date has a confirmed event. Is this an external event? Venue will be set to $0.',
-      ()=>{
-        // YES - external event
-        state.selectedDate=dateStr;state.isExternalEvent=true;
-        document.getElementById('eventDate').value=dateStr;
-        document.getElementById('calPopup').classList.remove('show');state.calOpen=false;
-        document.getElementById('externalEventAlert').style.display='block';
-        document.getElementById('saveDateBlockAlert').style.display='none';
-        document.getElementById('venueTier').value='';
-        document.getElementById('venueTier').disabled=true;
-        state.prices.venue=0;
-        onDateChange();renderCalendar();
-      },
-      ()=>{
-        // NO - block save
-        state.selectedDate=dateStr;state.isExternalEvent=false;
-        document.getElementById('eventDate').value=dateStr;
-        document.getElementById('calPopup').classList.remove('show');state.calOpen=false;
-        document.getElementById('saveDateBlockAlert').style.display='block';
-        document.getElementById('externalEventAlert').style.display='none';
-        onDateChange();renderCalendar();
-      }
+  if(isRes){
+    showConfirm('Reserved Date','This date has a confirmed event. Is this an external event? (Venue $0, no discounts)',
+      ()=>{state.selectedDate=ds;state.isExternalEvent=true;document.getElementById('eventDate').value=ds;document.getElementById('calPopup').classList.remove('show');state.calOpen=false;document.getElementById('externalEventAlert').style.display='block';document.getElementById('saveDateBlockAlert').style.display='none';document.getElementById('venueTier').value='';document.getElementById('venueTier').disabled=true;state.prices.venue=0;onDateChange();renderCalendar();},
+      ()=>{state.selectedDate=ds;state.isExternalEvent=false;document.getElementById('eventDate').value=ds;document.getElementById('calPopup').classList.remove('show');state.calOpen=false;document.getElementById('saveDateBlockAlert').style.display='block';document.getElementById('externalEventAlert').style.display='none';onDateChange();renderCalendar();}
     );
   } else {
-    state.selectedDate=dateStr;state.isExternalEvent=false;
-    document.getElementById('eventDate').value=dateStr;
-    document.getElementById('calPopup').classList.remove('show');state.calOpen=false;
-    document.getElementById('venueTier').disabled=false;
-    document.getElementById('externalEventAlert').style.display='none';
-    document.getElementById('saveDateBlockAlert').style.display='none';
-    onDateChange();renderCalendar();
+    state.selectedDate=ds;state.isExternalEvent=false;document.getElementById('eventDate').value=ds;document.getElementById('calPopup').classList.remove('show');state.calOpen=false;document.getElementById('venueTier').disabled=false;document.getElementById('externalEventAlert').style.display='none';document.getElementById('saveDateBlockAlert').style.display='none';onDateChange();renderCalendar();
   }
 }
 
-function showConfirm(title,msg,onYes,onNo){
-  document.getElementById('confirmTitle').textContent=title;
-  document.getElementById('confirmMsg').textContent=msg;
-  document.getElementById('confirmOverlay').classList.add('show');
-  document.getElementById('confirmYes').onclick=()=>{document.getElementById('confirmOverlay').classList.remove('show');onYes();};
-  document.getElementById('confirmNo').onclick=()=>{document.getElementById('confirmOverlay').classList.remove('show');if(onNo)onNo();};
-}
-
+// ── FIELD HANDLERS ─────────────────────────────────────────
 function onDateChange(){
   const val=document.getElementById('eventDate').value;
   if(!val){state.dayOfWeek=null;return;}
-  const parts=val.split('/');
-  if(parts.length!==3) return;
-  const d=new Date(parseInt(parts[2]),parseInt(parts[0])-1,parseInt(parts[1]));
-  if(isNaN(d.getTime())) return;
+  const p=val.split('/');if(p.length!==3)return;
+  const d=new Date(parseInt(p[2]),parseInt(p[0])-1,parseInt(p[1]));if(isNaN(d.getTime()))return;
   const days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   state.dayOfWeek=days[d.getDay()];
-  const dow=document.getElementById('dayOfWeek');
-  dow.textContent=state.dayOfWeek;dow.style.display='inline-block';
+  const dow=document.getElementById('dayOfWeek');dow.textContent=state.dayOfWeek;dow.style.display='inline-block';
   const today=new Date();today.setHours(0,0,0,0);
   const diff=Math.ceil((d-today)/(1000*60*60*24));
   state.isLastMinute=diff<=15&&diff>=0;
   document.getElementById('lastMinuteAlert').classList.toggle('show',state.isLastMinute);
   clearErr('eventDate');
-  updateVenueOptions();updateCateringRules();calcTotal();
+  updateVenueOptions();updateSoundOptions();updateEntDiscounts();calcTotal();
 }
 
 function onGuestsChange(){
   const v=parseInt(document.getElementById('numGuests').value);
-  if(isNaN(v)||v<30||v>130){
+  if(isNaN(v)||v<30||v>120){
     document.getElementById('err-numGuests').classList.add('show');
-    state.guestRange=null;state.numGuests=0;
+    state.guestRange=null;state.numGuests=0;state.numTables=0;
     document.getElementById('guestRange').style.display='none';return;
   }
   document.getElementById('err-numGuests').classList.remove('show');
-  state.numGuests=v;
-  if(v<=50)state.guestRange='extra_small';
-  else if(v<=70)state.guestRange='small';
-  else if(v<=90)state.guestRange='medium';
-  else state.guestRange='large';
-  const labels={extra_small:'Extra Small (30–50)',small:'Small (51–70)',medium:'Medium (71–90)',large:'Large (91–120)'};
-  const el=document.getElementById('guestRange');
-  el.textContent=labels[state.guestRange];el.style.display='inline-block';
-  clearErr('numGuests');updateCateringTrays();calcTotal();
+  state.numGuests=v;state.guestRange=guestsToRange(v);state.numTables=guestsToTables(v);
+  const labels={extra_small:'Extra Small (30–49)',small:'Small (50–69)',medium:'Medium (70–89)',large:'Large (90–120)'};
+  const el=document.getElementById('guestRange');el.textContent=labels[state.guestRange]+' · '+state.numTables+' tables';el.style.display='inline-block';
+  clearErr('numGuests');
+  // Update auto table displays
+  updateAutoTables();
+  updateCateringTrays();calcVenuePrice();calcTotal();
+}
+
+function updateAutoTables(){
+  const t=state.numTables;
+  const disp=t?t+' tables':'—';
+  document.getElementById('decorDiningTablesDisplay').textContent=disp;
+  document.getElementById('decorCPTablesDisplay').textContent=disp;
+  document.getElementById('framesTablesDisplay').textContent=disp;
 }
 
 function onEventTypeChange(){
   state.eventType=document.getElementById('eventType').value;
   const showSub=['special_social','special_corporate'].includes(state.eventType);
   document.getElementById('eventSubField').style.display=showSub?'flex':'none';
-  updateFullPackageOptions();updatePhotoRules();calcTotal();
+  updateFullPackageOptions();updatePhotoSaturdayRule();calcTotal();
 }
 
 function onClientTypeChange(){
   state.clientType=document.getElementById('clientType').value;
-  document.getElementById('discountRow').style.display=['returning','vip'].includes(state.clientType)?'flex':'none';
   calcTotal();
 }
 
@@ -823,11 +705,12 @@ function validateRequired(){
   if(!document.getElementById('clientName').value.trim()){showErr('clientName');ok=false;}
   if(!document.getElementById('phone').value.trim()){showErr('phone');ok=false;}
   if(!document.getElementById('eventDate').value){showErr('eventDate');ok=false;}
-  const g=parseInt(document.getElementById('numGuests').value);
-  if(isNaN(g)||g<30||g>130){showErr('numGuests');ok=false;}
+  const g=parseInt(document.getElementById('numGuests').value);if(isNaN(g)||g<30||g>120){showErr('numGuests');ok=false;}
+  if(!document.getElementById('eventType').value){showErr('eventType');ok=false;}
   return ok;
 }
 
+// ── FULL PACKAGE ───────────────────────────────────────────
 function updateFullPackageOptions(){
   const avail=FP_AVAIL[state.eventType]||[];
   ['essential','elegant','prestige','legacy'].forEach(t=>{
@@ -841,43 +724,42 @@ function setFullPackage(tier,btn){
   document.querySelectorAll('#fullPackageTiers .tier-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   if(tier!=='na'){
+    // Lock venue
     if(!state.isExternalEvent){document.getElementById('venueTier').value='prestige';document.getElementById('venueTier').disabled=true;}
+    // Lock catering
     const lineMap={essential:'collection',elegant:'collection',prestige:'collection',legacy:'luxury'};
     document.getElementById('cateringLine').value=lineMap[tier];document.getElementById('cateringLine').disabled=true;
     onCateringLineChange();
     document.getElementById('cateringPlan').value=tier==='legacy'?'legacy':tier;document.getElementById('cateringPlan').disabled=true;
     onCateringPlanChange();
+    // Lock decor
     const decorBtns=document.querySelectorAll('#decorTierBtns .tier-btn');decorBtns.forEach(b=>b.classList.remove('active'));
     const di={essential:1,elegant:2,prestige:3,legacy:4};if(decorBtns[di[tier]])decorBtns[di[tier]].classList.add('active');
-    state.decorPlan=tier;document.getElementById('decorLegacyPrice').style.display=tier==='legacy'?'block':'none';
-    ['decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier'].forEach(id=>{const el=document.getElementById(id);if(el&&el.querySelector(`option[value="${tier}"]`)){el.value=tier;el.disabled=true;}});
-    onDecorExtrasTier();
-    const entBtns=document.querySelectorAll('#entTierBtns .tier-btn');entBtns.forEach(b=>b.classList.remove('active'));
-    const ei={essential:1,elegant:2,prestige:3,legacy:4};if(entBtns[ei[tier]])entBtns[ei[tier]].classList.add('active');
-    state.entertainmentPlan=tier;state.prices.entertainment=ENT_PRICES[tier]||0;
+    setDecorPlanInternal(tier);
+    // Lock entertainment
+    const entMap={essential:'essential',elegant:'elegant',prestige:'prestige',legacy:'legacy'};
+    document.getElementById('entPlan').value=entMap[tier];document.getElementById('entPlan').disabled=true;
+    // Lock sound based on tier
+    const soundMap={essential:'soundlighting',elegant:'soundlightingplus',prestige:'soundlightingplus',legacy:'soundlightingplus'};
+    document.getElementById('soundPlan').value=soundMap[tier];document.getElementById('soundPlan').disabled=true;
+    // Lock photo
     const photoBtns=document.querySelectorAll('#photoTierBtns .tier-btn');photoBtns.forEach(b=>b.classList.remove('active'));
-    const pi={essential:1,elegant:2,prestige:3,legacy:4};if(photoBtns[pi[tier]])photoBtns[pi[tier]].classList.add('active');
-    state.photoPlan=tier;
-    const isBundle=BUNDLE_EVENTS.includes(state.eventType);
-    document.getElementById('photoBundleInfo').style.display=isBundle?'inline-block':'none';
-    if(isBundle){
-      document.getElementById('photoTier').value=tier;document.getElementById('photoTier').disabled=true;
-      document.getElementById('photoShootPlan').value=tier==='essential'?'essential':'full';document.getElementById('photoShootPlan').disabled=true;
-      document.getElementById('printsPlan').value=['prestige','legacy'].includes(tier)?'gallery':'frames';document.getElementById('printsPlan').disabled=true;
-    }
+    const pi={elegant:0,prestige:1,legacy:2};if(pi[tier]!==undefined)photoBtns[pi[tier]]?.classList.add('active');
+    if(['elegant','prestige','legacy'].includes(tier)){setPhotoPlanInternal(tier);}
     document.getElementById('fpAlert').className='alert alert-info show';
-    document.getElementById('fpAlert').textContent=`Full Package ${tier.charAt(0).toUpperCase()+tier.slice(1)} — all divisions auto-filled.`;
+    document.getElementById('fpAlert').textContent=`Full Package ${tier.charAt(0).toUpperCase()+tier.slice(1)} — all divisions auto-filled and locked.`;
   } else {
-    const ids=['venueTier','cateringLine','cateringPlan','decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier','photoTier','photoShootPlan','printsPlan'];
-    ids.forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=false;});
+    // Unlock all
+    ['venueTier','cateringLine','cateringPlan','entPlan','soundPlan','decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier','photoTier','photoShootPlan','printsPlan'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=false;});
     if(state.isExternalEvent)document.getElementById('venueTier').disabled=true;
-    state.decorPlan='na';state.entertainmentPlan='na';state.photoPlan='na';
+    state.decorPlan='na';state.photoPlan='na';
     document.getElementById('photoBundleInfo').style.display='none';
     document.getElementById('fpAlert').className='alert';
   }
-  calcTotal();
+  onEntPlanChange();calcTotal();
 }
 
+// ── VENUE ──────────────────────────────────────────────────
 function updateVenueOptions(){
   if(state.isExternalEvent)return;
   const sel=document.getElementById('venueTier');
@@ -892,26 +774,54 @@ function updateVenueOptions(){
   }
 }
 
-function onVenueTierChange(){
-  if(state.isExternalEvent){state.prices.venue=0;calcTotal();return;}
+function calcVenuePrice(){
   const tier=document.getElementById('venueTier').value;
-  const line=document.getElementById('cateringLine').value;
-  const needsDisc=['collection','luxury'].includes(line);
-  let price=0;
-  if(tier&&state.guestRange){const table=needsDisc&&tier==='prestige'?VENUE_PRICES.prestige_disc:VENUE_PRICES[tier];price=table?(table[state.guestRange]||0):0;}
-  state.prices.venue=price;
-  const el=document.getElementById('venuePriceDisplay');
-  if(price){el.textContent='$'+price.toLocaleString();el.style.display='inline-block';}else el.style.display='none';
-  updateCateringRules();calcTotal();
+  const cateringPlan=document.getElementById('cateringPlan').value;
+  const cateringLine=document.getElementById('cateringLine').value;
+  const day=state.dayOfWeek;
+  if(state.isExternalEvent||!tier||!state.guestRange){state.prices.venue=0;state.discounts.venue=0;updateVenueDisplay();return;}
+  const basePrice=VENUE_PRICES[tier]?.[state.guestRange]||0;
+  // Calculate venue discounts
+  let discPct=0;
+  const discReasons=[];
+  // 10% if Prestige on non-Saturday
+  if(tier==='prestige'&&day!=='Saturday'){discPct+=10;discReasons.push('Prestige non-Saturday: 10%');}
+  // 10% if catering Elegant or Prestige collection
+  if(cateringLine==='collection'&&['elegant','prestige'].includes(cateringPlan)){discPct+=10;discReasons.push('Catering Elegant/Prestige: 10%');}
+  // 15% if catering Legacy
+  if(cateringLine==='luxury'&&cateringPlan==='legacy'){discPct+=15;discReasons.push('Catering Legacy: 15%');}
+  const discAmt=basePrice*(discPct/100);
+  state.prices.venue=basePrice-discAmt;
+  state.discounts.venue=discAmt;
+  updateVenueDisplay(basePrice,discPct,discAmt,discReasons);
 }
 
+function updateVenueDisplay(base,discPct,discAmt,reasons){
+  const el=document.getElementById('venuePriceDisplay');
+  const discEl=document.getElementById('venueDiscountDisplay');
+  const hdrPrice=document.getElementById('venue-header-price');
+  const hdrDisc=document.getElementById('venue-header-discount');
+  if(state.prices.venue){
+    el.textContent=fmtMoney(state.prices.venue);el.style.display='inline-block';
+    hdrPrice.textContent=fmtMoney(state.prices.venue);
+    if(discPct>0){
+      discEl.style.display='block';
+      discEl.innerHTML=`<div style="font-size:9px;color:#6EC98A;padding:4px 0">${(reasons||[]).map(r=>`✓ ${r}`).join(' &nbsp;·&nbsp; ')} &nbsp;→&nbsp; -${fmtMoney(discAmt)}</div>`;
+      hdrDisc.textContent=`-${discPct}% (-${fmtMoney(discAmt)})`;
+    } else {discEl.style.display='none';hdrDisc.textContent='';}
+  } else {el.style.display='none';discEl.style.display='none';hdrPrice.textContent='';hdrDisc.textContent='';}
+}
+
+function onVenueTierChange(){calcVenuePrice();updateCateringRules();calcTotal();}
+
+// ── CATERING ───────────────────────────────────────────────
 function onCateringLineChange(){
   const line=document.getElementById('cateringLine').value;
   const planSel=document.getElementById('cateringPlan');
   planSel.innerHTML='<option value="">— Select Plan —</option>';planSel.disabled=!line;
   if(line==='classic'){planSel.innerHTML+='<option value="traditional">Traditional — $20/person</option><option value="international">International — $25/person</option>';}
   else if(line==='collection'){planSel.innerHTML+='<option value="essential">Essential — $30/person</option><option value="elegant">Elegant — $40/person</option><option value="prestige">Prestige — $45/person</option>';updateCateringRules();}
-  else if(line==='luxury'){planSel.innerHTML+='<option value="legacy">Legacy — $70/person</option>';showAlert('cateringAlert','Luxury Collection — Always requires Venue Prestige.','warn');if(!state.isExternalEvent){document.getElementById('venueTier').value='prestige';onVenueTierChange();}}
+  else if(line==='luxury'){planSel.innerHTML+='<option value="legacy">Legacy — $70/person</option>';showAlert('cateringAlert','Luxury Collection — Always requires Venue Prestige.','warn');if(!state.isExternalEvent){document.getElementById('venueTier').value='prestige';calcVenuePrice();}}
   onCateringPlanChange();
 }
 
@@ -932,205 +842,379 @@ function onCateringPlanChange(){
   const price=plan?(CATERING_PPX[plan]||0)*state.numGuests:0;
   state.prices.catering=price;
   const el=document.getElementById('cateringPriceDisplay');
-  if(price){el.textContent='$'+price.toLocaleString()+' ('+state.numGuests+' guests)';el.style.display='inline-block';}else el.style.display='none';
-  updateCateringTrays();calcTotal();
+  if(price){el.textContent=fmtMoney(price)+' ('+state.numGuests+' guests)';el.style.display='inline-block';}else el.style.display='none';
+  document.getElementById('catering-header-price').textContent=price?fmtMoney(price):'';
+  updateCateringTrays();calcVenuePrice();calcTotal();
 }
 
 function updateCateringTrays(){
   const plan=document.getElementById('cateringPlan').value;const range=state.guestRange;const el=document.getElementById('cateringTrayDisplay');
-  if(['essential','elegant','prestige'].includes(plan)&&range){const t=CATERING_TRAYS[plan][range];const extras=plan==='elegant'?' · Softdrinks ✓':plan==='prestige'?' · Softdrinks ✓ · Dessert ✓ · Jugo Natural ✓ · Café ✓':'';el.textContent=`${t.mc} Main Course · ${t.sal} Salads · ${t.sid} Sides${extras}`;}
+  if(['essential','elegant','prestige'].includes(plan)&&range){const t=CATERING_TRAYS[plan][range];const extras=plan==='elegant'?' · Softdrinks ✓':plan==='prestige'?' · Softdrinks ✓ · Dessert ✓ · Jugo ✓ · Café ✓':'';el.textContent=`${t.mc} Main Course · ${t.sal} Salads · ${t.sid} Sides${extras}`;}
   else if(plan==='legacy')el.textContent='Luxury — See conditions document';
   else if(['traditional','international'].includes(plan))el.textContent='Classic Menu — Portions doc required at reservation';
   else el.textContent='—';
 }
 
+// ── DECOR ──────────────────────────────────────────────────
 function setDecorPlan(tier,btn){
+  document.querySelectorAll('#decorTierBtns .tier-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  setDecorPlanInternal(tier);
+}
+
+function setDecorPlanInternal(tier){
   state.decorPlan=tier;
-  document.querySelectorAll('#decorTierBtns .tier-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
   document.getElementById('decorLegacyPrice').style.display=tier==='legacy'?'block':'none';
-  if(tier!=='na'&&tier!=='legacy'){['decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier'].forEach(id=>{const el=document.getElementById(id);if(el&&el.querySelector(`option[value="${tier}"]`)){el.value=tier;el.disabled=true;}});onDecorExtrasTier();}
-  else{['decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=false;});}
-  calcDecorPrice();
+  const subIds=['decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier'];
+  if(tier==='na'){
+    subIds.forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=false;});
+    // Re-enable all options except legacy in individual mode
+    const honorSel=document.getElementById('decorHonorTier');
+    // Remove legacy option if was added
+  } else if(tier==='legacy'){
+    subIds.forEach(id=>{const el=document.getElementById(id);if(el){el.disabled=true;}});
+  } else {
+    // Auto-fill and lock all except CP type
+    ['decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier'].forEach(id=>{
+      const el=document.getElementById(id);if(!el)return;
+      if(id==='decorExtrasTier'){
+        if(tier==='essential'){el.value='';el.disabled=true;}
+        else{if(el.querySelector(`option[value="${tier}"]`))el.value=tier;el.disabled=true;}
+      } else {
+        if(el.querySelector(`option[value="${tier}"]`))el.value=tier;
+        if(id!=='decorCPTier')el.disabled=true;
+        else el.disabled=false; // CP tier locked but type open
+      }
+    });
+    // Essential: flowers by default
+    if(tier==='essential')document.getElementById('decorCPType').value='flowers';
+    // CP tier also locked in full plan
+    document.getElementById('decorCPTier').disabled=true;
+    // CP type stays open
+    document.getElementById('decorCPType').disabled=false;
+  }
+  onDecorExtrasTier();calcDecorPrice();
 }
 
 function calcDecorPrice(){
-  const tier=document.getElementById('decorCPTier').value;const type=document.getElementById('decorCPType').value;const tables=parseInt(document.getElementById('decorCPTables').value);
-  let price=0;if(tier&&type&&tables>=5&&tables<=13&&DECOR_PRICES[tier])price=DECOR_PRICES[tier][type][tables]||0;
-  const cpEl=document.getElementById('decorCPPrice');if(price){cpEl.textContent='$'+price.toLocaleString();cpEl.style.display='inline-block';}else cpEl.style.display='none';
+  const tier=document.getElementById('decorCPTier').value;
+  const type=document.getElementById('decorCPType').value;
+  const tables=state.numTables;
+  let price=0;
+  if(tier&&type&&tables>=5&&DECOR_PRICES[tier])price=DECOR_PRICES[tier][type][tables]||0;
+  if(state.decorPlan==='legacy')price=parseFloat(document.getElementById('decorLegacyPriceVal').value)||0;
   state.prices.decor=price;
-  const totalEl=document.getElementById('decorTotalDisplay');if(price){totalEl.textContent='$'+price.toLocaleString();totalEl.style.display='inline-block';}else totalEl.style.display='none';
+  const cpEl=document.getElementById('decorCPPrice');if(cpEl){if(price&&state.decorPlan!=='legacy'){cpEl.textContent=fmtMoney(price);cpEl.style.display='inline-block';}else cpEl.style.display='none';}
+  const totalEl=document.getElementById('decorTotalDisplay');if(price){totalEl.textContent=fmtMoney(price);totalEl.style.display='inline-block';}else totalEl.style.display='none';
+  document.getElementById('decor-header-price').textContent=price?fmtMoney(price):'';
   calcTotal();
 }
 
 function onDecorExtrasTier(){
-  const tier=document.getElementById('decorExtrasTier').value;const badge=document.getElementById('extrasInfo');
-  const map={elegant:'3 extras included',prestige:'5 extras included',legacy:'Unlimited extras'};
+  const tier=document.getElementById('decorExtrasTier').value;
+  const badge=document.getElementById('extrasInfo');
+  const map={elegant:'3 extras included',prestige:'5 extras included'};
   if(tier&&map[tier]){badge.textContent=map[tier];badge.style.display='inline-block';}else badge.style.display='none';
   calcTotal();
 }
 
-function setEntertainment(tier,btn){
-  state.entertainmentPlan=tier;
-  document.querySelectorAll('#entTierBtns .tier-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
-  state.prices.entertainment=tier!=='na'?(ENT_PRICES[tier]||0):0;calcTotal();
+// ── ENTERTAINMENT ──────────────────────────────────────────
+function updateSoundOptions(){
+  const day=state.dayOfWeek;
+  const soundSel=document.getElementById('soundPlan');
+  if(day==='Saturday'){
+    // Saturday: sound is obligatory, don't disable but show alert
+    showAlert('entAlert','Saturday — Sound System is required.','info');
+  } else {
+    hideAlert('entAlert');
+  }
 }
 
-function onSoundOnlyChange(){
-  const val=document.getElementById('soundOnly').value;const day=state.dayOfWeek;
-  const feeEl=document.getElementById('soundFeeDisplay');const dmgEl=document.getElementById('soundDamageAlert');const feeRow=document.getElementById('p-soundfee-row');
-  if(val){dmgEl.style.display='block';if(['Friday','Sunday'].includes(day)){state.soundOnlyFee=100;feeEl.textContent='+$100 Fri/Sun fee';feeEl.style.display='inline-block';feeRow.style.display='flex';}else{state.soundOnlyFee=0;feeEl.style.display='none';feeRow.style.display='none';}}
-  else{state.soundOnlyFee=0;feeEl.style.display='none';feeRow.style.display='none';dmgEl.style.display='none';}
-  calcTotal();
+function onSoundPlanChange(){
+  const val=document.getElementById('soundPlan').value;
+  document.getElementById('soundDamageAlert').style.display=val?'block':'none';
+  updateEntDiscounts();calcTotal();
+}
+
+function onEntPlanChange(){
+  updateEntDiscounts();calcTotal();
+}
+
+function updateEntDiscounts(){
+  const day=state.dayOfWeek;
+  const soundVal=document.getElementById('soundPlan').value;
+  const entVal=document.getElementById('entPlan').value;
+  const isExternal=state.isExternalEvent;
+
+  // Sound discount
+  let soundDisc=0;let soundDiscLabel='';
+  if(soundVal&&!isExternal){
+    const baseSound=SOUND_PRICES[soundVal]||0;
+    if(['Monday','Tuesday','Wednesday','Thursday'].includes(day)){soundDisc=baseSound*0.40;soundDiscLabel='Mon–Thu 40% off';}
+    else if(['Friday','Sunday'].includes(day)){soundDisc=baseSound*0.10;soundDiscLabel='Fri/Sun 10% off';}
+  }
+  const soundEl=document.getElementById('soundDiscountDisplay');
+  if(soundDisc>0){soundEl.textContent=soundDiscLabel+' (-'+fmtMoney(soundDisc)+')';soundEl.style.display='inline-block';}else soundEl.style.display='none';
+
+  // Entertainment plan discount
+  let entDisc=0;let entDiscLabel='';
+  if(entVal&&!isExternal){
+    const baseEnt=ENT_PRICES[entVal]||0;
+    if(['Monday','Tuesday','Wednesday','Thursday'].includes(day)){entDisc=baseEnt*0.20;entDiscLabel='Mon–Thu 20% off';}
+    else if(['Friday','Sunday'].includes(day)&&['elegant','prestige'].includes(entVal)){entDisc=baseEnt*0.10;entDiscLabel='Fri/Sun 10% off';}
+    else if(['Friday','Sunday'].includes(day)&&entVal==='legacy'){entDisc=baseEnt*0.15;entDiscLabel='Fri/Sun 15% off';}
+  }
+  const entEl=document.getElementById('entDiscountDisplay');
+  if(entDisc>0){entEl.textContent=entDiscLabel+' (-'+fmtMoney(entDisc)+')';entEl.style.display='inline-block';}else entEl.style.display='none';
+
+  state.discounts.entertainment={sound:soundDisc,ent:entDisc};
+  document.getElementById('ent-header-discount').textContent=(soundDisc+entDisc)>0?'-'+fmtMoney(soundDisc+entDisc):'';
+}
+
+// ── PHOTO ──────────────────────────────────────────────────
+function updatePhotoSaturdayRule(){
+  const day=state.dayOfWeek;
+  const photoSel=document.getElementById('photoTier');
+  for(let i=0;i<photoSel.options.length;i++){
+    if(photoSel.options[i].value==='essential')photoSel.options[i].disabled=(day==='Saturday');
+  }
 }
 
 function setPhotoPlan(tier,btn){
-  state.photoPlan=tier;
-  document.querySelectorAll('#photoTierBtns .tier-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
-  const isBundle=BUNDLE_EVENTS.includes(state.eventType)&&tier!=='na';
-  document.getElementById('photoBundleInfo').style.display=isBundle?'inline-block':'none';
-  if(tier!=='na'){
-    document.getElementById('photoTier').value=tier;document.getElementById('photoTier').disabled=true;
-    if(isBundle){document.getElementById('photoShootPlan').value=tier==='essential'?'essential':'full';document.getElementById('photoShootPlan').disabled=true;document.getElementById('printsPlan').value=['prestige','legacy'].includes(tier)?'gallery':'frames';document.getElementById('printsPlan').disabled=true;}
-  }else{document.getElementById('photoTier').disabled=false;document.getElementById('photoShootPlan').disabled=false;document.getElementById('printsPlan').disabled=false;}
-  updatePhotoRules();calcTotal();
+  document.querySelectorAll('#photoTierBtns .tier-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  setPhotoPlanInternal(tier);
 }
 
-function updatePhotoRules(){
+function setPhotoPlanInternal(tier){
+  state.photoPlan=tier;
+  const isBundle=['elegant','prestige','legacy'].includes(tier);
+  const isQW=BUNDLE_EVENTS.includes(state.eventType);
+  document.getElementById('photoBundleInfo').style.display=(isBundle&&isQW)?'inline-block':'none';
+  if(isBundle){
+    const inc=PHOTO_BUNDLE_INCLUDES[tier];
+    document.getElementById('photoTier').value=inc.photo;document.getElementById('photoTier').disabled=true;
+    document.getElementById('photoShootPlan').value=inc.shoot;document.getElementById('photoShootPlan').disabled=true;
+    document.getElementById('printsPlan').value=inc.prints;document.getElementById('printsPlan').disabled=true;
+  } else {
+    document.getElementById('photoTier').disabled=false;document.getElementById('photoShootPlan').disabled=false;document.getElementById('printsPlan').disabled=false;
+  }
+  onPrintsPlanChange();calcTotal();
+}
+
+function onPrintsPlanChange(){
   const prints=document.getElementById('printsPlan').value;
   if(prints==='gallery')showAlert('galleryAlert','Photo Gallery available at Cardona Hall only.','info');else hideAlert('galleryAlert');
-  document.getElementById('framesTableField').style.display=prints==='frames'?'flex':'none';
+  const framesField=document.getElementById('framesInfoField');
+  framesField.style.display=prints==='frames'?'flex':'none';
+  if(prints==='frames'&&state.numTables){
+    const priceEl=document.getElementById('framesPrice');
+    const total=state.numTables*50;priceEl.textContent=fmtMoney(total);priceEl.style.display='inline-block';
+  }
+  calcTotal();
 }
 
-function onPrintsPlanChange(){updatePhotoRules();calcTotal();}
-
+// ── TOTAL CALC ─────────────────────────────────────────────
 function calcTotal(){
   const p=state.prices;
-  if(state.isExternalEvent)p.venue=0;
-  else{const vt=document.getElementById('venueTier').value;const line=document.getElementById('cateringLine').value;const needsDisc=['collection','luxury'].includes(line);if(vt&&state.guestRange){const table=needsDisc&&vt==='prestige'?VENUE_PRICES.prestige_disc:VENUE_PRICES[vt];p.venue=table?(table[state.guestRange]||0):0;}else p.venue=0;}
-  document.getElementById('p-venue').textContent=p.venue?'$'+p.venue.toLocaleString():(state.isExternalEvent?'$0 (External)':'—');
-  document.getElementById('p-catering').textContent=p.catering?'$'+p.catering.toLocaleString():'—';
+  const d=state.discounts;
+  const isExt=state.isExternalEvent;
+  const cLine=document.getElementById('cateringLine').value;
+  const cPlan=document.getElementById('cateringPlan').value;
+  const soundVal=document.getElementById('soundPlan').value;
+  const entVal=document.getElementById('entPlan').value;
+  const day=state.dayOfWeek;
+
+  // Venue already calculated in calcVenuePrice
+  document.getElementById('p-venue').textContent=p.venue?fmtMoney(p.venue):(isExt?'$0 (External)':'—');
+  document.getElementById('pd-venue').textContent=d.venue>0?`-${fmtMoney(d.venue)}`:'';
+
+  // Catering
+  document.getElementById('p-catering').textContent=p.catering?fmtMoney(p.catering):'—';
+
+  // Decor
   if(state.decorPlan==='legacy')p.decor=parseFloat(document.getElementById('decorLegacyPriceVal').value)||0;
-  document.getElementById('p-decor').textContent=p.decor?'$'+p.decor.toLocaleString():'—';
-  document.getElementById('p-entertainment').textContent=p.entertainment?'$'+p.entertainment.toLocaleString():'—';
+  document.getElementById('p-decor').textContent=p.decor?fmtMoney(p.decor):'—';
+
+  // Entertainment
+  let soundBase=soundVal?(SOUND_PRICES[soundVal]||0):0;
+  let entBase=entVal?(ENT_PRICES[entVal]||0):0;
+  let soundDisc=0,entDisc=0;
+  if(!isExt){
+    if(soundVal){
+      if(['Monday','Tuesday','Wednesday','Thursday'].includes(day))soundDisc=soundBase*0.40;
+      else if(['Friday','Sunday'].includes(day))soundDisc=soundBase*0.10;
+    }
+    if(entVal){
+      if(['Monday','Tuesday','Wednesday','Thursday'].includes(day))entDisc=entBase*0.20;
+      else if(['Friday','Sunday'].includes(day)&&['elegant','prestige'].includes(entVal))entDisc=entBase*0.10;
+      else if(['Friday','Sunday'].includes(day)&&entVal==='legacy')entDisc=entBase*0.15;
+    }
+  }
+  p.entertainment=(soundBase-soundDisc)+(entBase-entDisc);
+  d.entertainment=soundDisc+entDisc;
+  document.getElementById('p-entertainment').textContent=p.entertainment?fmtMoney(p.entertainment):'—';
+  document.getElementById('pd-entertainment').textContent=d.entertainment>0?`-${fmtMoney(d.entertainment)}`:'';
+  document.getElementById('ent-header-price').textContent=p.entertainment?fmtMoney(p.entertainment):'';
+
+  // Photo
   const photoTier=document.getElementById('photoTier').value;
-  const isBundle=BUNDLE_EVENTS.includes(state.eventType)&&state.photoPlan!=='na';
-  if(isBundle&&state.photoPlan!=='na'){p.photo=PHOTO_BUNDLE[state.photoPlan]||0;}
-  else{let pt=photoTier?(PHOTO_PRICES.photography[photoTier]||0):0;const sp=document.getElementById('photoShootPlan').value;if(sp)pt+=PHOTO_PRICES.shoot[sp]||0;const pp=document.getElementById('printsPlan').value;const isPL=['prestige','legacy'].includes(state.photoPlan);if(pp==='gallery')pt+=isPL?PHOTO_PRICES.prints.gallery_disc:PHOTO_PRICES.prints.gallery;else if(pp==='frames'){const ft=parseInt(document.getElementById('framesTables').value)||0;const fp=isPL?PHOTO_PRICES.prints.frames_disc:PHOTO_PRICES.prints.frames_per_table;pt+=ft*fp;const fEl=document.getElementById('framesPrice');if(ft){fEl.textContent='$'+(ft*fp).toLocaleString();fEl.style.display='inline-block';}else fEl.style.display='none';}else if(pp==='usb')pt+=PHOTO_PRICES.prints.usb;p.photo=pt;}
-  document.getElementById('p-photo').textContent=p.photo?'$'+p.photo.toLocaleString():'—';
-  const subtotal=(p.venue||0)+(p.catering||0)+(p.decor||0)+(p.entertainment||0)+(p.photo||0)+state.soundOnlyFee;
+  const shootPlan=document.getElementById('photoShootPlan').value;
+  const printsPlan=document.getElementById('printsPlan').value;
+  let photoBase=0;
+  if(photoTier)photoBase+=PHOTO_PRICES.photography[photoTier]||0;
+  if(shootPlan)photoBase+=PHOTO_PRICES.shoot[shootPlan]||0;
+  if(printsPlan==='gallery')photoBase+=PHOTO_PRICES.prints.gallery;
+  else if(printsPlan==='frames')photoBase+=state.numTables*PHOTO_PRICES.prints.frames_per_table;
+  let photoDisc=0;
+  if(!isExt&&state.photoPlan!=='na'&&PHOTO_BUNDLE_DISC[state.photoPlan]){
+    photoDisc=photoBase*PHOTO_BUNDLE_DISC[state.photoPlan];
+  }
+  p.photo=photoBase-photoDisc;d.photo=photoDisc;
+  document.getElementById('p-photo').textContent=p.photo?fmtMoney(p.photo):'—';
+  document.getElementById('pd-photo').textContent=photoDisc>0?`-${fmtMoney(photoDisc)}`:'';
+  document.getElementById('photo-header-price').textContent=p.photo?fmtMoney(p.photo):'';
+  document.getElementById('photo-header-discount').textContent=photoDisc>0?`-${fmtMoney(photoDisc)}`:'';
+
+  const subtotal=(p.venue||0)+(p.catering||0)+(p.decor||0)+(p.entertainment||0)+(p.photo||0);
+
+  // Full Package discount
+  // Determine lowest tier across all divisions
+  const allTiers=[];
+  const vt=document.getElementById('venueTier').value;if(vt)allTiers.push(vt==='prestige'?'prestige':vt);
+  if(cLine==='collection'&&cPlan)allTiers.push(cPlan);else if(cLine==='luxury')allTiers.push('legacy');
+  if(state.decorPlan!=='na')allTiers.push(state.decorPlan);
+  if(entVal)allTiers.push(entVal);
+  if(state.photoPlan!=='na')allTiers.push(state.photoPlan);
+
+  // Check if discount applies
+  const allFiveFilled=p.venue>=0&&p.catering>0&&p.decor>0&&p.entertainment>0&&p.photo>0;
+  const noClassicMenu=cLine!=='classic';
+  const noSoundOnly=entVal!=='';// must have an entertainment plan
+  const notExternal=!isExt;
+
   let fpDisc=0;
-  if(state.fullPackage!=='na'&&p.catering&&p.entertainment&&p.photo){fpDisc=subtotal*0.05;document.getElementById('p-discount-row').style.display='flex';document.getElementById('p-discount').textContent='-$'+fpDisc.toLocaleString(undefined,{maximumFractionDigits:0});}
-  else document.getElementById('p-discount-row').style.display='none';
-  let clientDisc=0;
-  if(['returning','vip'].includes(state.clientType)){const dtype=document.getElementById('discountType').value;const dval=parseFloat(document.getElementById('discountValue').value)||0;clientDisc=dtype==='pct'?(subtotal-fpDisc)*dval/100:dval;document.getElementById('discountResult').textContent=clientDisc?'-$'+clientDisc.toLocaleString(undefined,{maximumFractionDigits:0}):'';}
-  const calculated=subtotal-fpDisc-clientDisc;
+  if(allFiveFilled&&noClassicMenu&&noSoundOnly&&notExternal&&state.fullPackage!=='na'&&allTiers.length>=5){
+    const lowestTier=allTiers.reduce((min,t)=>TIER_ORDER.indexOf(t)<TIER_ORDER.indexOf(min)?t:min,allTiers[0]);
+    fpDisc=subtotal*(FP_DISC[lowestTier]||0);
+  } else if(!isExt&&allFiveFilled&&noClassicMenu&&noSoundOnly&&allTiers.length>=5){
+    // Manual selection of all tiers
+    const lowestTier=allTiers.reduce((min,t)=>TIER_ORDER.indexOf(t)<TIER_ORDER.indexOf(min)?t:min,allTiers[0]);
+    fpDisc=subtotal*(FP_DISC[lowestTier]||0);
+  }
+  d.fullPackage=fpDisc;
+
+  // Build discount summary
+  buildDiscountSummary(d,fpDisc,subtotal);
+
+  const totalDiscounts=(d.venue||0)+(d.entertainment||0)+(d.photo||0)+fpDisc;
+  const calculated=subtotal-fpDisc;// venue/ent/photo discounts already subtracted from their prices
   const override=parseFloat(document.getElementById('priceOverride').value);
   const final=isNaN(override)?calculated:override;
-  document.getElementById('p-calculated').textContent='$'+calculated.toLocaleString(undefined,{maximumFractionDigits:0});
-  document.getElementById('p-final').textContent='$'+final.toLocaleString(undefined,{maximumFractionDigits:0});
+
+  document.getElementById('p-subtotal').textContent=fmtMoney(subtotal+(d.venue||0)+(d.entertainment||0)+(d.photo||0));
+  document.getElementById('p-discounts-total').textContent=totalDiscounts?'-'+fmtMoney(totalDiscounts):'$0';
+  document.getElementById('p-calculated').textContent=fmtMoney(calculated);
+  document.getElementById('p-final').textContent=fmtMoney(final)||'$0';
+
+  document.getElementById('fp-header-price').textContent=state.fullPackage!=='na'?fmtMoney(calculated):'';
+  document.getElementById('fp-header-discount').textContent=fpDisc>0?`Full Package -${fmtMoney(fpDisc)}`:'';
+}
+
+function buildDiscountSummary(d,fpDisc,subtotal){
+  const rows=[];
+  if(d.venue>0)rows.push({label:'Venue discount',value:d.venue});
+  if(d.entertainment>0)rows.push({label:'Entertainment discount (day rate)',value:d.entertainment});
+  if(d.photo>0)rows.push({label:`Photo bundle discount (${state.photoPlan})`,value:d.photo});
+  if(fpDisc>0)rows.push({label:'Full Package discount (lowest tier)',value:fpDisc});
+  const block=document.getElementById('discountSummaryBlock');
+  const rowsEl=document.getElementById('discountSummaryRows');
+  const totalEl=document.getElementById('discountTotalValue');
+  if(rows.length>0){
+    block.style.display='block';
+    rowsEl.innerHTML=rows.map(r=>`<div class="discount-row-item"><span class="discount-row-label">${r.label}</span><span class="discount-row-value">-${fmtMoney(r.value)}</span></div>`).join('');
+    const total=rows.reduce((s,r)=>s+r.value,0);
+    totalEl.textContent='-'+fmtMoney(total);
+  } else {block.style.display='none';}
+}
+
+// ── SAVE / LOAD ────────────────────────────────────────────
+function hasChanges(){
+  if(!state.loadedSnapshot)return true;
+  const cur=collectData();
+  const keys=['Client Name','Phone','Email','Event Date','Guests','Event Type','Full Package','Venue Tier','Catering Line','Catering Plan','Decor Plan','Entertainment Plan','Photo Plan','Sound Only','Special Conditions','Price Override','Final Total'];
+  return keys.some(k=>String(cur[k]||'').trim()!==String(state.loadedSnapshot[k]||'').trim());
 }
 
 function collectData(){
   return{
-    'COT#':state.cotNumber,'RES#':state.resNumber||'',
-    'Status':state.status==='new'?'quoted':state.status,
+    'COT#':state.cotNumber,'RES#':state.resNumber||'','Status':state.status==='new'?'quoted':state.status,
     'Created Date':new Date().toLocaleDateString('en-US'),
     'Client Name':document.getElementById('clientName').value,
-    'Country':document.getElementById('country').value,
-    'State':document.getElementById('state').value,
-    'City':document.getElementById('city').value,
+    'Country':document.getElementById('country').value,'State':document.getElementById('state').value,'City':document.getElementById('city').value,
     'Client Type':document.getElementById('clientType').value,
-    'Phone':document.getElementById('phone').value,
-    'Email':document.getElementById('email').value,
-    'Event Date':document.getElementById('eventDate').value,
-    'Day of Week':state.dayOfWeek||'',
-    'Guests':state.numGuests,
-    'Guest Range':state.guestRange||'',
-    'Event Type':document.getElementById('eventType').value,
-    'Event Sub-Type':document.getElementById('eventSubType').value,
+    'Phone':document.getElementById('phone').value,'Email':document.getElementById('email').value,
+    'Event Date':document.getElementById('eventDate').value,'Day of Week':state.dayOfWeek||'',
+    'Guests':state.numGuests,'Children':document.getElementById('numChildren').value||0,
+    'Guest Range':state.guestRange||'','Tables':state.numTables,
+    'Event Type':document.getElementById('eventType').value,'Event Sub-Type':document.getElementById('eventSubType')?.value||'',
     'Full Package':state.fullPackage,
     'Venue Tier':state.isExternalEvent?'EXTERNAL':document.getElementById('venueTier').value,
-    'Catering Line':document.getElementById('cateringLine').value,
-    'Catering Plan':document.getElementById('cateringPlan').value,
+    'Catering Line':document.getElementById('cateringLine').value,'Catering Plan':document.getElementById('cateringPlan').value,
     'Decor Plan':state.decorPlan,
-    'Entertainment Plan':state.entertainmentPlan,
+    'Entertainment Plan':document.getElementById('entPlan').value,
+    'Sound Plan':document.getElementById('soundPlan').value,
     'Photo Plan':state.photoPlan,
-    'DJ Nationality':document.getElementById('djNationality').value,
-    'Sound Only':document.getElementById('soundOnly').value,
+    'Sound Only':document.getElementById('soundPlan').value,
     'Special Conditions':document.getElementById('specialConditions').value,
-    'Price Venue':state.prices.venue,
-    'Price Catering':state.prices.catering,
-    'Price Decor':state.prices.decor,
-    'Price Entertainment':state.prices.entertainment,
-    'Price Photo':state.prices.photo,
+    'Price Venue':state.prices.venue,'Price Catering':state.prices.catering,'Price Decor':state.prices.decor,
+    'Price Entertainment':state.prices.entertainment,'Price Photo':state.prices.photo,
+    'Discount Venue':state.discounts.venue||0,'Discount Entertainment':state.discounts.entertainment||0,'Discount Photo':state.discounts.photo||0,'Discount FP':state.discounts.fullPackage||0,
     'Price Override':document.getElementById('priceOverride').value,
     'Final Total':document.getElementById('p-final').textContent
   };
 }
 
-function hasChanges(){
-  if(!state.loadedSnapshot) return true;
-  const current=collectData();
-  const keys=['Client Name','Phone','Email','Event Date','Guests','Event Type','Full Package','Venue Tier','Catering Line','Catering Plan','Decor Plan','Entertainment Plan','Photo Plan','Sound Only','Special Conditions','Price Override','Final Total'];
-  return keys.some(k=>String(current[k]||'').trim()!==String(state.loadedSnapshot[k]||'').trim());
-}
-
 async function saveQuotation(){
   if(!validateRequired()){showToast('Please fill all required fields','error');return;}
   if(document.getElementById('saveDateBlockAlert').style.display==='block'){showToast('Date is reserved — select another date or confirm as external event','error');return;}
-  // If loaded and no changes, skip save
-  if(state.isLoaded&&!hasChanges()){
-    showToast('No changes detected — quotation not saved again','info');
-    state.isLoaded=false;
-    document.getElementById('cotNumber').textContent=state.cotNumber;
-    document.getElementById('statusPill').textContent='QUOTED';
-    return;
-  }
-  // If loaded and has changes, generate new COT#
-  if(state.isLoaded&&hasChanges()){
-    showLoading('Generating new quotation number...');
-    await loadAllQuotations();
-    await generateCotNumber();
-    hideLoading();
-  }
+  if(state.isLoaded&&!hasChanges()){showToast('No changes detected — not saved again','info');state.isLoaded=false;document.getElementById('cotNumber').textContent=state.cotNumber;document.getElementById('statusPill').textContent='QUOTED';return;}
+  if(state.isLoaded&&hasChanges()){showLoading('Generating new quotation number...');await loadAllQuotations();await generateCotNumber();hideLoading();}
   showLoading('Saving quotation...');
-  try{
-    await saveToSheets(collectData());
-    await loadAllQuotations();
-    showToast('✓ Saved — '+state.cotNumber,'success');
-    document.getElementById('statusPill').textContent='QUOTED';
-    state.status='quoted';state.isLoaded=false;state.loadedSnapshot=null;
-    setTimeout(()=>newQuotation(),2000);
-  }catch(e){showToast('Error saving — try again','error');}
+  try{await saveToSheets(collectData());await loadAllQuotations();showToast('✓ Saved — '+state.cotNumber,'success');document.getElementById('statusPill').textContent='QUOTED';state.status='quoted';state.isLoaded=false;state.loadedSnapshot=null;setTimeout(()=>newQuotation(),2000);}
+  catch(e){showToast('Error saving — try again','error');}
   hideLoading();
 }
 
 async function newQuotation(){
   if(!confirm('Start new quotation? Current form will be cleared.'))return;
-  document.querySelectorAll('input:not([type=button]):not([type=submit])').forEach(el=>el.value='');
+  document.querySelectorAll('input:not([type=button]):not([type=submit])').forEach(el=>{if(el.id!=='numChildren')el.value='';});
+  document.getElementById('numChildren').value='0';
   document.querySelectorAll('select').forEach(el=>el.selectedIndex=0);
   document.querySelectorAll('.tier-btn').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll('.tier-btn.na').forEach(b=>b.classList.add('active'));
   document.querySelectorAll('.alert').forEach(a=>a.className='alert');
   document.querySelectorAll('.field-error').forEach(e=>e.classList.remove('show'));
   ['externalEventAlert','saveDateBlockAlert','soundDamageAlert'].forEach(id=>document.getElementById(id).style.display='none');
-  state.fullPackage='na';state.decorPlan='na';state.entertainmentPlan='na';state.photoPlan='na';
-  state.dayOfWeek=null;state.guestRange=null;state.numGuests=0;
+  state.fullPackage='na';state.decorPlan='na';state.photoPlan='na';
+  state.dayOfWeek=null;state.guestRange=null;state.numGuests=0;state.numTables=0;
   state.prices={venue:0,catering:0,decor:0,entertainment:0,photo:0};
-  state.soundOnlyFee=0;state.status='new';state.resNumber=null;state.selectedDate=null;state.isExternalEvent=false;state.isLoaded=false;state.loadedSnapshot=null;
-  ['dayOfWeek','guestRange','venuePriceDisplay','cateringPriceDisplay','decorCPPrice','decorTotalDisplay','soundFeeDisplay','photoBundleInfo','extrasInfo','framesPrice'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
-  ['p-soundfee-row','p-discount-row','discountRow','decorLegacyPrice','framesTableField','eventSubField'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+  state.discounts={venue:0,entertainment:0,photo:0,fullPackage:0};
+  state.status='new';state.resNumber=null;state.selectedDate=null;state.isExternalEvent=false;state.isLoaded=false;state.loadedSnapshot=null;
+  ['dayOfWeek','guestRange','venuePriceDisplay','cateringPriceDisplay','decorCPPrice','decorTotalDisplay','soundDiscountDisplay','entDiscountDisplay','photoBundleInfo','extrasInfo','framesPrice','framesTablesDisplay'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+  ['framesInfoField','decorLegacyPrice','eventSubField','discountSummaryBlock'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
   ['p-venue','p-catering','p-decor','p-entertainment','p-photo'].forEach(id=>document.getElementById(id).textContent='—');
+  ['pd-venue','pd-entertainment','pd-photo','venue-header-price','venue-header-discount','catering-header-price','decor-header-price','ent-header-price','ent-header-discount','photo-header-price','photo-header-discount','fp-header-price','fp-header-discount'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='';});
+  document.getElementById('p-subtotal').textContent='$0';document.getElementById('p-discounts-total').textContent='$0';
   document.getElementById('p-calculated').textContent='$0';document.getElementById('p-final').textContent='$0';
-  document.getElementById('cateringTrayDisplay').textContent='—';
-  document.getElementById('statusPill').textContent='NEW';
-  ['venueTier','cateringLine','cateringPlan','decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier','photoTier','photoShootPlan','printsPlan'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=false;});
+  document.getElementById('cateringTrayDisplay').textContent='—';document.getElementById('statusPill').textContent='NEW';
+  document.getElementById('venueDiscountDisplay').style.display='none';
+  ['venueTier','cateringLine','cateringPlan','entPlan','soundPlan','decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier','photoTier','photoShootPlan','printsPlan'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=false;});
   showLoading('Preparing new quotation...');
-  await loadAllQuotations();
-  await generateCotNumber();
+  await loadAllQuotations();await generateCotNumber();
   document.getElementById('createdDate').textContent=new Date().toLocaleDateString('en-US');
   document.getElementById('cotNumber').textContent=state.cotNumber;
-  onEventTypeChange();hideLoading();
+  hideLoading();
 }
 
 let allLoadedQuotations=[];
@@ -1143,64 +1227,49 @@ async function openLoadModal(){
   renderResults(allLoadedQuotations);
   document.getElementById('searchInput').focus();
 }
-
-function filterResults(query){
-  const q=query.toLowerCase().trim();
-  if(!q){renderResults(allLoadedQuotations);return;}
-  const filtered=allLoadedQuotations.filter(r=>(r['COT#']||'').toLowerCase().includes(q)||(r['Client Name']||'').toLowerCase().includes(q)||(r['Event Date']||'').includes(q));
-  renderResults(filtered);
-}
-
+function filterResults(query){const q=query.toLowerCase().trim();renderResults(q?allLoadedQuotations.filter(r=>(r['COT#']||'').toLowerCase().includes(q)||(r['Client Name']||'').toLowerCase().includes(q)||(r['Event Date']||'').includes(q)):allLoadedQuotations);}
 function renderResults(results){
-  const container=document.getElementById('searchResults');
-  if(!results.length){container.innerHTML='<div class="result-empty">No quoted records found</div>';return;}
-  container.innerHTML=results.map(r=>`
-    <div class="result-item" onclick="loadQuotation('${r['COT#']}')">
-      <div class="result-client">${r['Client Name']||'—'}</div>
-      <div class="result-cot">${r['COT#']||''}</div>
-      <div class="result-meta">${r['Event Type']||''} &nbsp;·&nbsp; ${formatDateOnly(r['Event Date'])} &nbsp;·&nbsp; ${r['Guests']||0} guests &nbsp;·&nbsp; ${r['Final Total']||''}</div>
-    </div>
-  `).join('');
+  const c=document.getElementById('searchResults');
+  if(!results.length){c.innerHTML='<div class="result-empty">No quoted records found</div>';return;}
+  c.innerHTML=results.map(r=>`<div class="result-item" onclick="loadQuotation('${r['COT#']}')"><div class="result-client">${r['Client Name']||'—'}</div><div class="result-cot">${r['COT#']||''}</div><div class="result-meta">${r['Event Type']||''} &nbsp;·&nbsp; ${formatDateOnly(r['Event Date'])} &nbsp;·&nbsp; ${r['Guests']||0} guests &nbsp;·&nbsp; ${r['Final Total']||''}</div></div>`).join('');
 }
 
 function loadQuotation(cotNum){
   const rec=allLoadedQuotations.find(r=>r['COT#']===cotNum);
   if(!rec){showToast('Not found','error');return;}
-  const fieldMap={clientName:'Client Name',country:'Country',state:'State',city:'City',phone:'Phone',email:'Email',eventSubType:'Event Sub-Type',djNationality:'DJ Nationality',specialConditions:'Special Conditions',priceOverride:'Price Override'};
-  Object.entries(fieldMap).forEach(([id,key])=>{const el=document.getElementById(id);if(el&&rec[key]!==undefined)el.value=rec[key];});
+  ['clientName','country','state','city','phone','email','eventSubType','specialConditions','priceOverride'].forEach(id=>{const el=document.getElementById(id);if(el&&rec[id.replace(/([A-Z])/g,' $1').trim()]!==undefined)el.value=rec[id.replace(/([A-Z])/g,' $1').trim()]||'';});
+  // Direct field mapping
+  document.getElementById('clientName').value=rec['Client Name']||'';
+  document.getElementById('country').value=rec['Country']||'';
+  document.getElementById('state').value=rec['State']||'';
+  document.getElementById('city').value=rec['City']||'';
+  document.getElementById('phone').value=rec['Phone']||'';
+  document.getElementById('email').value=rec['Email']||'';
+  document.getElementById('eventSubType').value=rec['Event Sub-Type']||'';
+  document.getElementById('specialConditions').value=rec['Special Conditions']||'';
+  document.getElementById('priceOverride').value=rec['Price Override']||'';
+  document.getElementById('numChildren').value=rec['Children']||0;
   document.getElementById('clientType').value=rec['Client Type']||'standard';
-  document.getElementById('eventType').value=rec['Event Type']||'quinceanera';
+  document.getElementById('eventType').value=rec['Event Type']||'';
   document.getElementById('cateringLine').value=rec['Catering Line']||'';
   onCateringLineChange();
   document.getElementById('cateringPlan').value=rec['Catering Plan']||'';
-  document.getElementById('soundOnly').value=rec['Sound Only']||'';
-  // Set date correctly
+  document.getElementById('soundPlan').value=rec['Sound Plan']||'';
+  document.getElementById('entPlan').value=rec['Entertainment Plan']||'';
   const dateVal=formatDateOnly(rec['Event Date']);
-  if(dateVal){
-    state.selectedDate=dateVal;
-    document.getElementById('eventDate').value=dateVal;
-    // Set calendar to correct month/year
-    const parts=dateVal.split('/');
-    if(parts.length===3){state.calMonth=parseInt(parts[0])-1;state.calYear=parseInt(parts[2]);}
-  }
-  if(rec['Guests'])document.getElementById('numGuests').value=rec['Guests'];
+  if(dateVal){state.selectedDate=dateVal;document.getElementById('eventDate').value=dateVal;const p=dateVal.split('/');if(p.length===3){state.calMonth=parseInt(p[0])-1;state.calYear=parseInt(p[2]);}}
+  document.getElementById('numGuests').value=rec['Guests']||'';
   state.cotNumber=rec['COT#'];state.status='quoted';state.isLoaded=true;
-  state.fullPackage=rec['Full Package']||'na';state.decorPlan=rec['Decor Plan']||'na';
-  state.entertainmentPlan=rec['Entertainment Plan']||'na';state.photoPlan=rec['Photo Plan']||'na';
+  state.fullPackage=rec['Full Package']||'na';state.decorPlan=rec['Decor Plan']||'na';state.photoPlan=rec['Photo Plan']||'na';
   state.prices.venue=parseFloat(rec['Price Venue'])||0;state.prices.catering=parseFloat(rec['Price Catering'])||0;
-  state.prices.decor=parseFloat(rec['Price Decor'])||0;state.prices.entertainment=parseFloat(rec['Price Entertainment'])||0;
-  state.prices.photo=parseFloat(rec['Price Photo'])||0;
+  state.prices.decor=parseFloat(rec['Price Decor'])||0;state.prices.entertainment=parseFloat(rec['Price Entertainment'])||0;state.prices.photo=parseFloat(rec['Price Photo'])||0;
   onGuestsChange();onEventTypeChange();onCateringPlanChange();
   if(rec['Venue Tier']&&rec['Venue Tier']!=='EXTERNAL')document.getElementById('venueTier').value=rec['Venue Tier'];
-  onVenueTierChange();onDateChange();
-  // Save snapshot for change detection
+  onVenueTierChange&&onVenueTierChange();onDateChange();
   state.loadedSnapshot={...rec};
-  // Show COT — new number only generated if changes detected on save
   document.getElementById('cotNumber').textContent=rec['COT#'];
   document.getElementById('statusPill').textContent='LOADED';
-  closeModal();
-  showToast('Loaded '+rec['COT#']+' — '+rec['Client Name']+'. Modify to save as new quotation, or reserve directly.','warn');
-  calcTotal();
+  closeModal();showToast('Loaded '+rec['COT#']+' — '+rec['Client Name']+'. Modify to save as new, or reserve directly.','warn');calcTotal();
 }
 
 function closeModal(){document.getElementById('loadModal').classList.remove('show');}
@@ -1208,25 +1277,16 @@ function closeModal(){document.getElementById('loadModal').classList.remove('sho
 async function confirmReservation(){
   if(state.status==='reserved'){showToast('Already reserved','warn');return;}
   if(!validateRequired()){showToast('Please fill all required fields first','error');return;}
-  // Block if date is reserved — regardless of external event popup answer
   const eventDate=document.getElementById('eventDate').value;
   const dateAlreadyReserved=state.reservedDates.includes(eventDate);
   if(dateAlreadyReserved&&!state.isExternalEvent){showToast('Cannot reserve — this date already has a confirmed event','error');return;}
   if(document.getElementById('saveDateBlockAlert').style.display==='block'){showToast('Cannot reserve a blocked date','error');return;}
   showConfirm('Confirm Reservation','Confirm reservation for '+document.getElementById('clientName').value+'? This cannot be undone.',async()=>{
-    // If loaded with no changes, use same COT#. If new or changed, use current cotNumber.
-    if(state.isLoaded&&!hasChanges()){
-      // Reserve the original quotation directly — no new record needed for COT
-    } else if(state.isLoaded&&hasChanges()){
-      // Has changes — generate new COT# first
-      await loadAllQuotations();
-      await generateCotNumber();
-    }
+    if(state.isLoaded&&hasChanges()){await loadAllQuotations();await generateCotNumber();}
     const year=new Date().getFullYear();
-    const yearRes=state.allQuotations.filter(q=>(q['RES#']||'').startsWith('RES-'+year));
-    let maxRes=0;yearRes.forEach(q=>{const n=parseInt((q['RES#']||'').split('-')[2]||0);if(n>maxRes)maxRes=n;});
-    state.resNumber=`RES-${year}-${String(maxRes+1).padStart(3,'0')}`;
-    state.status='reserved';
+    const yr=state.allQuotations.filter(q=>(q['RES#']||'').startsWith('RES-'+year));
+    let maxR=0;yr.forEach(q=>{const n=parseInt((q['RES#']||'').split('-')[2]||0);if(n>maxR)maxR=n;});
+    state.resNumber=`RES-${year}-${String(maxR+1).padStart(3,'0')}`;state.status='reserved';
     showLoading('Confirming reservation...');
     const data=collectData();data['Status']='reserved';data['RES#']=state.resNumber;
     await saveToSheets(data);await loadAllQuotations();hideLoading();
@@ -1237,10 +1297,14 @@ async function confirmReservation(){
   });
 }
 
+function showConfirm(title,msg,onYes,onNo){
+  document.getElementById('confirmTitle').textContent=title;document.getElementById('confirmMsg').textContent=msg;document.getElementById('confirmOverlay').classList.add('show');
+  document.getElementById('confirmYes').onclick=()=>{document.getElementById('confirmOverlay').classList.remove('show');onYes();};
+  document.getElementById('confirmNo').onclick=()=>{document.getElementById('confirmOverlay').classList.remove('show');if(onNo)onNo();};
+}
 function showAlert(id,msg,type){const el=document.getElementById(id);if(el){el.className=`alert alert-${type} show`;el.textContent=msg;}}
 function hideAlert(id){const el=document.getElementById(id);if(el)el.className='alert';}
 function showToast(msg,type){const t=document.getElementById('toast');t.textContent=msg;t.className=`toast toast-${type} show`;setTimeout(()=>t.className='toast',4500);}
-
 document.getElementById('loadModal').addEventListener('click',function(e){if(e.target===this)closeModal();});
 </script>
 </body>
