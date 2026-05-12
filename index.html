@@ -899,7 +899,7 @@ function setDecorPlanInternal(tier){
     document.getElementById('decorCPTier').disabled=true;
     document.getElementById('decorCPType').disabled=false;
   }
-  onDecorExtrasTier();calcDecorPrice();
+  onDecorExtrasTier();calcDecorPrice();calcTotal();
 }
 
 function calcDecorPrice(){
@@ -931,7 +931,9 @@ function calcDecorPrice(){
   const hdr=document.getElementById('decor-header-price');hdr.textContent=price?fmtMoney(price):'';
   const hdrDisc=document.getElementById('decor-header-discount');
   hdrDisc.textContent=decorDisc>0?`-10% (-${fmtMoney(decorDisc)})`:'';
-  calcTotal();
+  // Update breakdown display directly (no calcTotal call — calcTotal reads state.prices.decor)
+  document.getElementById('p-decor').textContent=price?fmtMoney(price):'—';
+  document.getElementById('pd-decor').textContent=decorDisc>0?`-10% (-${fmtMoney(decorDisc)})`:'';
 }
 
 function onDecorExtrasTier(){
@@ -1068,7 +1070,13 @@ function calcTotal(){
   document.getElementById('p-catering').textContent=p.catering?fmtMoney(p.catering):'—';
 
   // Decor — price already computed in calcDecorPrice (includes legacy and prestige discount)
-  if(state.decorPlan==='legacy')calcDecorPrice();// re-read field value
+  // For legacy, re-read the manual field directly (no function call to avoid loop)
+  if(state.decorPlan==='legacy'){
+    const legacyVal=parseFloat(document.getElementById('decorLegacyPriceVal').value)||0;
+    const legacyDisc=0;
+    p.decor=legacyVal;
+    state.discounts.decor=legacyDisc;
+  }
   document.getElementById('p-decor').textContent=p.decor?fmtMoney(p.decor):'—';
   document.getElementById('pd-decor').textContent=state.discounts.decor>0?`-10% (-${fmtMoney(state.discounts.decor)})`:'';
   const decorDiscEl=document.getElementById('decor-header-discount');
