@@ -1191,34 +1191,49 @@ function buildDiscountSummary(d,fpDisc,subtotal){
 function hasChanges(){
   if(!state.loadedSnapshot)return true;
   const cur=collectData();
-  const keys=['Client Name','Phone','Email','Event Date','Guests','Event Type','Full Package','Venue Tier','Catering Line','Catering Plan','Decor Plan','Entertainment Plan','Photo Plan','Sound Only','Special Conditions','Price Override','Final Total'];
+  const keys=['Client Name','Phone','Email','Event Date','Guests','Event Type','Full Package','Venue Tier','Catering Line','Catering Plan','Decor Plan','Entertainment Plan','Photo Plan','Sound Plan','Special Conditions','Price Override','Final Total'];
   return keys.some(k=>String(cur[k]||'').trim()!==String(state.loadedSnapshot[k]||'').trim());
 }
 
 function collectData(){
   return{
-    'COT#':state.cotNumber,'RES#':state.resNumber||'','Status':state.status==='new'?'quoted':state.status,
+    'COT#':state.cotNumber,
+    'RES#':state.resNumber||'',
+    'Status':state.status==='new'?'quoted':state.status,
     'Created Date':new Date().toLocaleDateString('en-US'),
     'Client Name':document.getElementById('clientName').value,
-    'Country':document.getElementById('country').value,'State':document.getElementById('state').value,'City':document.getElementById('city').value,
+    'Country':document.getElementById('country').value,
+    'State':document.getElementById('state').value,
+    'City':document.getElementById('city').value,
     'Client Type':document.getElementById('clientType').value,
-    'Phone':document.getElementById('phone').value,'Email':document.getElementById('email').value,
-    'Event Date':document.getElementById('eventDate').value,'Day of Week':state.dayOfWeek||'',
-    'Guests':state.numGuests,'Children':document.getElementById('numChildren').value||0,
-    'Guest Range':state.guestRange||'','Tables':state.numTables,
-    'Event Type':document.getElementById('eventType').value,'Event Sub-Type':document.getElementById('eventSubType')?.value||'',
+    'Phone':document.getElementById('phone').value,
+    'Email':document.getElementById('email').value,
+    'Event Date':document.getElementById('eventDate').value,
+    'Day of Week':state.dayOfWeek||'',
+    'Guests':state.numGuests,
+    'Children':document.getElementById('numChildren').value||0,
+    'Guest Range':state.guestRange||'',
+    'Tables':state.numTables,
+    'Event Type':document.getElementById('eventType').value,
+    'Event Sub-Type':document.getElementById('eventSubType')?.value||'',
     'Full Package':state.fullPackage,
     'Venue Tier':state.isExternalEvent?'EXTERNAL':document.getElementById('venueTier').value,
-    'Catering Line':document.getElementById('cateringLine').value,'Catering Plan':document.getElementById('cateringPlan').value,
+    'Catering Line':document.getElementById('cateringLine').value,
+    'Catering Plan':document.getElementById('cateringPlan').value,
     'Decor Plan':state.decorPlan,
     'Entertainment Plan':document.getElementById('entPlan').value,
     'Sound Plan':document.getElementById('soundPlan').value,
     'Photo Plan':state.photoPlan,
-    'Sound Only':document.getElementById('soundPlan').value,
     'Special Conditions':document.getElementById('specialConditions').value,
-    'Price Venue':state.prices.venue,'Price Catering':state.prices.catering,'Price Decor':state.prices.decor,
-    'Price Entertainment':state.prices.entertainment,'Price Photo':state.prices.photo,
-    'Discount Venue':state.discounts.venue||0,'Discount Entertainment':state.discounts.entertainment||0,'Discount Photo':state.discounts.photo||0,'Discount FP':state.discounts.fullPackage||0,
+    'Price Venue':state.prices.venue,
+    'Price Catering':state.prices.catering,
+    'Price Decor':state.prices.decor,
+    'Price Entertainment':state.prices.entertainment,
+    'Price Photo':state.prices.photo,
+    'Discount Venue':state.discounts.venue||0,
+    'Discount Entertainment':state.discounts.entertainment||0,
+    'Discount Photo':state.discounts.photo||0,
+    'Discount FP':state.discounts.fullPackage||0,
     'Price Override':document.getElementById('priceOverride').value,
     'Final Total':document.getElementById('p-final').textContent
   };
