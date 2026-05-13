@@ -1062,20 +1062,20 @@ function calcTotal(){
   const entVal=document.getElementById('entPlan').value;
   const day=state.dayOfWeek;
 
-  // Venue already calculated in calcVenuePrice
+  // Venue already calculated in calcVenuePrice (skip recalc when loaded)
+  if(!state.isLoaded)calcVenuePrice();
   document.getElementById('p-venue').textContent=p.venue?fmtMoney(p.venue):(isExt?'$0 (External)':'—');
   document.getElementById('pd-venue').textContent=d.venue>0?`-${fmtMoney(d.venue)}`:'';
 
   // Catering
   document.getElementById('p-catering').textContent=p.catering?fmtMoney(p.catering):'—';
 
-  // Decor — price already computed in calcDecorPrice (includes legacy and prestige discount)
-  // For legacy, re-read the manual field directly (no function call to avoid loop)
-  if(state.decorPlan==='legacy'){
-    const legacyVal=parseFloat(document.getElementById('decorLegacyPriceVal').value)||0;
-    const legacyDisc=0;
-    p.decor=legacyVal;
-    state.discounts.decor=legacyDisc;
+  // Decor
+  if(!state.isLoaded){
+    if(state.decorPlan==='legacy'){
+      const legacyVal=parseFloat(document.getElementById('decorLegacyPriceVal').value)||0;
+      p.decor=legacyVal;state.discounts.decor=0;
+    }
   }
   document.getElementById('p-decor').textContent=p.decor?fmtMoney(p.decor):'—';
   document.getElementById('pd-decor').textContent=state.discounts.decor>0?`-10% (-${fmtMoney(state.discounts.decor)})`:'';
@@ -1084,41 +1084,45 @@ function calcTotal(){
 
   // Entertainment
   // When an entertainment plan is selected, sound is included — don't add sound cost separately
-  let soundBase=0;
-  let entBase=entVal?(ENT_PRICES[entVal]||0):0;
-  if(!entVal&&soundVal){soundBase=SOUND_PRICES[soundVal]||0;}// sound only when no plan
-  let soundDisc=0,entDisc=0;
-  if(!isExt){
-    if(!entVal&&soundVal){
-      if(['Monday','Tuesday','Wednesday','Thursday'].includes(day))soundDisc=soundBase*0.40;
-      else if(['Friday','Sunday'].includes(day))soundDisc=soundBase*0.10;
+  if(!state.isLoaded){
+    let soundBase=0;
+    let entBase=entVal?(ENT_PRICES[entVal]||0):0;
+    if(!entVal&&soundVal){soundBase=SOUND_PRICES[soundVal]||0;}
+    let soundDisc=0,entDisc=0;
+    if(!isExt){
+      if(!entVal&&soundVal){
+        if(['Monday','Tuesday','Wednesday','Thursday'].includes(day))soundDisc=soundBase*0.40;
+        else if(['Friday','Sunday'].includes(day))soundDisc=soundBase*0.10;
+      }
+      if(entVal){
+        if(['Monday','Tuesday','Wednesday','Thursday'].includes(day))entDisc=entBase*0.20;
+        else if(['Friday','Sunday'].includes(day)&&['elegant','prestige'].includes(entVal))entDisc=entBase*0.10;
+        else if(['Friday','Sunday'].includes(day)&&entVal==='legacy')entDisc=entBase*0.15;
+      }
     }
-    if(entVal){
-      if(['Monday','Tuesday','Wednesday','Thursday'].includes(day))entDisc=entBase*0.20;
-      else if(['Friday','Sunday'].includes(day)&&['elegant','prestige'].includes(entVal))entDisc=entBase*0.10;
-      else if(['Friday','Sunday'].includes(day)&&entVal==='legacy')entDisc=entBase*0.15;
-    }
+    p.entertainment=(soundBase-soundDisc)+(entBase-entDisc);
+    d.entertainment=soundDisc+entDisc;
   }
-  p.entertainment=(soundBase-soundDisc)+(entBase-entDisc);
-  d.entertainment=soundDisc+entDisc;
   document.getElementById('p-entertainment').textContent=p.entertainment?fmtMoney(p.entertainment):'—';
   document.getElementById('pd-entertainment').textContent=d.entertainment>0?`-${fmtMoney(d.entertainment)}`:'';
   document.getElementById('ent-header-price').textContent=p.entertainment?fmtMoney(p.entertainment):'';
 
   // Photo
-  const photoTier=document.getElementById('photoTier').value;
-  const shootPlan=document.getElementById('photoShootPlan').value;
-  const printsPlan=document.getElementById('printsPlan').value;
-  let photoBase=0;
-  if(photoTier)photoBase+=PHOTO_PRICES.photography[photoTier]||0;
-  if(shootPlan)photoBase+=PHOTO_PRICES.shoot[shootPlan]||0;
-  if(printsPlan==='gallery')photoBase+=PHOTO_PRICES.prints.gallery;
-  else if(printsPlan==='frames')photoBase+=state.numTables*PHOTO_PRICES.prints.frames_per_table;
-  let photoDisc=0;
-  if(!isExt&&state.photoPlan!=='na'&&PHOTO_BUNDLE_DISC[state.photoPlan]){
-    photoDisc=photoBase*PHOTO_BUNDLE_DISC[state.photoPlan];
+  if(!state.isLoaded){
+    const photoTier=document.getElementById('photoTier').value;
+    const shootPlan=document.getElementById('photoShootPlan').value;
+    const printsPlan=document.getElementById('printsPlan').value;
+    let photoBase=0;
+    if(photoTier)photoBase+=PHOTO_PRICES.photography[photoTier]||0;
+    if(shootPlan)photoBase+=PHOTO_PRICES.shoot[shootPlan]||0;
+    if(printsPlan==='gallery')photoBase+=PHOTO_PRICES.prints.gallery;
+    else if(printsPlan==='frames')photoBase+=state.numTables*PHOTO_PRICES.prints.frames_per_table;
+    let photoDisc=0;
+    if(!isExt&&state.photoPlan!=='na'&&PHOTO_BUNDLE_DISC[state.photoPlan]){
+      photoDisc=photoBase*PHOTO_BUNDLE_DISC[state.photoPlan];
+    }
+    p.photo=photoBase-photoDisc;d.photo=photoDisc;
   }
-  p.photo=photoBase-photoDisc;d.photo=photoDisc;
   document.getElementById('p-photo').textContent=p.photo?fmtMoney(p.photo):'—';
   document.getElementById('pd-photo').textContent=photoDisc>0?`-${fmtMoney(photoDisc)}`:'';
   document.getElementById('photo-header-price').textContent=p.photo?fmtMoney(p.photo):'';
@@ -1191,7 +1195,7 @@ function buildDiscountSummary(d,fpDisc,subtotal){
 function hasChanges(){
   if(!state.loadedSnapshot)return true;
   const cur=collectData();
-  const keys=['Client Name','Phone','Email','Event Date','Guests','Event Type','Full Package','Venue Tier','Catering Line','Catering Plan','Decor Plan','Entertainment Plan','Photo Plan','Sound Plan','Special Conditions','Price Override','Final Total'];
+  const keys=['Client Name','Phone','Email','Event Date','Guests','Event Type','Full Package','Venue Tier','Catering Line','Catering Plan','Decor Plan','Decor Honor Tier','Decor Dining Tier','Decor CP Tier','Decor CP Type','Decor Extras Tier','Decor Legacy Price','Entertainment Plan','Sound Plan','Photo Plan','Photo Tier','Photo Shoot','Photo Prints','Special Conditions','Price Override','Final Total'];
   return keys.some(k=>String(cur[k]||'').trim()!==String(state.loadedSnapshot[k]||'').trim());
 }
 
@@ -1221,9 +1225,18 @@ function collectData(){
     'Catering Line':document.getElementById('cateringLine').value,
     'Catering Plan':document.getElementById('cateringPlan').value,
     'Decor Plan':state.decorPlan,
+    'Decor Honor Tier':document.getElementById('decorHonorTier').value,
+    'Decor Dining Tier':document.getElementById('decorDiningTier').value,
+    'Decor CP Tier':document.getElementById('decorCPTier').value,
+    'Decor CP Type':document.getElementById('decorCPType').value,
+    'Decor Extras Tier':document.getElementById('decorExtrasTier').value,
+    'Decor Legacy Price':document.getElementById('decorLegacyPriceVal').value||'',
     'Entertainment Plan':document.getElementById('entPlan').value,
     'Sound Plan':document.getElementById('soundPlan').value,
     'Photo Plan':state.photoPlan,
+    'Photo Tier':document.getElementById('photoTier').value,
+    'Photo Shoot':document.getElementById('photoShootPlan').value,
+    'Photo Prints':document.getElementById('printsPlan').value,
     'Special Conditions':document.getElementById('specialConditions').value,
     'Price Venue':state.prices.venue,
     'Price Catering':state.prices.catering,
@@ -1380,6 +1393,13 @@ function loadQuotation(cotNum){
   const decorBtnMap={na:0,essential:1,elegant:2,prestige:3,legacy:4};
   const decorBtns=document.querySelectorAll('#decorTierBtns .tier-btn');
   if(decorBtns[decorBtnMap[decorPlan]])decorBtns[decorBtnMap[decorPlan]].classList.add('active');
+  // Restore sub-fields before setDecorPlanInternal so they aren't overwritten
+  document.getElementById('decorHonorTier').value=rec['Decor Honor Tier']||'';
+  document.getElementById('decorDiningTier').value=rec['Decor Dining Tier']||'';
+  document.getElementById('decorCPTier').value=rec['Decor CP Tier']||'';
+  document.getElementById('decorCPType').value=rec['Decor CP Type']||'flowers';
+  document.getElementById('decorExtrasTier').value=rec['Decor Extras Tier']||'';
+  document.getElementById('decorLegacyPriceVal').value=rec['Decor Legacy Price']||'';
   setDecorPlanInternal(decorPlan);
 
   // ── Step 8: Block 6 — Entertainment ──
@@ -1404,6 +1424,10 @@ function loadQuotation(cotNum){
   const photoBtnMap={na:0,elegant:1,prestige:2,legacy:3};
   const photoBtns=document.querySelectorAll('#photoTierBtns .tier-btn');
   if(photoBtns[photoBtnMap[photoPlanVal]])photoBtns[photoBtnMap[photoPlanVal]].classList.add('active');
+  // Restore sub-fields before setPhotoPlanInternal
+  document.getElementById('photoTier').value=rec['Photo Tier']||'';
+  document.getElementById('photoShootPlan').value=rec['Photo Shoot']||'';
+  document.getElementById('printsPlan').value=rec['Photo Prints']||'';
   setPhotoPlanInternal(photoPlanVal);
   updatePhotoSaturdayRule();
 
@@ -1433,8 +1457,22 @@ function loadQuotation(cotNum){
   document.getElementById('cotNumber').textContent=rec['COT#'];
   document.getElementById('statusPill').textContent='LOADED';
 
+  // ── Restore saved prices to guarantee exact match on load ──
+  // calcTotal will recalculate, but we override with saved values
+  // so the loaded quote shows the same final total as when it was saved
+  state.prices.venue=parseFloat(rec['Price Venue'])||state.prices.venue;
+  state.prices.catering=parseFloat(rec['Price Catering'])||state.prices.catering;
+  state.prices.decor=parseFloat(rec['Price Decor'])||state.prices.decor;
+  state.prices.entertainment=parseFloat(rec['Price Entertainment'])||state.prices.entertainment;
+  state.prices.photo=parseFloat(rec['Price Photo'])||state.prices.photo;
+  state.discounts.venue=parseFloat(rec['Discount Venue'])||0;
+  state.discounts.entertainment=parseFloat(rec['Discount Entertainment'])||0;
+  state.discounts.photo=parseFloat(rec['Discount Photo'])||0;
+  state.discounts.fullPackage=parseFloat(rec['Discount FP'])||0;
+
   // ── Step 12: Single calcTotal at the end ──
   calcTotal();
+  state.isLoaded=false;// reset so subsequent edits recalculate normally
   showToast('Loaded '+rec['COT#']+' — '+rec['Client Name'],'warn');
 }
 
