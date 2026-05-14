@@ -329,7 +329,12 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
     <div id="decorSubBlocks">
       <div class="sub-block">
         <div class="sub-header"><div class="sub-title">Honor Table &amp; Backdrop</div><div class="sub-price" id="honor-price"></div></div>
-        <div class="sub-content"><div class="field"><div class="field-label">Tier</div><select class="field-select" id="decorHonorTier" onchange="calcTotal()"><option value="">Not Applicable</option><option value="essential">Essential</option><option value="elegant">Elegant</option><option value="prestige">Prestige</option><option value="legacy">Legacy</option></select></div></div>
+        <div class="sub-content">
+          <div class="grid-2">
+            <div class="field"><div class="field-label">Tier</div><select class="field-select" id="decorHonorTier" onchange="calcDecorPrice();calcTotal()"><option value="">Not Applicable</option><option value="essential">Essential</option><option value="elegant">Elegant</option><option value="prestige">Prestige</option><option value="legacy">Legacy</option></select></div>
+            <div class="field"><div class="field-label">Type</div><select class="field-select" id="decorHonorType" onchange="calcDecorPrice();calcTotal()"><option value="flowers">Flowers</option><option value="balloons">Balloons</option></select></div>
+          </div>
+        </div>
       </div>
       <div class="sub-block">
         <div class="sub-header"><div class="sub-title">Dining Setup</div><div class="sub-price" id="dining-price"></div></div>
@@ -746,13 +751,20 @@ function setFullPackage(tier,btn){
     // Lock photo tier buttons
     document.querySelectorAll('#photoTierBtns .tier-btn').forEach(b=>{b.disabled=true;b.classList.remove('active');});
     const photoBtns=document.querySelectorAll('#photoTierBtns .tier-btn');
-    const pi={elegant:1,prestige:2,legacy:3};if(pi[tier]!==undefined)photoBtns[pi[tier]]?.classList.add('active');
-    if(['elegant','prestige','legacy'].includes(tier)){setPhotoPlanInternal(tier);}
+    if(tier==='essential'){
+      // Essential FP: Photo = N/A, sub-fields disabled
+      photoBtns[0]?.classList.add('active');
+      setPhotoPlanInternal('na');
+      ['photoTier','photoShootPlan','printsPlan'].forEach(id=>{const el=document.getElementById(id);if(el){el.value='';el.disabled=true;}});
+    } else {
+      const pi={elegant:1,prestige:2,legacy:3};if(pi[tier]!==undefined)photoBtns[pi[tier]]?.classList.add('active');
+      if(['elegant','prestige','legacy'].includes(tier)){setPhotoPlanInternal(tier);}
+    }
     document.getElementById('fpAlert').className='alert alert-info show';
     document.getElementById('fpAlert').textContent=`Full Package ${tier.charAt(0).toUpperCase()+tier.slice(1)} — all divisions auto-filled and locked.`;
   } else {
     // Unlock all
-    ['venueTier','cateringLine','cateringPlan','entPlan','soundPlan','decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier','photoTier','photoShootPlan','printsPlan'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=false;});
+    ['venueTier','cateringLine','cateringPlan','entPlan','soundPlan','decorHonorTier','decorHonorType','decorDiningTier','decorCPTier','decorCPType','decorExtrasTier','photoTier','photoShootPlan','printsPlan'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=false;});
     document.querySelectorAll('#decorTierBtns .tier-btn').forEach(b=>b.disabled=false);
     document.querySelectorAll('#photoTierBtns .tier-btn').forEach(b=>b.disabled=false);
     if(state.isExternalEvent)document.getElementById('venueTier').disabled=true;
@@ -869,22 +881,19 @@ function setDecorPlan(tier,btn){
 function setDecorPlanInternal(tier){
   state.decorPlan=tier;
   document.getElementById('decorLegacyPrice').style.display=tier==='legacy'?'block':'none';
-  const subIds=['decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier'];
+  const subIds=['decorHonorTier','decorHonorType','decorDiningTier','decorCPTier','decorCPType','decorExtrasTier'];
   if(tier==='na'){
-    // Unlock all sub-components for individual selection
     subIds.forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=false;});
-    document.getElementById('decorCPType').disabled=false;
   } else if(tier==='legacy'){
-    // Auto-fill all with legacy and lock
     ['decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier'].forEach(id=>{
       const el=document.getElementById(id);if(!el)return;
       if(el.querySelector('option[value="legacy"]'))el.value='legacy';
       el.disabled=true;
     });
+    document.getElementById('decorHonorType').disabled=false;
     document.getElementById('decorCPType').value='others';
     document.getElementById('decorCPType').disabled=false;
   } else {
-    // Auto-fill and lock all except CP type
     ['decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier'].forEach(id=>{
       const el=document.getElementById(id);if(!el)return;
       if(id==='decorExtrasTier'){
@@ -896,34 +905,77 @@ function setDecorPlanInternal(tier){
       }
     });
     if(tier==='essential')document.getElementById('decorCPType').value='flowers';
-    document.getElementById('decorCPTier').disabled=true;
+    document.getElementById('decorHonorType').disabled=false;
     document.getElementById('decorCPType').disabled=false;
   }
   onDecorExtrasTier();calcDecorPrice();calcTotal();
 }
 
+// ── DECOR PRICING TABLES (from Pilab_DesignDecor_Precios_v1.xlsx) ──
+const HONOR_PRICES={
+  essential:{flowers:400,balloons:400},
+  elegant:{flowers:500,balloons:450},
+  prestige:{flowers:700,balloons:650},
+  legacy:{flowers:0,balloons:0}// custom price
+};
+const DINING_PPM={essential:40,elegant:50,prestige:80};// per table
+const CP_PPM={
+  essential:{flowers:30,balloons:30,others:30},
+  elegant:{flowers:30,balloons:20,others:25},
+  prestige:{flowers:45,balloons:30,others:40}
+};
+const EXTRAS_PRICE={essential:0,elegant:150,prestige:350,legacy:0};// legacy=custom
+
 function calcDecorPrice(){
-  let price=0;
+  const honorTier=document.getElementById('decorHonorTier').value;
+  const honorType=document.getElementById('decorHonorType').value;
+  const diningTier=document.getElementById('decorDiningTier').value;
+  const cpTier=document.getElementById('decorCPTier').value;
+  const cpType=document.getElementById('decorCPType').value;
+  const extrasTier=document.getElementById('decorExtrasTier').value;
+  const tables=state.numTables||0;
+  let price=0;let decorDisc=0;
+
   if(state.decorPlan==='legacy'){
     price=parseFloat(document.getElementById('decorLegacyPriceVal').value)||0;
-  } else if(state.decorPlan==='na'){
-    // Individual sub-component mode — sum what's selected
-    // Honor Table (no price table — informational only, no $ value defined per tier individually)
-    // CP is the main priced component
-    const cpTier=document.getElementById('decorCPTier').value;
-    const cpType=document.getElementById('decorCPType').value;
-    const tables=state.numTables;
-    if(cpTier&&cpType&&tables>=5&&DECOR_PRICES[cpTier])price=DECOR_PRICES[cpTier][cpType]?.[tables]||0;
   } else {
-    // Full plan: price comes from CP tier/type
-    const cpTier=document.getElementById('decorCPTier').value;
-    const cpType=document.getElementById('decorCPType').value;
-    const tables=state.numTables;
-    if(cpTier&&cpType&&tables>=5&&DECOR_PRICES[cpTier])price=DECOR_PRICES[cpTier][cpType]?.[tables]||0;
+    // Honor Table
+    let honorPrice=0;
+    if(honorTier&&honorTier!=='legacy'&&HONOR_PRICES[honorTier]){
+      honorPrice=HONOR_PRICES[honorTier][honorType]||0;
+    }
+    // Dining Setup
+    let diningPrice=0;
+    if(diningTier&&DINING_PPM[diningTier]&&tables>0){
+      diningPrice=DINING_PPM[diningTier]*tables;
+    }
+    // Centerpieces
+    let cpPrice=0;
+    if(cpTier&&CP_PPM[cpTier]&&tables>0){
+      cpPrice=(CP_PPM[cpTier][cpType]||0)*tables;
+    }
+    // Extras
+    let extrasPrice=0;
+    if(extrasTier&&extrasTier!=='legacy'&&EXTRAS_PRICE[extrasTier]){
+      extrasPrice=EXTRAS_PRICE[extrasTier];
+    }
+
+    price=honorPrice+diningPrice+cpPrice+extrasPrice;
+
+    // 10% discount on full plan (when plan is not na)
+    // For na: discount only if ALL 4 components selected — per document: only full plan gets discount
+    if(state.decorPlan!=='na'&&price>0){
+      decorDisc=price*0.10;
+      price=price-decorDisc;
+    }
+
+    // Update sub-prices display
+    const honorEl=document.getElementById('honor-price');if(honorEl)honorEl.textContent=honorPrice?fmtMoney(honorPrice):'';
+    const diningEl=document.getElementById('dining-price');if(diningEl)diningEl.textContent=diningPrice?fmtMoney(diningPrice):'';
+    const cpEl=document.getElementById('cp-price');if(cpEl)cpEl.textContent=cpPrice?fmtMoney(cpPrice):'';
+    const extrasEl=document.getElementById('extras-price');if(extrasEl)extrasEl.textContent=extrasPrice?fmtMoney(extrasPrice):'';
   }
-  // Prestige 10% discount
-  let decorDisc=0;
-  if(state.decorPlan==='prestige'&&price>0){decorDisc=price*0.10;price=price-decorDisc;}
+
   state.prices.decor=price;
   state.discounts.decor=decorDisc;
   const totalEl=document.getElementById('decorTotalDisplay');
@@ -931,7 +983,6 @@ function calcDecorPrice(){
   const hdr=document.getElementById('decor-header-price');hdr.textContent=price?fmtMoney(price):'';
   const hdrDisc=document.getElementById('decor-header-discount');
   hdrDisc.textContent=decorDisc>0?`-10% (-${fmtMoney(decorDisc)})`:'';
-  // Update breakdown display directly (no calcTotal call — calcTotal reads state.prices.decor)
   document.getElementById('p-decor').textContent=price?fmtMoney(price):'—';
   document.getElementById('pd-decor').textContent=decorDisc>0?`-10% (-${fmtMoney(decorDisc)})`:'';
 }
@@ -1098,6 +1149,8 @@ function calcTotal(){
         if(['Monday','Tuesday','Wednesday','Thursday'].includes(day))entDisc=entBase*0.20;
         else if(['Friday','Sunday'].includes(day)&&['elegant','prestige'].includes(entVal))entDisc=entBase*0.10;
         else if(['Friday','Sunday'].includes(day)&&entVal==='legacy')entDisc=entBase*0.15;
+        // Legacy 10% on bruto (Saturday or any day — on top of day discount)
+        if(entVal==='legacy'){const legacyDisc=entBase*0.10;entDisc=Math.min(entDisc+legacyDisc,entBase);}
       }
     }
     p.entertainment=(soundBase-soundDisc)+(entBase-entDisc);
@@ -1226,6 +1279,7 @@ function collectData(){
     'Catering Plan':document.getElementById('cateringPlan').value,
     'Decor Plan':state.decorPlan,
     'Decor Honor Tier':document.getElementById('decorHonorTier').value,
+    'Decor Honor Type':document.getElementById('decorHonorType').value,
     'Decor Dining Tier':document.getElementById('decorDiningTier').value,
     'Decor CP Tier':document.getElementById('decorCPTier').value,
     'Decor CP Type':document.getElementById('decorCPType').value,
@@ -1395,6 +1449,7 @@ function loadQuotation(cotNum){
   if(decorBtns[decorBtnMap[decorPlan]])decorBtns[decorBtnMap[decorPlan]].classList.add('active');
   // Restore sub-fields before setDecorPlanInternal so they aren't overwritten
   document.getElementById('decorHonorTier').value=rec['Decor Honor Tier']||'';
+  document.getElementById('decorHonorType').value=rec['Decor Honor Type']||'flowers';
   document.getElementById('decorDiningTier').value=rec['Decor Dining Tier']||'';
   document.getElementById('decorCPTier').value=rec['Decor CP Tier']||'';
   document.getElementById('decorCPType').value=rec['Decor CP Type']||'flowers';
