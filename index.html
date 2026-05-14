@@ -340,7 +340,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
         <div class="sub-header"><div class="sub-title">Dining Setup</div><div class="sub-price" id="dining-price"></div></div>
         <div class="sub-content">
           <div class="grid-2">
-            <div class="field"><div class="field-label">Tier</div><select class="field-select" id="decorDiningTier" onchange="calcTotal()"><option value="">Not Applicable</option><option value="essential">Essential</option><option value="elegant">Elegant</option><option value="prestige">Prestige</option><option value="legacy">Legacy</option></select></div>
+            <div class="field"><div class="field-label">Tier</div><select class="field-select" id="decorDiningTier" onchange="calcDecorPrice();calcTotal()"><option value="">Not Applicable</option><option value="essential">Essential</option><option value="elegant">Elegant</option><option value="prestige">Prestige</option><option value="legacy">Legacy</option></select></div>
             <div class="field"><div class="field-label">Tables (auto)</div><span class="field-auto highlight" id="decorDiningTablesDisplay">—</span></div>
           </div>
         </div>
@@ -357,7 +357,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
       </div>
       <div class="sub-block">
         <div class="sub-header"><div class="sub-title">Extras</div><div class="sub-price" id="extras-price"></div></div>
-        <div class="sub-content"><div class="field"><div class="field-label">Tier</div><select class="field-select" id="decorExtrasTier" onchange="onDecorExtrasTier()"><option value="">Not Applicable</option><option value="elegant">Elegant</option><option value="prestige">Prestige</option><option value="legacy">Legacy</option></select><span class="info-badge gold" id="extrasInfo" style="display:none"></span></div></div>
+        <div class="sub-content"><div class="field"><div class="field-label">Tier</div><select class="field-select" id="decorExtrasTier" onchange="calcDecorPrice();calcTotal()"><option value="">Not Applicable</option><option value="elegant">Elegant</option><option value="prestige">Prestige</option><option value="legacy">Legacy</option></select><span class="info-badge gold" id="extrasInfo" style="display:none"></span></div></div>
       </div>
     </div>
     <div class="field" style="margin-top:6px"><div class="field-label">Decor Total</div><span class="field-auto highlight" id="decorTotalDisplay" style="display:none"></span></div>
@@ -883,7 +883,8 @@ function setDecorPlanInternal(tier){
   document.getElementById('decorLegacyPrice').style.display=tier==='legacy'?'block':'none';
   const subIds=['decorHonorTier','decorHonorType','decorDiningTier','decorCPTier','decorCPType','decorExtrasTier'];
   if(tier==='na'){
-    subIds.forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=false;});
+    subIds.forEach(id=>{const el=document.getElementById(id);if(el){el.disabled=false;el.value='';}});
+    document.getElementById('extrasInfo').style.display='none';
   } else if(tier==='legacy'){
     ['decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier'].forEach(id=>{
       const el=document.getElementById(id);if(!el)return;
@@ -1158,9 +1159,11 @@ function calcTotal(){
   }
   document.getElementById('p-entertainment').textContent=p.entertainment?fmtMoney(p.entertainment):'—';
   document.getElementById('pd-entertainment').textContent=d.entertainment>0?`-${fmtMoney(d.entertainment)}`:'';
-  document.getElementById('ent-header-price').textContent=p.entertainment?fmtMoney(p.entertainment):'';
-
+  const entGross=p.entertainment+(d.entertainment||0);
+  document.getElementById('ent-header-price').textContent=entGross?fmtMoney(entGross):'';
+  document.getElementById('ent-header-discount').textContent=d.entertainment>0?`-${fmtMoney(d.entertainment)}`:(document.getElementById('ent-header-discount').textContent||'');
   // Photo
+  let photoDisc=d.photo||0;
   if(!state.isLoaded){
     const photoTier=document.getElementById('photoTier').value;
     const shootPlan=document.getElementById('photoShootPlan').value;
@@ -1170,7 +1173,7 @@ function calcTotal(){
     if(shootPlan)photoBase+=PHOTO_PRICES.shoot[shootPlan]||0;
     if(printsPlan==='gallery')photoBase+=PHOTO_PRICES.prints.gallery;
     else if(printsPlan==='frames')photoBase+=state.numTables*PHOTO_PRICES.prints.frames_per_table;
-    let photoDisc=0;
+    photoDisc=0;
     if(!isExt&&state.photoPlan!=='na'&&PHOTO_BUNDLE_DISC[state.photoPlan]){
       photoDisc=photoBase*PHOTO_BUNDLE_DISC[state.photoPlan];
     }
