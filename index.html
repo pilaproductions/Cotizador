@@ -331,8 +331,8 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
         <div class="sub-header"><div class="sub-title">Honor Table &amp; Backdrop</div><div class="sub-price" id="honor-price"></div></div>
         <div class="sub-content">
           <div class="grid-2">
-            <div class="field"><div class="field-label">Tier</div><select class="field-select" id="decorHonorTier" onchange="calcDecorPrice();calcTotal()"><option value="">Not Applicable</option><option value="essential">Essential</option><option value="elegant">Elegant</option><option value="prestige">Prestige</option><option value="legacy">Legacy</option></select></div>
-            <div class="field"><div class="field-label">Type</div><select class="field-select" id="decorHonorType" onchange="calcDecorPrice();calcTotal()"><option value="flowers">Flowers</option><option value="balloons">Balloons</option></select></div>
+            <div class="field"><div class="field-label">Tier</div><select class="field-select" id="decorHonorTier" onchange="onDecorHonorTierChange()"><option value="">Not Applicable</option><option value="essential">Essential</option><option value="elegant">Elegant</option><option value="prestige">Prestige</option><option value="legacy">Legacy</option></select></div>
+            <div class="field" id="decorHonorTypeField" style="display:none"><div class="field-label">Type <span class="req">*</span></div><select class="field-select" id="decorHonorType" onchange="calcDecorPrice();calcTotal()"><option value="">— Select —</option><option value="flowers">Flowers</option><option value="balloons">Balloons</option></select><span class="field-error" id="err-decorHonorType">Required</span></div>
           </div>
         </div>
       </div>
@@ -741,7 +741,7 @@ function setFullPackage(tier,btn){
     document.querySelectorAll('#decorTierBtns .tier-btn').forEach(b=>{b.disabled=true;b.classList.remove('active');});
     const decorBtns=document.querySelectorAll('#decorTierBtns .tier-btn');
     const di={essential:1,elegant:2,prestige:3,legacy:4};if(decorBtns[di[tier]])decorBtns[di[tier]].classList.add('active');
-    setDecorPlanInternal(tier);
+    setDecorPlanInternal(tier,false);
     // Lock entertainment
     const entMap={essential:'essential',elegant:'elegant',prestige:'prestige',legacy:'legacy'};
     document.getElementById('entPlan').value=entMap[tier];document.getElementById('entPlan').disabled=true;
@@ -875,39 +875,68 @@ function updateCateringTrays(){
 function setDecorPlan(tier,btn){
   document.querySelectorAll('#decorTierBtns .tier-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  setDecorPlanInternal(tier);
+  setDecorPlanInternal(tier,false);
 }
 
-function setDecorPlanInternal(tier){
+function onDecorHonorTierChange(){
+  const tier=document.getElementById('decorHonorTier').value;
+  const typeField=document.getElementById('decorHonorTypeField');
+  const typeSelect=document.getElementById('decorHonorType');
+  if(tier&&tier!=='legacy'){
+    typeField.style.display='flex';
+    if(!typeSelect.value)typeSelect.value='';
+  } else {
+    typeField.style.display='none';
+    typeSelect.value='';
+  }
+  calcDecorPrice();calcTotal();
+}
+
+function setDecorPlanInternal(tier,skipValueOverwrite){
   state.decorPlan=tier;
   document.getElementById('decorLegacyPrice').style.display=tier==='legacy'?'block':'none';
   const subIds=['decorHonorTier','decorHonorType','decorDiningTier','decorCPTier','decorCPType','decorExtrasTier'];
   if(tier==='na'){
     subIds.forEach(id=>{const el=document.getElementById(id);if(el){el.disabled=false;el.value='';}});
+    document.getElementById('decorHonorTypeField').style.display='none';
     document.getElementById('extrasInfo').style.display='none';
   } else if(tier==='legacy'){
-    ['decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier'].forEach(id=>{
-      const el=document.getElementById(id);if(!el)return;
-      if(el.querySelector('option[value="legacy"]'))el.value='legacy';
-      el.disabled=true;
-    });
-    document.getElementById('decorHonorType').disabled=false;
-    document.getElementById('decorCPType').value='others';
-    document.getElementById('decorCPType').disabled=false;
-  } else {
-    ['decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier'].forEach(id=>{
-      const el=document.getElementById(id);if(!el)return;
-      if(id==='decorExtrasTier'){
-        if(tier==='essential'){el.value='';el.disabled=true;}
-        else{if(el.querySelector(`option[value="${tier}"]`))el.value=tier;el.disabled=true;}
-      } else {
-        if(el.querySelector(`option[value="${tier}"]`))el.value=tier;
+    if(!skipValueOverwrite){
+      ['decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier'].forEach(id=>{
+        const el=document.getElementById(id);if(!el)return;
+        if(el.querySelector('option[value="legacy"]'))el.value='legacy';
         el.disabled=true;
-      }
-    });
-    if(tier==='essential')document.getElementById('decorCPType').value='flowers';
+      });
+      document.getElementById('decorCPType').value='others';
+    } else {
+      ['decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=true;});
+    }
     document.getElementById('decorHonorType').disabled=false;
     document.getElementById('decorCPType').disabled=false;
+    // Show/hide honor type field based on honor tier
+    const ht=document.getElementById('decorHonorTier').value;
+    document.getElementById('decorHonorTypeField').style.display=(ht&&ht!=='legacy')?'flex':'none';
+  } else {
+    if(!skipValueOverwrite){
+      ['decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier'].forEach(id=>{
+        const el=document.getElementById(id);if(!el)return;
+        if(id==='decorExtrasTier'){
+          if(tier==='essential'){el.value='';el.disabled=true;}
+          else{if(el.querySelector(`option[value="${tier}"]`))el.value=tier;el.disabled=true;}
+        } else {
+          if(el.querySelector(`option[value="${tier}"]`))el.value=tier;
+          el.disabled=true;
+        }
+      });
+      if(tier==='essential')document.getElementById('decorCPType').value='flowers';
+    } else {
+      ['decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=true;});
+    }
+    document.getElementById('decorHonorType').disabled=false;
+    document.getElementById('decorCPType').disabled=false;
+    // Show honor type field
+    const ht=document.getElementById('decorHonorTier').value;
+    document.getElementById('decorHonorTypeField').style.display=(ht&&ht!=='legacy')?'flex':'none';
   }
   onDecorExtrasTier();calcDecorPrice();calcTotal();
 }
@@ -1450,15 +1479,18 @@ function loadQuotation(cotNum){
   const decorBtnMap={na:0,essential:1,elegant:2,prestige:3,legacy:4};
   const decorBtns=document.querySelectorAll('#decorTierBtns .tier-btn');
   if(decorBtns[decorBtnMap[decorPlan]])decorBtns[decorBtnMap[decorPlan]].classList.add('active');
-  // Restore sub-fields before setDecorPlanInternal so they aren't overwritten
+  // Restore sub-fields BEFORE setDecorPlanInternal with skipValueOverwrite=true
   document.getElementById('decorHonorTier').value=rec['Decor Honor Tier']||'';
-  document.getElementById('decorHonorType').value=rec['Decor Honor Type']||'flowers';
+  document.getElementById('decorHonorType').value=rec['Decor Honor Type']||'';
   document.getElementById('decorDiningTier').value=rec['Decor Dining Tier']||'';
   document.getElementById('decorCPTier').value=rec['Decor CP Tier']||'';
   document.getElementById('decorCPType').value=rec['Decor CP Type']||'flowers';
   document.getElementById('decorExtrasTier').value=rec['Decor Extras Tier']||'';
   document.getElementById('decorLegacyPriceVal').value=rec['Decor Legacy Price']||'';
-  setDecorPlanInternal(decorPlan);
+  // Show honor type field if tier is set
+  const ht=rec['Decor Honor Tier']||'';
+  document.getElementById('decorHonorTypeField').style.display=(ht&&ht!=='legacy')?'flex':'none';
+  setDecorPlanInternal(decorPlan,true);// skipValueOverwrite — values already set above
 
   // ── Step 8: Block 6 — Entertainment ──
   const entPlanVal=rec['Entertainment Plan']||'';
