@@ -1360,7 +1360,7 @@ async function saveQuotation(){
   if(state.isLoaded&&!hasChanges()){showToast('No changes detected — not saved again','info');state.isLoaded=false;document.getElementById('cotNumber').textContent=state.cotNumber;document.getElementById('statusPill').textContent='QUOTED';return;}
   if(state.isLoaded&&hasChanges()){showLoading('Generating new quotation number...');await loadAllQuotations();await generateCotNumber();hideLoading();}
   showLoading('Saving quotation...');
-  try{await saveToSheets(collectData());await loadAllQuotations();showToast('✓ Saved — '+state.cotNumber,'success');document.getElementById('statusPill').textContent='QUOTED';state.status='quoted';state.isLoaded=false;state.loadedSnapshot=null;setTimeout(()=>newQuotation(),2000);}
+  try{await saveToSheets(collectData());await loadAllQuotations();showToast('✓ Saved — '+state.cotNumber,'success');document.getElementById('statusPill').textContent='QUOTED';state.status='quoted';state.isLoaded=false;state.loadedSnapshot=null;}
   catch(e){showToast('Error saving — try again','error');}
   hideLoading();
 }
@@ -1489,14 +1489,7 @@ function loadQuotation(cotNum){
   // Recalc venue price silently
   calcVenuePrice();
 
-  // ── Step 6: Catering ──
-  document.getElementById('cateringLine').value=rec['Catering Line']||'';
-  onCateringLineChange();
-  document.getElementById('cateringPlan').value=rec['Catering Plan']||'';
-  onCateringPlanChange();
-  updateCateringTrays();
-
-  // ── Set isLoaded BEFORE decor/ent/photo steps so calcTotal uses saved prices ──
+  // ── Set isLoaded and saved prices BEFORE any calc-triggering steps ──
   state.isLoaded=true;
   state.prices.venue=parseFloat(rec['Price Venue'])||0;
   state.prices.catering=parseFloat(rec['Price Catering'])||0;
@@ -1507,8 +1500,14 @@ function loadQuotation(cotNum){
   state.discounts.entertainment=parseFloat(rec['Discount Entertainment'])||0;
   state.discounts.photo=parseFloat(rec['Discount Photo'])||0;
   state.discounts.fullPackage=parseFloat(rec['Discount FP'])||0;
-  // Also use saved tables to match original price calculation
   if(rec['Tables'])state.numTables=parseInt(rec['Tables'])||state.numTables;
+
+  // ── Step 6: Catering ──
+  document.getElementById('cateringLine').value=rec['Catering Line']||'';
+  onCateringLineChange();
+  document.getElementById('cateringPlan').value=rec['Catering Plan']||'';
+  onCateringPlanChange();
+  updateCateringTrays();
 
   // ── Step 7: Block 5 — Decor ──
   const decorPlan=rec['Decor Plan']||'na';
