@@ -909,12 +909,23 @@ function setDecorPlanInternal(tier,skipValueOverwrite){
   document.getElementById('decorLegacyPrice').style.display=tier==='legacy'?'block':'none';
 
   if(tier==='na'){
-    // Unlock tiers, disable types (until tier chosen), reset all
-    ['decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier'].forEach(id=>{
-      const el=document.getElementById(id);if(el){el.disabled=false;el.value='';}
-    });
-    document.getElementById('decorHonorType').disabled=true;document.getElementById('decorHonorType').value='';
-    document.getElementById('decorCPType').disabled=true;document.getElementById('decorCPType').value='';
+    if(!skipValueOverwrite){
+      ['decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier'].forEach(id=>{
+        const el=document.getElementById(id);if(el){el.disabled=false;el.value='';}
+      });
+      document.getElementById('decorHonorType').disabled=true;document.getElementById('decorHonorType').value='';
+      document.getElementById('decorCPType').disabled=true;document.getElementById('decorCPType').value='';
+    } else {
+      // Load mode — just enable fields, don't touch values
+      ['decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier'].forEach(id=>{
+        const el=document.getElementById(id);if(el)el.disabled=false;
+      });
+      // Enable type selects based on current tier values
+      const ht=document.getElementById('decorHonorTier').value;
+      document.getElementById('decorHonorType').disabled=(!ht||ht==='legacy');
+      const ct=document.getElementById('decorCPTier').value;
+      document.getElementById('decorCPType').disabled=(!ct||ct==='legacy');
+    }
     document.getElementById('extrasInfo').style.display='none';
 
   } else if(tier==='legacy'){
