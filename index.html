@@ -332,7 +332,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
         <div class="sub-content">
           <div class="grid-2">
             <div class="field"><div class="field-label">Tier</div><select class="field-select" id="decorHonorTier" onchange="onDecorHonorTierChange()"><option value="">Not Applicable</option><option value="essential">Essential</option><option value="elegant">Elegant</option><option value="prestige">Prestige</option><option value="legacy">Legacy</option></select></div>
-            <div class="field" id="decorHonorTypeField" style="display:none"><div class="field-label">Type <span class="req">*</span></div><select class="field-select" id="decorHonorType" onchange="calcDecorPrice();calcTotal()"><option value="">— Select —</option><option value="flowers">Flowers</option><option value="balloons">Balloons</option></select><span class="field-error" id="err-decorHonorType">Required</span></div>
+            <div class="field"><div class="field-label">Type</div><select class="field-select" id="decorHonorType" onchange="calcDecorPrice();calcTotal()" disabled><option value="">— Select —</option><option value="flowers">Flowers</option><option value="balloons">Balloons</option></select></div>
           </div>
         </div>
       </div>
@@ -349,8 +349,8 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
         <div class="sub-header"><div class="sub-title">Centerpieces</div><div class="sub-price" id="cp-price"></div></div>
         <div class="sub-content">
           <div class="grid-2">
-            <div class="field"><div class="field-label">Tier</div><select class="field-select" id="decorCPTier" onchange="calcDecorPrice()"><option value="">Not Applicable</option><option value="essential">Essential</option><option value="elegant">Elegant</option><option value="prestige">Prestige</option><option value="legacy">Legacy</option></select></div>
-            <div class="field"><div class="field-label">Type</div><select class="field-select" id="decorCPType" onchange="calcDecorPrice()"><option value="flowers">Flowers</option><option value="balloons">Balloons</option><option value="others">Others</option></select></div>
+            <div class="field"><div class="field-label">Tier</div><select class="field-select" id="decorCPTier" onchange="onDecorCPTierChange()"><option value="">Not Applicable</option><option value="essential">Essential</option><option value="elegant">Elegant</option><option value="prestige">Prestige</option><option value="legacy">Legacy</option></select></div>
+            <div class="field"><div class="field-label">Type</div><select class="field-select" id="decorCPType" onchange="calcDecorPrice();calcTotal()" disabled><option value="">— Select —</option><option value="flowers">Flowers</option><option value="balloons">Balloons</option><option value="others">Others</option></select></div>
           </div>
           <div class="field"><div class="field-label">Tables (auto)</div><span class="field-auto highlight" id="decorCPTablesDisplay">—</span></div>
         </div>
@@ -880,13 +880,25 @@ function setDecorPlan(tier,btn){
 
 function onDecorHonorTierChange(){
   const tier=document.getElementById('decorHonorTier').value;
-  const typeField=document.getElementById('decorHonorTypeField');
   const typeSelect=document.getElementById('decorHonorType');
   if(tier&&tier!=='legacy'){
-    typeField.style.display='flex';
+    typeSelect.disabled=false;
     if(!typeSelect.value)typeSelect.value='';
   } else {
-    typeField.style.display='none';
+    typeSelect.disabled=true;
+    typeSelect.value='';
+  }
+  calcDecorPrice();calcTotal();
+}
+
+function onDecorCPTierChange(){
+  const tier=document.getElementById('decorCPTier').value;
+  const typeSelect=document.getElementById('decorCPType');
+  if(tier&&tier!=='legacy'){
+    typeSelect.disabled=false;
+    if(!typeSelect.value)typeSelect.value='flowers';
+  } else {
+    typeSelect.disabled=true;
     typeSelect.value='';
   }
   calcDecorPrice();calcTotal();
@@ -895,11 +907,16 @@ function onDecorHonorTierChange(){
 function setDecorPlanInternal(tier,skipValueOverwrite){
   state.decorPlan=tier;
   document.getElementById('decorLegacyPrice').style.display=tier==='legacy'?'block':'none';
-  const subIds=['decorHonorTier','decorHonorType','decorDiningTier','decorCPTier','decorCPType','decorExtrasTier'];
+
   if(tier==='na'){
-    subIds.forEach(id=>{const el=document.getElementById(id);if(el){el.disabled=false;el.value='';}});
-    document.getElementById('decorHonorTypeField').style.display='none';
+    // Unlock tiers, disable types (until tier chosen), reset all
+    ['decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier'].forEach(id=>{
+      const el=document.getElementById(id);if(el){el.disabled=false;el.value='';}
+    });
+    document.getElementById('decorHonorType').disabled=true;document.getElementById('decorHonorType').value='';
+    document.getElementById('decorCPType').disabled=true;document.getElementById('decorCPType').value='';
     document.getElementById('extrasInfo').style.display='none';
+
   } else if(tier==='legacy'){
     if(!skipValueOverwrite){
       ['decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier'].forEach(id=>{
@@ -911,33 +928,32 @@ function setDecorPlanInternal(tier,skipValueOverwrite){
     } else {
       ['decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=true;});
     }
-    document.getElementById('decorHonorType').disabled=false;
-    document.getElementById('decorCPType').disabled=false;
-    // Show/hide honor type field based on honor tier
+    // Honor type: enable only if honor tier has value
     const ht=document.getElementById('decorHonorTier').value;
-    document.getElementById('decorHonorTypeField').style.display=(ht&&ht!=='legacy')?'flex':'none';
+    document.getElementById('decorHonorType').disabled=(!ht||ht==='legacy');
+    document.getElementById('decorCPType').disabled=false;
+
   } else {
+    // essential / elegant / prestige
     if(!skipValueOverwrite){
-      ['decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier'].forEach(id=>{
+      ['decorHonorTier','decorDiningTier','decorCPTier'].forEach(id=>{
         const el=document.getElementById(id);if(!el)return;
-        if(id==='decorExtrasTier'){
-          if(tier==='essential'){el.value='';el.disabled=true;}
-          else{if(el.querySelector(`option[value="${tier}"]`))el.value=tier;el.disabled=true;}
-        } else {
-          if(el.querySelector(`option[value="${tier}"]`))el.value=tier;
-          el.disabled=true;
-        }
+        if(el.querySelector(`option[value="${tier}"]`))el.value=tier;
+        el.disabled=true;
       });
+      const extEl=document.getElementById('decorExtrasTier');
+      if(tier==='essential'){extEl.value='';extEl.disabled=true;}
+      else{if(extEl.querySelector(`option[value="${tier}"]`))extEl.value=tier;extEl.disabled=true;}
       if(tier==='essential')document.getElementById('decorCPType').value='flowers';
     } else {
       ['decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=true;});
     }
-    document.getElementById('decorHonorType').disabled=false;
-    document.getElementById('decorCPType').disabled=false;
-    // Show honor type field
+    // Honor type: always enabled (tier is set)
     const ht=document.getElementById('decorHonorTier').value;
-    document.getElementById('decorHonorTypeField').style.display=(ht&&ht!=='legacy')?'flex':'none';
+    document.getElementById('decorHonorType').disabled=(!ht||ht==='legacy');
+    document.getElementById('decorCPType').disabled=false;
   }
+
   onDecorExtrasTier();calcDecorPrice();calcTotal();
 }
 
@@ -1373,6 +1389,8 @@ async function newQuotation(){
   document.getElementById('cateringTrayDisplay').textContent='—';document.getElementById('statusPill').textContent='NEW';
   document.getElementById('venueDiscountDisplay').style.display='none';
   ['venueTier','cateringLine','cateringPlan','entPlan','soundPlan','decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier','photoTier','photoShootPlan','printsPlan'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=false;});
+  document.getElementById('decorHonorType').disabled=true;document.getElementById('decorHonorType').value='';
+  document.getElementById('decorCPType').disabled=true;document.getElementById('decorCPType').value='';
   document.querySelectorAll('#decorTierBtns .tier-btn').forEach(b=>b.disabled=false);
   document.querySelectorAll('#photoTierBtns .tier-btn').forEach(b=>b.disabled=false);
   showLoading('Preparing new quotation...');
@@ -1479,17 +1497,20 @@ function loadQuotation(cotNum){
   const decorBtnMap={na:0,essential:1,elegant:2,prestige:3,legacy:4};
   const decorBtns=document.querySelectorAll('#decorTierBtns .tier-btn');
   if(decorBtns[decorBtnMap[decorPlan]])decorBtns[decorBtnMap[decorPlan]].classList.add('active');
-  // Restore sub-fields BEFORE setDecorPlanInternal with skipValueOverwrite=true
-  document.getElementById('decorHonorTier').value=rec['Decor Honor Tier']||'';
-  document.getElementById('decorHonorType').value=rec['Decor Honor Type']||'';
+  // Restore all sub-field values first
+  const rHonorTier=rec['Decor Honor Tier']||'';
+  const rHonorType=rec['Decor Honor Type']||'';
+  const rCPTier=rec['Decor CP Tier']||'';
+  const rCPType=rec['Decor CP Type']||'';
+  document.getElementById('decorHonorTier').value=rHonorTier;
+  document.getElementById('decorHonorType').value=rHonorType;
+  document.getElementById('decorHonorType').disabled=(!rHonorTier||rHonorTier==='legacy');
   document.getElementById('decorDiningTier').value=rec['Decor Dining Tier']||'';
-  document.getElementById('decorCPTier').value=rec['Decor CP Tier']||'';
-  document.getElementById('decorCPType').value=rec['Decor CP Type']||'flowers';
+  document.getElementById('decorCPTier').value=rCPTier;
+  document.getElementById('decorCPType').value=rCPType;
+  document.getElementById('decorCPType').disabled=(!rCPTier||rCPTier==='legacy');
   document.getElementById('decorExtrasTier').value=rec['Decor Extras Tier']||'';
   document.getElementById('decorLegacyPriceVal').value=rec['Decor Legacy Price']||'';
-  // Show honor type field if tier is set
-  const ht=rec['Decor Honor Tier']||'';
-  document.getElementById('decorHonorTypeField').style.display=(ht&&ht!=='legacy')?'flex':'none';
   setDecorPlanInternal(decorPlan,true);// skipValueOverwrite — values already set above
 
   // ── Step 8: Block 6 — Entertainment ──
