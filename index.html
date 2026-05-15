@@ -1491,6 +1491,20 @@ function loadQuotation(cotNum){
   onCateringPlanChange();
   updateCateringTrays();
 
+  // ── Set isLoaded BEFORE decor/ent/photo steps so calcTotal uses saved prices ──
+  state.isLoaded=true;
+  state.prices.venue=parseFloat(rec['Price Venue'])||0;
+  state.prices.catering=parseFloat(rec['Price Catering'])||0;
+  state.prices.decor=parseFloat(rec['Price Decor'])||0;
+  state.prices.entertainment=parseFloat(rec['Price Entertainment'])||0;
+  state.prices.photo=parseFloat(rec['Price Photo'])||0;
+  state.discounts.venue=parseFloat(rec['Discount Venue'])||0;
+  state.discounts.entertainment=parseFloat(rec['Discount Entertainment'])||0;
+  state.discounts.photo=parseFloat(rec['Discount Photo'])||0;
+  state.discounts.fullPackage=parseFloat(rec['Discount FP'])||0;
+  // Also use saved tables to match original price calculation
+  if(rec['Tables'])state.numTables=parseInt(rec['Tables'])||state.numTables;
+
   // ── Step 7: Block 5 — Decor ──
   const decorPlan=rec['Decor Plan']||'na';
   document.querySelectorAll('#decorTierBtns .tier-btn').forEach(b=>{b.classList.remove('active');b.disabled=false;});
@@ -1562,24 +1576,11 @@ function loadQuotation(cotNum){
   }
 
   // ── Step 11: State & metadata ──
-  state.cotNumber=rec['COT#'];state.status='quoted';state.isLoaded=true;
+  state.cotNumber=rec['COT#'];state.status='quoted';
   state.decorPlan=decorPlan;state.photoPlan=photoPlanVal;
   state.loadedSnapshot={...rec};
   document.getElementById('cotNumber').textContent=rec['COT#'];
   document.getElementById('statusPill').textContent='LOADED';
-
-  // ── Restore saved prices to guarantee exact match on load ──
-  // calcTotal will recalculate, but we override with saved values
-  // so the loaded quote shows the same final total as when it was saved
-  state.prices.venue=parseFloat(rec['Price Venue'])||state.prices.venue;
-  state.prices.catering=parseFloat(rec['Price Catering'])||state.prices.catering;
-  state.prices.decor=parseFloat(rec['Price Decor'])||state.prices.decor;
-  state.prices.entertainment=parseFloat(rec['Price Entertainment'])||state.prices.entertainment;
-  state.prices.photo=parseFloat(rec['Price Photo'])||state.prices.photo;
-  state.discounts.venue=parseFloat(rec['Discount Venue'])||0;
-  state.discounts.entertainment=parseFloat(rec['Discount Entertainment'])||0;
-  state.discounts.photo=parseFloat(rec['Discount Photo'])||0;
-  state.discounts.fullPackage=parseFloat(rec['Discount FP'])||0;
 
   // ── Step 12: Single calcTotal at the end ──
   calcTotal();
