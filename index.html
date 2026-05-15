@@ -1015,7 +1015,7 @@ function calcDecorPrice(){
       price=price-decorDisc;
     }
 
-    // Update sub-prices display
+    // Update sub-prices display — clear when 0
     const honorEl=document.getElementById('honor-price');if(honorEl)honorEl.textContent=honorPrice?fmtMoney(honorPrice):'';
     const diningEl=document.getElementById('dining-price');if(diningEl)diningEl.textContent=diningPrice?fmtMoney(diningPrice):'';
     const cpEl=document.getElementById('cp-price');if(cpEl)cpEl.textContent=cpPrice?fmtMoney(cpPrice):'';
@@ -1377,6 +1377,9 @@ async function newQuotation(){
   ['externalEventAlert','saveDateBlockAlert','soundDamageAlert'].forEach(id=>document.getElementById(id).style.display='none');
   state.fullPackage='na';state.decorPlan='na';state.photoPlan='na';
   state.dayOfWeek=null;state.guestRange=null;state.numGuests=0;state.numTables=0;
+  // Explicitly reset decor and photo plan state
+  setDecorPlanInternal('na',false);
+  setPhotoPlanInternal('na');
   state.prices={venue:0,catering:0,decor:0,entertainment:0,photo:0};
   state.discounts={venue:0,decor:0,entertainment:0,photo:0,fullPackage:0};
   state.status='new';state.resNumber=null;state.selectedDate=null;state.isExternalEvent=false;state.isLoaded=false;state.loadedSnapshot=null;
@@ -1391,6 +1394,8 @@ async function newQuotation(){
   ['venueTier','cateringLine','cateringPlan','entPlan','soundPlan','decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier','photoTier','photoShootPlan','printsPlan'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=false;});
   document.getElementById('decorHonorType').disabled=true;document.getElementById('decorHonorType').value='';
   document.getElementById('decorCPType').disabled=true;document.getElementById('decorCPType').value='';
+  // Clear decor sub-price displays
+  ['honor-price','dining-price','cp-price','extras-price'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='';});
   document.querySelectorAll('#decorTierBtns .tier-btn').forEach(b=>b.disabled=false);
   document.querySelectorAll('#photoTierBtns .tier-btn').forEach(b=>b.disabled=false);
   showLoading('Preparing new quotation...');
