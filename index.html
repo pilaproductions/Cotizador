@@ -1965,6 +1965,7 @@ ${isRes?`<div class="next-section-res"><div class="next-text-res">Your reservati
   });
 }
 
+function showConfirm(title,msg,onYes,onNo){
   document.getElementById('confirmTitle').textContent=title;document.getElementById('confirmMsg').textContent=msg;document.getElementById('confirmOverlay').classList.add('show');
   document.getElementById('confirmYes').onclick=()=>{document.getElementById('confirmOverlay').classList.remove('show');onYes();};
   document.getElementById('confirmNo').onclick=()=>{document.getElementById('confirmOverlay').classList.remove('show');if(onNo)onNo();};
