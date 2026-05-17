@@ -163,9 +163,12 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
 .loading-box{background:var(--white);padding:24px 32px;text-align:center;font-size:12px;color:var(--dark);font-weight:600;letter-spacing:1px;}
 .loading-spinner{width:32px;height:32px;border:3px solid #EEE;border-top-color:var(--gold);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 12px;}
 @keyframes spin{to{transform:rotate(360deg);}}
-.footer{background:var(--black);padding:10px 28px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid #333;}
+.btn-pdf{background:#1a3a1a;color:#6EC98A;border:1px solid #2a4a2a;}
+.btn-pdf:hover{background:#2a4a2a;}
+
 .footer-info{font-size:9px;color:#555;letter-spacing:1px;}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
 <div class="loading-overlay" id="loadingOverlay"><div class="loading-box"><div class="loading-spinner"></div><div id="loadingMsg">Loading...</div></div></div>
@@ -186,6 +189,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
   <button class="btn btn-outline" onclick="openLoadModal()">&#x21BA; Load Quotation</button>
   <button class="btn btn-ghost" onclick="newQuotation()">+ New Quotation</button>
   <button class="btn btn-reserve" onclick="confirmReservation()">&#x2605; Confirm Reservation</button>
+  <button class="btn btn-pdf" id="btnExportPDF" onclick="generatePDF()" style="display:none">&#x21E9; Export PDF</button>
 </div>
 
 <!-- BLOCK 1: GENERAL INFO -->
@@ -1361,7 +1365,8 @@ function collectData(){
     'Discount Photo':state.discounts.photo||0,
     'Discount FP':state.discounts.fullPackage||0,
     'Price Override':document.getElementById('priceOverride').value,
-    'Final Total':document.getElementById('p-final').textContent
+    'Final Total':document.getElementById('p-final').textContent,
+    'Discount Detail':buildDiscountDetail()
   };
 }
 
@@ -1371,7 +1376,7 @@ async function saveQuotation(){
   if(state.isLoaded&&!hasChanges()){showToast('No changes detected — not saved again','info');state.isLoaded=false;document.getElementById('cotNumber').textContent=state.cotNumber;document.getElementById('statusPill').textContent='QUOTED';return;}
   if(state.isLoaded&&hasChanges()){showLoading('Generating new quotation number...');await loadAllQuotations();await generateCotNumber();hideLoading();}
   showLoading('Saving quotation...');
-  try{await saveToSheets(collectData());await loadAllQuotations();showToast('✓ Saved — '+state.cotNumber,'success');document.getElementById('statusPill').textContent='QUOTED';state.status='quoted';state.isLoaded=false;state.loadedSnapshot=null;}
+  try{await saveToSheets(collectData());await loadAllQuotations();showToast('✓ Saved — '+state.cotNumber,'success');document.getElementById('statusPill').textContent='QUOTED';state.status='quoted';state.isLoaded=false;state.loadedSnapshot=null;document.getElementById('btnExportPDF').style.display='inline-flex';}
   catch(e){showToast('Error saving — try again','error');}
   hideLoading();
 }
@@ -1386,6 +1391,7 @@ async function newQuotation(){
   document.querySelectorAll('.alert').forEach(a=>a.className='alert');
   document.querySelectorAll('.field-error').forEach(e=>e.classList.remove('show'));
   ['externalEventAlert','saveDateBlockAlert','soundDamageAlert'].forEach(id=>document.getElementById(id).style.display='none');
+  document.getElementById('btnExportPDF').style.display='none';
   state.fullPackage='na';state.decorPlan='na';state.photoPlan='na';
   state.dayOfWeek=null;state.guestRange=null;state.numGuests=0;state.numTables=0;
   // Explicitly reset decor and photo plan state
@@ -1601,6 +1607,7 @@ function loadQuotation(cotNum){
   calcTotal();
   state.isLoaded=false;
   console.log('LOAD END',{decorPlan:state.decorPlan,honorTier:document.getElementById('decorHonorTier').value,diningTier:document.getElementById('decorDiningTier').value,cpTier:document.getElementById('decorCPTier').value,cpType:document.getElementById('decorCPType').value,honorType:document.getElementById('decorHonorType').value,numTables:state.numTables});
+  document.getElementById('btnExportPDF').style.display='inline-flex';
   showToast('Loaded '+rec['COT#']+' — '+rec['Client Name'],'warn');
 }
 
@@ -1625,11 +1632,339 @@ async function confirmReservation(){
     state.isLoaded=false;state.loadedSnapshot=null;
     document.getElementById('statusPill').textContent='RESERVED';
     document.getElementById('cotNumber').textContent=state.cotNumber+' · '+state.resNumber;
+    document.getElementById('btnExportPDF').style.display='inline-flex';
     showToast('✓ Reservation confirmed — '+state.resNumber,'success');
   });
 }
 
-function showConfirm(title,msg,onYes,onNo){
+// ── PDF GENERATION ─────────────────────────────────────────
+function buildDiscountDetail(){
+  const d=state.discounts;const p=state.prices;
+  const cLine=document.getElementById('cateringLine').value;
+  const cPlan=document.getElementById('cateringPlan').value;
+  const vTier=document.getElementById('venueTier').value;
+  const day=state.dayOfWeek;
+  const entVal=document.getElementById('entPlan').value;
+  const soundVal=document.getElementById('soundPlan').value;
+  const detail={};
+  // Venue
+  if(d.venue>0){
+    const reasons=[];
+    if(vTier==='prestige'&&day!=='Saturday')reasons.push('Prestige non-Saturday');
+    if(cLine==='collection'&&['elegant','prestige'].includes(cPlan))reasons.push('Catering Collection');
+    if(cLine==='luxury'&&cPlan==='legacy')reasons.push('Catering Luxury');
+    const gross=p.venue+d.venue;
+    detail.venue={amt:d.venue,pct:Math.round(d.venue/gross*100),reasons};
+  }
+  // Decor
+  if(d.decor>0){
+    const gross=p.decor+d.decor;
+    detail.decor={amt:d.decor,pct:Math.round(d.decor/gross*100),reason:'Full Plan discount'};
+  }
+  // Entertainment
+  if(d.entertainment>0){
+    let reason='';
+    if(['Monday','Tuesday','Wednesday','Thursday'].includes(day))reason=entVal?'Mon–Thu 20% off':'Mon–Thu 40% off';
+    else if(['Friday','Sunday'].includes(day))reason=entVal==='legacy'?'Fri/Sun 15% off':'Fri/Sun 10% off';
+    if(entVal==='legacy')reason=(reason?reason+' + ':'')+'Legacy 10% off';
+    const gross=p.entertainment+d.entertainment;
+    detail.entertainment={amt:d.entertainment,pct:Math.round(d.entertainment/gross*100),reason};
+  }
+  // Photo
+  if(d.photo>0){
+    const bundleLabel={elegant:'Elegant Bundle 10%',prestige:'Prestige Bundle 15%',legacy:'Legacy Bundle 20%'};
+    const gross=p.photo+d.photo;
+    detail.photo={amt:d.photo,pct:Math.round(d.photo/gross*100),reason:bundleLabel[state.photoPlan]||'Bundle discount'};
+  }
+  // Full Package
+  if(d.fullPackage>0){
+    const fpLabel={elegant:'Full Package Elegant 5%',prestige:'Full Package Prestige 5%',legacy:'Full Package Legacy 7%'};
+    detail.fp={amt:d.fullPackage,pct:Math.round(d.fullPackage/(p.venue+p.catering+p.decor+p.entertainment+p.photo+d.fullPackage)*100),reason:fpLabel[state.fullPackage]||'Full Package'};
+  }
+  return JSON.stringify(detail);
+}
+
+function fmtPDFMoney(n){return '$'+(parseFloat(n)||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});}
+
+function generatePDF(){
+  const isRes=state.status==='reserved';
+  const cotNum=state.cotNumber||'—';
+  const resNum=state.resNumber||'';
+  const clientName=document.getElementById('clientName').value||'—';
+  const phone=document.getElementById('phone').value||'—';
+  const email=document.getElementById('email').value||'—';
+  const eventType=document.getElementById('eventType').value||'—';
+  const eventDate=document.getElementById('eventDate').value||'—';
+  const dayOfWeek=state.dayOfWeek||'—';
+  const guests=state.numGuests||0;
+  const children=parseInt(document.getElementById('numChildren').value)||0;
+  const tables=state.numTables||0;
+  const fp=state.fullPackage;
+  const finalTotal=parseFloat((document.getElementById('p-final').textContent||'0').replace(/[$,]/g,''))||0;
+  const deposit=finalTotal>5000?fmtPDFMoney(finalTotal*0.20):'$1,000';
+  const today=new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+  const validUntil=new Date(Date.now()+7*864e5).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+
+  // Discount detail
+  let discDetail={};
+  try{discDetail=JSON.parse(buildDiscountDetail());}catch(e){}
+
+  // Event type label
+  const etLabels={wedding:'Wedding',quinceanera:'Quinceañera / Sweet 16',baby_shower:'Baby Shower',kids_party:'Kids Party',birthday:'Birthday Party',special_social:'Special Event',special_corporate:'Corporate Event'};
+  const etLabel=etLabels[eventType]||eventType;
+
+  // Division rows
+  const vTier=document.getElementById('venueTier').value;
+  const cLine=document.getElementById('cateringLine').value;
+  const cPlan=document.getElementById('cateringPlan').value;
+  const decorPlan=state.decorPlan;
+  const entPlan=document.getElementById('entPlan').value;
+  const soundPlan=document.getElementById('soundPlan').value;
+  const photoPlan=state.photoPlan;
+  const honorTier=document.getElementById('decorHonorTier').value;
+  const honorType=document.getElementById('decorHonorType').value;
+  const diningTier=document.getElementById('decorDiningTier').value;
+  const cpTier=document.getElementById('decorCPTier').value;
+  const cpType=document.getElementById('decorCPType').value;
+  const extrasTier=document.getElementById('decorExtrasTier').value;
+  const photoTier=document.getElementById('photoTier').value;
+  const photoShoot=document.getElementById('photoShootPlan').value;
+  const photoPrints=document.getElementById('printsPlan').value;
+
+  const capitalize=s=>s?s.charAt(0).toUpperCase()+s.slice(1):'';
+  const soundLabel={'soundlighting':'Sound & Lighting','soundlightingplus':'Sound & Lighting Plus'};
+  const extrasCount={elegant:'3',prestige:'5',legacy:'Custom'};
+
+  function divRow(dot,name,plan,details,price){
+    if(!plan||plan==='na')return `<tr class="svc-row"><td class="svc-cell"><div class="div-block"><div class="div-dot ${dot}"></div><div class="div-name">${name}</div></div></td><td class="svc-cell plan-cell" colspan="2"><div style="font-size:9px;color:#bbb;font-style:italic">Not included</div></td></tr>`;
+    return `<tr class="svc-row"><td class="svc-cell"><div class="div-block"><div class="div-dot ${dot}"></div><div class="div-name">${name}</div></div></td><td class="svc-cell plan-cell"><div class="plan-main">${plan}</div></td><td class="svc-cell"><div class="tags">${details}</div></td></tr>`;
+  }
+  function tag(t){return t?`<span class="tag">${t}</span>`:'';}
+
+  // Decor details
+  let decorDetails='';
+  if(decorPlan&&decorPlan!=='na'){
+    if(honorTier)decorDetails+=tag(`Honor Table · ${capitalize(honorTier)}${honorType?' · '+capitalize(honorType):''}`);
+    if(diningTier)decorDetails+=tag(`Dining Setup · ${capitalize(diningTier)} · ${tables} tables`);
+    if(cpTier)decorDetails+=tag(`Centerpieces · ${capitalize(cpType)} · ${tables}`);
+    if(extrasTier)decorDetails+=tag(`Add-ons · ${extrasCount[extrasTier]||capitalize(extrasTier)} included`);
+  }
+
+  // Photo details
+  let photoDetails='';
+  if(photoPlan&&photoPlan!=='na'){
+    if(photoTier)photoDetails+=tag(`Photography · ${capitalize(photoTier)}`);
+    if(photoShoot)photoDetails+=tag(`Photo Shoot · ${capitalize(photoShoot)}`);
+    if(photoPrints)photoDetails+=tag(photoPrints==='frames'?`Frames · ${tables} tables`:`Photo Gallery`);
+  }
+
+  // Discount rows
+  const discDotMap={venue:'d-venue',decor:'d-decor',entertainment:'d-ent',photo:'d-photo'};
+  let discRows='';
+  if(discDetail.venue)discRows+=`<div class="disc-row"><div class="disc-left"><div class="disc-dot d-venue"></div><div class="disc-name">Venue — ${discDetail.venue.reasons.join(', ')}</div></div><div class="disc-pct">-${discDetail.venue.pct}%</div></div>`;
+  if(discDetail.decor)discRows+=`<div class="disc-row"><div class="disc-left"><div class="disc-dot d-decor"></div><div class="disc-name">Decor — ${discDetail.decor.reason}</div></div><div class="disc-pct">-${discDetail.decor.pct}%</div></div>`;
+  if(discDetail.entertainment)discRows+=`<div class="disc-row"><div class="disc-left"><div class="disc-dot d-ent"></div><div class="disc-name">Entertainment — ${discDetail.entertainment.reason}</div></div><div class="disc-pct">-${discDetail.entertainment.pct}%</div></div>`;
+  if(discDetail.photo)discRows+=`<div class="disc-row"><div class="disc-left"><div class="disc-dot d-photo"></div><div class="disc-name">Photo & Video — ${discDetail.photo.reason}</div></div><div class="disc-pct">-${discDetail.photo.pct}%</div></div>`;
+  if(discDetail.fp)discRows+=`<div class="disc-row"><div class="disc-left"><div class="disc-dot" style="background:#C9A84C"></div><div class="disc-name">${discDetail.fp.reason}</div></div><div class="disc-pct">-${discDetail.fp.pct}%</div></div>`;
+  if(!discRows)discRows='<div style="font-size:9px;color:#bbb;font-style:italic;padding:5px 0">No discounts applied</div>';
+
+  const specialConditions=document.getElementById('specialConditions').value||'—';
+
+  const html=`<!DOCTYPE html><html><head>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#fff;font-family:'Montserrat',sans-serif;font-size:11px;color:#1a1a1a;}
+.doc{background:#fff;width:100%;}
+.hdr{background:#0A0A0A;border-bottom:2px solid #C9A84C;}
+.hdr-main{padding:18px 28px 14px;display:flex;align-items:flex-start;justify-content:space-between;}
+.ch-name{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:700;color:#C9A84C;letter-spacing:3px;text-transform:uppercase;}
+.pilab-line{font-size:8px;letter-spacing:2px;margin-top:4px;}
+.p-pi{color:#D4A853;}.p-la{color:#00B4D8;}.p-b{color:#C0368A;}.p-dot{color:#E8307A;}.p-rest{color:#666;}
+.doc-id{text-align:right;}
+.cot-num{font-size:13px;font-weight:600;color:#C9A84C;letter-spacing:1.5px;border:1px solid #C9A84C;padding:4px 12px;display:inline-block;margin-bottom:5px;}
+.doc-badge{display:inline-block;padding:3px 10px;font-size:8px;font-weight:600;letter-spacing:2px;text-transform:uppercase;background:#1a1a1a;color:#666;border:1px solid #222;}
+.doc-badge-res{display:inline-block;padding:3px 10px;font-size:8px;font-weight:600;letter-spacing:2px;text-transform:uppercase;background:#1a3a1a;color:#6EC98A;border:1px solid #2a4a2a;}
+.cot-ref{font-size:8px;color:#444;letter-spacing:1px;margin-bottom:4px;}
+.hdr-stripe{background:#111;border-top:1px solid #1e1e1e;padding:8px 28px;display:flex;align-items:center;justify-content:space-between;}
+.fp-pill{display:inline-flex;align-items:center;gap:6px;background:#0A0A0A;border:1px solid #C9A84C;border-radius:2px;padding:3px 12px;}
+.fp-pill-star{color:#C9A84C;font-size:10px;}
+.fp-pill-text{font-size:9px;color:#C9A84C;letter-spacing:1.5px;text-transform:uppercase;font-weight:600;}
+.no-fp{font-size:9px;color:#333;letter-spacing:1px;}
+.meta-bar{display:flex;gap:24px;}
+.meta-item{display:flex;flex-direction:column;gap:2px;}
+.meta-lbl{font-size:7px;color:#444;letter-spacing:2px;text-transform:uppercase;}
+.meta-val{font-size:10px;color:#888;font-weight:500;}
+.section{padding:14px 28px;border-bottom:0.5px solid #f0f0f0;}
+.sec-title{font-size:7px;font-weight:600;color:#bbb;letter-spacing:2.5px;text-transform:uppercase;margin-bottom:10px;}
+.client-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px;}
+.cf{display:flex;flex-direction:column;gap:2px;}
+.cf-lbl{font-size:7px;color:#bbb;letter-spacing:1.5px;text-transform:uppercase;}
+.cf-val{font-size:11px;color:#1a1a1a;font-weight:500;}
+.event-bar{background:#F8F5EE;border-left:3px solid #C9A84C;padding:10px 14px;display:grid;grid-template-columns:repeat(5,1fr);gap:8px;}
+.eb-item{display:flex;flex-direction:column;gap:2px;}
+.eb-lbl{font-size:7px;color:#999;letter-spacing:1.5px;text-transform:uppercase;}
+.eb-val{font-size:11px;font-weight:600;color:#1a1a1a;}
+.svc-table{width:100%;border-collapse:collapse;table-layout:fixed;}
+.svc-th{font-size:7px;font-weight:600;color:#bbb;letter-spacing:2px;text-transform:uppercase;padding:0 0 8px;border-bottom:0.5px solid #eee;text-align:left;}
+.svc-row{border-bottom:0.5px solid #f5f5f5;}
+.svc-row:last-child{border-bottom:none;}
+.svc-cell{padding:10px 0;vertical-align:top;}
+.div-block{display:flex;align-items:center;gap:7px;}
+.div-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.d-venue{background:#0A0A0A;}.d-catering{background:#fff;border:1.5px solid #C9A84C;}.d-decor{background:#D4A853;}.d-ent{background:#C0368A;}.d-photo{background:#00B4D8;}
+.div-name{font-size:9px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:#1a1a1a;}
+.plan-cell{padding-left:12px;}
+.plan-main{font-size:10px;font-weight:600;color:#1a1a1a;}
+.tags{display:flex;flex-wrap:wrap;gap:3px;}
+.tag{display:inline-block;font-size:8px;color:#444;background:#f5f5f5;padding:2px 7px;border:0.5px solid #e0e0e0;}
+.disc-block{background:#FAFAFA;border-top:0.5px solid #f0f0f0;}
+.disc-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;}
+.disc-col{padding:14px 28px;border-right:0.5px solid #f0f0f0;}
+.disc-col:last-child{border-right:none;}
+.disc-row{display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:0.5px solid #f0f0f0;}
+.disc-row:last-child{border-bottom:none;}
+.disc-left{display:flex;align-items:center;gap:7px;}
+.disc-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.disc-name{font-size:9px;color:#555;}
+.disc-pct{font-size:9px;font-weight:600;color:#1a6b3a;}
+.pr-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:0.5px solid #f5f5f5;}
+.pr-row:last-child{border-bottom:none;}
+.pr-lbl{font-size:9px;color:#999;}
+.pr-val{font-size:11px;font-weight:500;color:#1a1a1a;}
+.cond-section{padding:12px 28px;border-bottom:0.5px solid #f0f0f0;}
+.cond-text{font-size:9px;color:#bbb;font-style:italic;}
+.total-bar{background:#0A0A0A;padding:14px 28px;display:flex;align-items:center;justify-content:space-between;}
+.total-lbl{font-family:'Cormorant Garamond',serif;font-size:15px;color:#888;letter-spacing:2px;text-transform:uppercase;}
+.dep-note{font-size:8px;margin-top:4px;}
+.total-amt{font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:700;color:#C9A84C;}
+.next-section-cot{padding:12px 28px;background:#F8F5EE;}
+.next-section-res{padding:12px 28px;background:#0D1A0D;border-top:1px solid #1a3a1a;}
+.next-text-cot{font-size:9px;color:#666;line-height:1.7;}
+.next-text-res{font-size:9px;color:#6EC98A;line-height:1.7;}
+.doc-footer{background:#0A0A0A;padding:9px 28px;display:flex;justify-content:space-between;align-items:center;}
+.footer-l{font-size:7.5px;color:#444;letter-spacing:0.5px;}
+.footer-r{display:flex;align-items:center;gap:8px;}
+.validity{font-size:7px;color:#C9A84C;letter-spacing:1px;text-transform:uppercase;padding:2px 8px;border:1px solid #333;}
+.res-badge-footer{font-size:7px;color:#6EC98A;letter-spacing:1px;text-transform:uppercase;padding:2px 8px;border:1px solid #2a4a2a;}
+.pilab-dots{display:flex;gap:3px;align-items:center;}
+.pdot{width:5px;height:5px;border-radius:50%;}
+</style></head><body><div class="doc">
+<div class="hdr">
+  <div class="hdr-main">
+    <div>
+      <div class="ch-name">Cardona Hall</div>
+      <div class="pilab-line"><span class="p-rest">Produced by </span><span class="p-pi">Pi</span><span class="p-la">la</span><span class="p-b">b</span><span class="p-dot">.</span><span class="p-rest"> Productions</span></div>
+    </div>
+    <div class="doc-id">
+      <div class="cot-num">${isRes?resNum:cotNum}</div><br>
+      ${isRes?`<div class="cot-ref">Ref. ${cotNum}</div>`:''}
+      <span class="${isRes?'doc-badge-res':'doc-badge'}">${isRes?'Reservation Confirmation':'Event Quotation'}</span>
+    </div>
+  </div>
+  <div class="hdr-stripe">
+    ${fp&&fp!=='na'?`<div class="fp-pill"><span class="fp-pill-star">&#9733;</span><span class="fp-pill-text">Full Package · ${capitalize(fp)}</span></div>`:'<div class="no-fp">Individual Services</div>'}
+    <div class="meta-bar">
+      <div class="meta-item"><div class="meta-lbl">Issued</div><div class="meta-val">${today}</div></div>
+      <div class="meta-item"><div class="meta-lbl">${isRes?'Event Date':'Valid until'}</div><div class="meta-val">${isRes?eventDate:validUntil}</div></div>
+      <div class="meta-item"><div class="meta-lbl">Status</div><div class="meta-val" style="color:${isRes?'#6EC98A':'#C9A84C'};font-weight:600">${isRes?'Reserved':'Quoted'}</div></div>
+    </div>
+  </div>
+</div>
+<div class="section">
+  <div class="sec-title">Client Information</div>
+  <div class="client-grid">
+    <div class="cf"><div class="cf-lbl">Client</div><div class="cf-val">${clientName}</div></div>
+    <div class="cf"><div class="cf-lbl">Phone</div><div class="cf-val">${phone}</div></div>
+    <div class="cf"><div class="cf-lbl">Email</div><div class="cf-val">${email}</div></div>
+  </div>
+  <div class="event-bar">
+    <div class="eb-item"><div class="eb-lbl">Event Type</div><div class="eb-val">${etLabel}</div></div>
+    <div class="eb-item"><div class="eb-lbl">Date</div><div class="eb-val">${eventDate}</div></div>
+    <div class="eb-item"><div class="eb-lbl">Day</div><div class="eb-val">${dayOfWeek}</div></div>
+    <div class="eb-item"><div class="eb-lbl">Guests</div><div class="eb-val">${guests} adults${children?' · '+children+' children':''}</div></div>
+    <div class="eb-item"><div class="eb-lbl">Venue</div><div class="eb-val">Cardona Hall, Passaic NJ</div></div>
+  </div>
+</div>
+<div class="section">
+  <div class="sec-title">Services Included</div>
+  <table class="svc-table">
+    <thead><tr>
+      <th class="svc-th" style="width:145px">Division</th>
+      <th class="svc-th" style="width:120px;padding-left:12px">Plan</th>
+      <th class="svc-th">Details</th>
+    </tr></thead>
+    <tbody>
+      ${divRow('d-venue','Venue & Host',capitalize(vTier),'','')}
+      ${cLine?divRow('d-catering','Catering',capitalize(cLine),tag(capitalize(cPlan)),''):divRow('d-catering','Catering','na','','')}
+      ${divRow('d-decor','Design & Decor',decorPlan==='na'?'na':capitalize(decorPlan)+' Plan',decorDetails,'')}
+      ${divRow('d-ent','Entertainment',entPlan?capitalize(entPlan)+' Collection':'na',tag(soundLabel[soundPlan]||''),'')}
+      ${divRow('d-photo','Photo & Video',photoPlan==='na'?'na':capitalize(photoPlan)+' Bundle',photoDetails,'')}
+    </tbody>
+  </table>
+</div>
+<div class="disc-block">
+  <div class="disc-grid">
+    <div class="disc-col">
+      <div class="sec-title">Discounts Applied</div>
+      ${discRows}
+    </div>
+    <div class="disc-col">
+      <div class="sec-title">Price Summary</div>
+      <div class="pr-row"><span class="pr-lbl">Venue & Host Services</span><span class="pr-val">${fmtPDFMoney(state.prices.venue)}</span></div>
+      <div class="pr-row"><span class="pr-lbl">Catering & Hospitality</span><span class="pr-val">${fmtPDFMoney(state.prices.catering)}</span></div>
+      <div class="pr-row"><span class="pr-lbl">Design & Decor</span><span class="pr-val">${fmtPDFMoney(state.prices.decor)}</span></div>
+      <div class="pr-row"><span class="pr-lbl">Entertainment & Production</span><span class="pr-val">${fmtPDFMoney(state.prices.entertainment)}</span></div>
+      <div class="pr-row"><span class="pr-lbl">Photo & Video</span><span class="pr-val">${fmtPDFMoney(state.prices.photo)}</span></div>
+    </div>
+  </div>
+</div>
+<div class="cond-section">
+  <div class="sec-title">Special Conditions / Modifications</div>
+  <div class="cond-text">${specialConditions}</div>
+</div>
+<div class="total-bar">
+  <div>
+    <div class="total-lbl">Total Investment</div>
+    ${isRes?`<div class="dep-note" style="color:#6EC98A;font-weight:600">&#10003; Deposit received &nbsp;·&nbsp; Balance due at event</div>`:`<div class="dep-note" style="color:#555">Deposit required to confirm: <span style="color:#C9A84C;font-weight:600">${deposit}</span> &nbsp;·&nbsp; Balance due at event</div>`}
+  </div>
+  <div class="total-amt">${fmtPDFMoney(finalTotal)}</div>
+</div>
+${isRes?`<div class="next-section-res"><div class="next-text-res">Your reservation at Cardona Hall is <strong style="color:#fff">confirmed</strong>. Your contract will be sent separately for your signature. Please review all services and contact us if you have any questions. <span style="color:#2a4a2a">&nbsp;·&nbsp; Cardona Hall · 72 Hoover Ave, Passaic NJ 07055 · +1 862-232-0117</span></div></div>`:`<div class="next-section-cot"><div class="next-text-cot">To confirm this reservation, a <strong style="color:#1a1a1a">deposit is required</strong>. Once received, a <strong style="color:#1a1a1a">Reservation Confirmation (RES#) and contract</strong> will be issued for your signature. &nbsp;<span style="color:#bbb">This quotation is valid for 7 days · Cardona Hall · 72 Hoover Ave, Passaic NJ 07055 · +1 862-232-0117</span></div></div>`}
+<div class="doc-footer">
+  <div class="footer-l">cardonahall.com &nbsp;·&nbsp; jcardona@cardonahall.com &nbsp;·&nbsp; +1 862-232-0117</div>
+  <div class="footer-r">
+    ${isRes?`<div class="res-badge-footer">Reserved</div>`:`<div class="validity">Valid 7 days</div>`}
+    <div class="pilab-dots"><div class="pdot" style="background:#D4A853"></div><div class="pdot" style="background:#00B4D8"></div><div class="pdot" style="background:#C0368A"></div></div>
+    <div style="font-size:7.5px;color:#444;letter-spacing:1px"><span class="p-pi">Pi</span><span class="p-la">la</span><span class="p-b">b</span><span class="p-dot">.</span><span style="color:#444"> Productions</span></div>
+  </div>
+</div>
+</div></body></html>`;
+
+  const docNum=isRes?resNum:cotNum;
+  const filename=`${docNum}_${clientName.replace(/\s+/g,'_')}.pdf`;
+  const container=document.createElement('div');
+  container.innerHTML=html;
+  container.style.position='absolute';container.style.left='-9999px';container.style.top='0';container.style.width='794px';
+  document.body.appendChild(container);
+  showLoading('Generating PDF...');
+  html2pdf().set({
+    margin:0,filename,
+    image:{type:'jpeg',quality:0.98},
+    html2canvas:{scale:2,useCORS:true,letterRendering:true},
+    jsPDF:{unit:'px',format:[794,1123],orientation:'portrait'}
+  }).from(container).save().then(()=>{
+    document.body.removeChild(container);
+    hideLoading();
+    showToast('✓ PDF exported — '+docNum,'success');
+  }).catch(err=>{
+    document.body.removeChild(container);
+    hideLoading();
+    showToast('PDF error: '+err.message,'error');
+  });
+}
+
   document.getElementById('confirmTitle').textContent=title;document.getElementById('confirmMsg').textContent=msg;document.getElementById('confirmOverlay').classList.add('show');
   document.getElementById('confirmYes').onclick=()=>{document.getElementById('confirmOverlay').classList.remove('show');onYes();};
   document.getElementById('confirmNo').onclick=()=>{document.getElementById('confirmOverlay').classList.remove('show');if(onNo)onNo();};
