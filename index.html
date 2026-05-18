@@ -1774,9 +1774,10 @@ function generatePDF(){
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap');
-*{box-sizing:border-box;margin:0;padding:0;}
-html,body{background:#ffffff !important;margin:0;padding:0;width:794px;}
-.doc{background:#fff;width:794px;overflow:hidden;}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;}
+html,body{background:#ffffff;margin:0;padding:0;width:210mm;font-family:'Montserrat',sans-serif;font-size:11px;color:#1a1a1a;}
+.doc{background:#fff;width:210mm;}
+@media print{*{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;}@page{margin:0;size:A4;}}
 .hdr{background:#0A0A0A;border-bottom:2px solid #C9A84C;}
 .hdr-main{padding:18px 28px 14px;display:flex;align-items:flex-start;justify-content:space-between;}
 .ch-name{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:700;color:#C9A84C;letter-spacing:3px;text-transform:uppercase;}
@@ -1943,49 +1944,14 @@ ${isRes?`<div class="next-section-res"><div class="next-text-res">Your reservati
 </div></body></html>`;
 
   const docNum=isRes?resNum:cotNum;
-  const filename=`${docNum}_${clientName.replace(/\s+/g,'_')}.pdf`;
-
-  // Create a full-screen overlay to block interaction while rendering
-  const overlay=document.createElement('div');
-  overlay.style.cssText='position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);z-index:99998;display:flex;align-items:center;justify-content:center;';
-  overlay.innerHTML='<div style="color:#C9A84C;font-family:Montserrat,sans-serif;font-size:14px;letter-spacing:2px">Generating PDF...</div>';
-  document.body.appendChild(overlay);
-
-  // Create render container at fixed size, off screen but within document flow
-  const wrapper=document.createElement('div');
-  wrapper.style.cssText='position:absolute;top:0;left:0;width:794px;z-index:99997;background:#fff;';
-  wrapper.innerHTML=html;
-  document.body.appendChild(wrapper);
-
-  // Wait for fonts to load
-  setTimeout(()=>{
-    const el=wrapper.querySelector('.doc')||wrapper;
-    el.style.width='794px';
-    html2pdf().set({
-      margin:0,
-      filename,
-      image:{type:'jpeg',quality:1},
-      html2canvas:{
-        scale:2,
-        useCORS:true,
-        letterRendering:true,
-        width:794,
-        windowWidth:794,
-        scrollX:0,
-        scrollY:0,
-        backgroundColor:'#ffffff'
-      },
-      jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}
-    }).from(el).save().then(()=>{
-      document.body.removeChild(wrapper);
-      document.body.removeChild(overlay);
-      showToast('✓ PDF exported — '+docNum,'success');
-    }).catch(err=>{
-      document.body.removeChild(wrapper);
-      document.body.removeChild(overlay);
-      showToast('PDF error: '+err.message,'error');
-    });
-  },1500);
+  const filename=`${docNum}_${clientName.replace(/\s+/g,'_')}`;
+  const printHTML=html.replace('</body></html>',`<script>window.onload=function(){setTimeout(function(){window.print();},800);};<\/script></body></html>`);
+  const win=window.open('','_blank','width=900,height=750');
+  if(!win){showToast('Allow popups to export PDF','error');return;}
+  win.document.open();
+  win.document.write(printHTML);
+  win.document.close();
+  showToast('✓ Print dialog opening — Save as PDF','success');
 }
 
 function showConfirm(title,msg,onYes,onNo){
