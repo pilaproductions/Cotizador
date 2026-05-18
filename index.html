@@ -1945,34 +1945,47 @@ ${isRes?`<div class="next-section-res"><div class="next-text-res">Your reservati
   const docNum=isRes?resNum:cotNum;
   const filename=`${docNum}_${clientName.replace(/\s+/g,'_')}.pdf`;
 
-  // Create hidden iframe to render PDF content — fixes blank PDF issue with off-screen elements
-  const iframe=document.createElement('iframe');
-  iframe.style.cssText='position:fixed;top:0;left:0;width:794px;height:1123px;opacity:0;pointer-events:none;z-index:-1;border:none;';
-  document.body.appendChild(iframe);
+  // Create a full-screen overlay to block interaction while rendering
+  const overlay=document.createElement('div');
+  overlay.style.cssText='position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);z-index:99998;display:flex;align-items:center;justify-content:center;';
+  overlay.innerHTML='<div style="color:#C9A84C;font-family:Montserrat,sans-serif;font-size:14px;letter-spacing:2px">Generating PDF...</div>';
+  document.body.appendChild(overlay);
 
-  const iDoc=iframe.contentDocument||iframe.contentWindow.document;
-  iDoc.open();iDoc.write(html);iDoc.close();
+  // Create render container at fixed size, off screen but within document flow
+  const wrapper=document.createElement('div');
+  wrapper.style.cssText='position:absolute;top:0;left:0;width:794px;z-index:99997;background:#fff;';
+  wrapper.innerHTML=html;
+  document.body.appendChild(wrapper);
 
-  showLoading('Generating PDF...');
-
-  // Wait for fonts and images to load
+  // Wait for fonts to load
   setTimeout(()=>{
-    const el=iDoc.querySelector('.doc')||iDoc.body;
+    const el=wrapper.querySelector('.doc')||wrapper;
+    el.style.width='794px';
     html2pdf().set({
-      margin:0,filename,
-      image:{type:'jpeg',quality:0.98},
-      html2canvas:{scale:2,useCORS:true,letterRendering:true,windowWidth:794,backgroundColor:'#ffffff'},
+      margin:0,
+      filename,
+      image:{type:'jpeg',quality:1},
+      html2canvas:{
+        scale:2,
+        useCORS:true,
+        letterRendering:true,
+        width:794,
+        windowWidth:794,
+        scrollX:0,
+        scrollY:0,
+        backgroundColor:'#ffffff'
+      },
       jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}
     }).from(el).save().then(()=>{
-      document.body.removeChild(iframe);
-      hideLoading();
+      document.body.removeChild(wrapper);
+      document.body.removeChild(overlay);
       showToast('✓ PDF exported — '+docNum,'success');
     }).catch(err=>{
-      document.body.removeChild(iframe);
-      hideLoading();
+      document.body.removeChild(wrapper);
+      document.body.removeChild(overlay);
       showToast('PDF error: '+err.message,'error');
     });
-  },1200);
+  },1500);
 }
 
 function showConfirm(title,msg,onYes,onNo){
