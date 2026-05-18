@@ -1736,8 +1736,8 @@ function generatePDF(){
   const extrasCount={elegant:'3',prestige:'5',legacy:'Custom'};
 
   function divRow(dot,name,plan,details,catRef){
-    if(!plan||plan==='na')return `<tr class="svc-row"><td class="svc-cell"><div class="div-block"><div class="div-dot ${dot}"></div><div class="div-name">${name}</div></div></td><td class="svc-cell plan-cell" colspan="3"><div style="font-size:10px;color:#bbb;font-style:italic">Not included</div></td></tr>`;
-    return `<tr class="svc-row"><td class="svc-cell"><div class="div-block"><div class="div-dot ${dot}"></div><div class="div-name">${name}</div></div></td><td class="svc-cell plan-cell"><div class="plan-main">${plan}</div>${details?`<div class="tags">${details}</div>`:''}</td><td class="svc-cell">&nbsp;</td><td class="svc-cell" style="text-align:right">${catRef}</td></tr>`;
+    if(!plan||plan==='na')return `<tr class="svc-row"><td class="div-cell"><div class="div-block"><div class="div-dot ${dot}"></div><div class="div-name">${name}</div></div></td><td class="svc-cell plan-cell" colspan="3"><div style="font-size:10px;color:#bbb;font-style:italic">Not included</div></td></tr>`;
+    return `<tr class="svc-row"><td class="div-cell"><div class="div-block"><div class="div-dot ${dot}"></div><div class="div-name">${name}</div></div></td><td class="svc-cell plan-cell"><div class="plan-main">${plan}</div>${details?`<div class="tags">${details}</div>`:''}</td><td class="svc-cell">&nbsp;</td><td class="svc-cell" style="text-align:right">${catRef}</td></tr>`;
   }
   function tag(t){return t?`<span class="tag">${t}</span>`:'';}
 
@@ -1809,10 +1809,11 @@ html,body{background:#fff;width:210mm;font-family:'Montserrat',sans-serif;font-s
 .eb-lbl{font-size:9px;color:#7a6545;letter-spacing:1.5px;text-transform:uppercase;}
 .eb-val{font-size:14px;font-weight:600;color:#1a1a1a;}
 .svc-table{width:100%;border-collapse:collapse;table-layout:fixed;}
-.svc-th{font-size:10px;font-weight:600;color:#C9A84C;letter-spacing:2px;text-transform:uppercase;padding:0 0 10px;border-bottom:0.5px solid #eee;text-align:left;}
-.svc-row{border-bottom:0.5px solid #f5f5f5;}
+.svc-th{font-size:10px;font-weight:600;color:#C9A84C;letter-spacing:2px;text-transform:uppercase;padding:0 0 8px;border-bottom:0.5px solid #eee;text-align:left;}
+.svc-row{border-bottom:0.5px solid #f0f0f0;}
 .svc-row:last-child{border-bottom:none;}
-.svc-cell{padding:12px 8px;vertical-align:middle;}
+.svc-cell{padding:7px 8px;vertical-align:middle;}
+.div-cell{background:#F0EEEA !important;padding:7px 10px;vertical-align:middle;}
 .div-block{display:flex;align-items:center;gap:8px;}
 .div-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;display:inline-block;}
 .d-venue{background:#0A0A0A !important;border:1px solid #444;}
