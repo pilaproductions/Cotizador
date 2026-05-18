@@ -1775,8 +1775,8 @@ function generatePDF(){
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap');
 *{box-sizing:border-box;margin:0;padding:0;}
-body{background:#fff;font-family:'Montserrat',sans-serif;font-size:11px;color:#1a1a1a;}
-.doc{background:#fff;width:100%;}
+html,body{background:#ffffff !important;margin:0;padding:0;width:794px;}
+.doc{background:#fff;width:794px;overflow:hidden;}
 .hdr{background:#0A0A0A;border-bottom:2px solid #C9A84C;}
 .hdr-main{padding:18px 28px 14px;display:flex;align-items:flex-start;justify-content:space-between;}
 .ch-name{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:700;color:#C9A84C;letter-spacing:3px;text-transform:uppercase;}
@@ -1957,11 +1957,11 @@ ${isRes?`<div class="next-section-res"><div class="next-text-res">Your reservati
 
   // Wait for fonts and images to load
   setTimeout(()=>{
-    const el=iDoc.body;
+    const el=iDoc.querySelector('.doc')||iDoc.body;
     html2pdf().set({
       margin:0,filename,
       image:{type:'jpeg',quality:0.98},
-      html2canvas:{scale:2,useCORS:true,letterRendering:true,windowWidth:794},
+      html2canvas:{scale:2,useCORS:true,letterRendering:true,windowWidth:794,backgroundColor:'#ffffff'},
       jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}
     }).from(el).save().then(()=>{
       document.body.removeChild(iframe);
