@@ -1,163 +1,675 @@
-const SHEET_ID = '1IWPomEaaG0zyPQWXdJafP8OKK6CaFQ6RIK8wfqxkjCU';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cardona Hall — Events</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--gold:#C9A84C;--gold-light:#E8D5A3;--gold-pale:#FDF8EE;--gold-border:#D4B86A;--black:#0A0A0A;--dark:#1A1A1A;--dark2:#242424;--gray:#5A5A5A;--gray-light:#F5F5F5;--white:#FFFFFF;--red:#8B2020;--red-light:#FDECEA;--green:#1E5C2E;--green-light:#EAF4ED;--blue:#1A3A6B;--orange:#B85C00;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:var(--dark);padding:20px;}
+.page{max-width:1100px;margin:0 auto;background:var(--white);box-shadow:0 0 60px rgba(0,0,0,0.7);}
+.header{background:var(--black);padding:18px 28px;display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid var(--gold);}
+.brand-title{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:700;color:var(--gold);letter-spacing:2px;text-transform:uppercase;}
+.brand-sub{font-size:9px;color:#888;letter-spacing:3px;text-transform:uppercase;margin-top:2px;}
+.header-nav{display:flex;gap:12px;align-items:center;}
+.nav-link{font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:#888;text-decoration:none;padding:5px 12px;border:1px solid #333;cursor:pointer;background:transparent;transition:all 0.2s;}
+.nav-link:hover{color:var(--gold);border-color:var(--gold);}
+.nav-link.active{color:var(--black);background:var(--gold);border-color:var(--gold);}
+.toolbar{background:var(--dark2);padding:9px 28px;display:flex;gap:10px;align-items:center;border-bottom:1px solid #333;}
+.search-box{background:#1A1A1A;border:1px solid #444;padding:5px 12px;font-family:'Montserrat',sans-serif;font-size:11px;color:#CCC;outline:none;width:240px;}
+.search-box:focus{border-color:var(--gold);}
+.search-box::placeholder{color:#555;}
+.filter-select{background:#1A1A1A;border:1px solid #444;padding:5px 10px;font-family:'Montserrat',sans-serif;font-size:11px;color:#CCC;outline:none;cursor:pointer;}
+.toolbar-right{margin-left:auto;display:flex;gap:8px;align-items:center;}
+.count-badge{font-size:10px;color:#888;letter-spacing:1px;}
+.btn{padding:7px 16px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;border:none;transition:all 0.2s;}
+.btn-gold{background:var(--gold);color:var(--black);}
+.btn-gold:hover{background:var(--gold-light);}
+.btn-outline{background:transparent;color:var(--gold);border:1px solid var(--gold);}
+.btn-outline:hover{background:rgba(201,168,76,0.1);}
+.btn-ghost{background:transparent;color:#888;border:1px solid #444;}
+.btn-ghost:hover{color:#bbb;border-color:#666;}
+.btn-red{background:var(--red);color:var(--white);}
+.btn-red:hover{background:#a02828;}
+.btn-green{background:var(--green);color:var(--white);}
+.btn-green:hover{background:#266b38;}
+.btn-blue{background:var(--blue);color:var(--white);}
+.btn-blue:hover{background:#1e4580;}
+.btn-sm{padding:4px 10px;font-size:9px;}
+.events-table{width:100%;border-collapse:collapse;}
+.events-table th{background:var(--dark);color:#888;font-size:9px;font-weight:600;letter-spacing:2px;text-transform:uppercase;padding:10px 16px;text-align:left;border-bottom:1px solid #333;}
+.events-table td{padding:12px 16px;border-bottom:1px solid #F0F0F0;vertical-align:middle;}
+.events-table tr:hover td{background:#FDF8EE;cursor:pointer;}
+.res-num{font-size:11px;font-weight:600;color:var(--gold);letter-spacing:1px;}
+.client-name{font-size:13px;font-weight:500;color:var(--dark);}
+.client-sub{font-size:10px;color:#888;margin-top:2px;}
+.event-type-badge{display:inline-block;padding:2px 8px;font-size:9px;font-weight:600;letter-spacing:1px;text-transform:uppercase;background:var(--gold-pale);color:#8B6914;border:1px solid var(--gold-border);}
+.event-date{font-size:12px;font-weight:600;color:var(--dark);}
+.event-day{font-size:10px;color:#888;}
+.status-badge{display:inline-block;padding:2px 10px;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;border:1px solid;}
+.status-reserved{background:#EAF4ED;color:var(--green);border-color:#A8D5B5;}
+.status-completed{background:#EEF3FF;color:var(--blue);border-color:#BFD0F0;}
+.status-cancelled{background:var(--red-light);color:var(--red);border-color:#D4A0A0;}
+.empty-state{padding:60px 28px;text-align:center;}
+.empty-title{font-family:'Cormorant Garamond',serif;font-size:20px;color:#888;margin-bottom:8px;}
+.empty-sub{font-size:11px;color:#AAA;}
+.loading{padding:40px 28px;text-align:center;color:#888;font-size:11px;letter-spacing:2px;text-transform:uppercase;}
+.detail-view{display:none;}
+.detail-header{background:var(--black);padding:14px 28px;display:flex;align-items:center;gap:16px;border-bottom:1px solid #333;}
+.detail-back{background:transparent;border:1px solid #444;color:#888;padding:5px 12px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;cursor:pointer;transition:all 0.2s;}
+.detail-back:hover{color:var(--gold);border-color:var(--gold);}
+.detail-res{font-size:13px;font-weight:600;color:var(--gold);letter-spacing:1px;}
+.detail-client{font-family:'Cormorant Garamond',serif;font-size:18px;color:var(--white);margin-left:8px;}
+.detail-status{margin-left:auto;}
+.event-strip{background:#111;padding:12px 28px;display:grid;grid-template-columns:repeat(6,1fr);gap:16px;border-bottom:2px solid var(--gold);}
+.strip-item{display:flex;flex-direction:column;gap:3px;}
+.strip-lbl{font-size:8px;color:#555;letter-spacing:2px;text-transform:uppercase;}
+.strip-val{font-size:12px;font-weight:600;color:#DDD;}
+.tabs{background:var(--dark2);padding:0 28px;display:flex;gap:0;border-bottom:1px solid #333;}
+.tab{padding:11px 20px;font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:#888;cursor:pointer;border-bottom:2px solid transparent;transition:all 0.2s;}
+.tab:hover{color:var(--gold-light);}
+.tab.active{color:var(--gold);border-bottom-color:var(--gold);}
+.tab-content{display:none;padding:20px 28px;}
+.tab-content.active{display:block;}
+.payments-summary{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px;margin-bottom:20px;}
+.summary-card{background:var(--dark);padding:14px 18px;border-left:3px solid var(--gold);}
+.summary-lbl{font-size:9px;color:#888;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;}
+.summary-val{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:700;color:var(--gold);}
+.summary-val.red{color:#E87070;}
+.summary-val.green{color:#6EC98A;}
+.summary-val.white{color:var(--white);}
+.section-title{font-size:9px;font-weight:600;color:#888;letter-spacing:2.5px;text-transform:uppercase;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid #E8E8E8;}
+.add-form{background:var(--gold-pale);border:1px solid var(--gold-border);padding:16px 20px;margin-bottom:20px;}
+.add-form-title{font-size:10px;font-weight:600;color:#8B6914;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;}
+.form-row{display:grid;gap:10px;align-items:end;}
+.form-row-5{grid-template-columns:1fr 1fr 1fr 1fr auto;}
+.form-row-3{grid-template-columns:1fr 1fr auto;}
+.form-field{display:flex;flex-direction:column;gap:4px;}
+.form-lbl{font-size:9px;font-weight:600;color:var(--gray);letter-spacing:1px;text-transform:uppercase;}
+.form-input{border:1px solid var(--gold-border);padding:6px 10px;font-family:'Montserrat',sans-serif;font-size:12px;color:var(--dark);background:var(--white);outline:none;width:100%;}
+.form-input:focus{border-color:var(--gold);}
+.form-select{border:1px solid var(--gold-border);padding:6px 10px;font-family:'Montserrat',sans-serif;font-size:12px;color:var(--dark);background:var(--white);outline:none;cursor:pointer;width:100%;}
+.data-table{width:100%;border-collapse:collapse;}
+.data-table th{font-size:9px;font-weight:600;color:#888;letter-spacing:2px;text-transform:uppercase;padding:8px 12px;text-align:left;border-bottom:1px solid #E8E8E8;background:var(--gray-light);}
+.data-table td{padding:10px 12px;border-bottom:1px solid #F5F5F5;font-size:12px;vertical-align:middle;}
+.data-table tr:last-child td{border-bottom:none;}
+.amount-col{font-weight:600;color:var(--dark);}
+.method-badge{display:inline-block;padding:1px 7px;font-size:9px;font-weight:600;letter-spacing:1px;text-transform:uppercase;background:var(--gray-light);color:var(--gray);border:1px solid #DDD;}
+.type-deposit{background:#EAF4ED;color:var(--green);border-color:#A8D5B5;}
+.type-abono{background:var(--gold-pale);color:#8B6914;border-color:var(--gold-border);}
+.type-balance{background:#EEF3FF;color:var(--blue);border-color:#BFD0F0;}
+.no-data{text-align:center;padding:30px;color:#AAA;font-size:11px;font-style:italic;}
+.status-section{margin-top:20px;padding-top:16px;border-top:1px solid #E8E8E8;display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.status-label{font-size:10px;color:#888;letter-spacing:1px;text-transform:uppercase;margin-right:8px;}
+.alert-msg{font-size:10px;color:var(--red);font-weight:600;margin-left:8px;}
+.toast{position:fixed;bottom:24px;right:24px;padding:10px 20px;font-size:11px;font-weight:600;letter-spacing:1px;z-index:9999;opacity:0;transition:opacity 0.3s;pointer-events:none;}
+.toast.show{opacity:1;}
+.toast-success{background:var(--green);color:var(--white);}
+.toast-error{background:var(--red);color:var(--white);}
+.toast-warn{background:var(--orange);color:var(--white);}
+.overlay{position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);z-index:9998;display:none;align-items:center;justify-content:center;}
+.overlay.show{display:flex;}
+.overlay-text{color:var(--gold);font-size:12px;letter-spacing:3px;text-transform:uppercase;}
+.service-total-bar{background:var(--dark);padding:10px 16px;display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;border-left:3px solid var(--gold);}
+.service-total-lbl{font-size:10px;color:#888;letter-spacing:2px;text-transform:uppercase;}
+.service-total-val{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:700;color:var(--gold);}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    <div>
+      <div class="brand-title">Cardona Hall</div>
+      <div class="brand-sub">Event Management</div>
+    </div>
+    <div class="header-nav">
+      <a class="nav-link" href="index.html">Quotations</a>
+      <span class="nav-link active">Events</span>
+    </div>
+  </div>
 
-function doPost(e) {
-  try {
-    const data = JSON.parse(e.postData.contents);
-    const ss = SpreadsheetApp.openById(SHEET_ID);
-    const action = data.action;
+  <!-- LIST VIEW -->
+  <div id="listView">
+    <div class="toolbar">
+      <input class="search-box" id="searchBox" type="text" placeholder="Search by name or RES#..." oninput="filterEvents()">
+      <select class="filter-select" id="filterStatus" onchange="filterEvents()">
+        <option value="">All Status</option>
+        <option value="reserved" selected>Reserved</option>
+        <option value="completed">Completed</option>
+        <option value="cancelled">Cancelled</option>
+      </select>
+      <select class="filter-select" id="filterType" onchange="filterEvents()">
+        <option value="">All Types</option>
+        <option value="wedding">Wedding</option>
+        <option value="quinceanera">Quinceañera</option>
+        <option value="baby_shower">Baby Shower</option>
+        <option value="kids_party">Kids Party</option>
+        <option value="birthday">Birthday Party</option>
+        <option value="special_social">Special Event</option>
+        <option value="special_corporate">Corporate</option>
+      </select>
+      <div class="toolbar-right">
+        <span class="count-badge" id="eventCount">Loading...</span>
+        <button class="btn btn-outline" onclick="loadEvents()">↺ Refresh</button>
+      </div>
+    </div>
+    <div id="listContent"><div class="loading">Loading events...</div></div>
+  </div>
 
-    if (action === 'saveQuotation') {
-      const sheet = ss.getSheetByName('Quotations');
-      sheet.appendRow([
-        data['COT#'], data['RES#'], data['Status'], data['Created Date'],
-        data['Client Name'], data['Country'], data['State'], data['City'],
-        data['Client Type'], data['Phone'], data['Email'], data['Event Date'],
-        data['Day of Week'], data['Guests'], data['Children'], data['Guest Range'],
-        data['Tables'], data['Event Type'], data['Event Sub-Type'], data['Full Package'],
-        data['Venue Tier'], data['Catering Line'], data['Catering Plan'],
-        data['Decor Plan'], data['Decor Honor Tier'], data['Decor Honor Type'],
-        data['Decor Dining Tier'], data['Decor CP Tier'], data['Decor CP Type'],
-        data['Decor Extras Tier'], data['Decor Legacy Price'],
-        data['Entertainment Plan'], data['Sound Plan'], data['Photo Plan'],
-        data['Photo Tier'], data['Photo Shoot'], data['Photo Prints'],
-        data['Special Conditions'], data['Price Venue'], data['Price Catering'],
-        data['Price Decor'], data['Price Entertainment'], data['Price Photo'],
-        data['Discount Venue'], data['Discount Entertainment'],
-        data['Discount Photo'], data['Discount FP'],
-        data['Price Override'], data['Final Total'], data['Discount Detail']
-      ]);
+  <!-- DETAIL VIEW -->
+  <div id="detailView" class="detail-view">
+    <div class="detail-header">
+      <button class="detail-back" onclick="showList()">← Back</button>
+      <div class="detail-res" id="detailRes">—</div>
+      <div class="detail-client" id="detailClient">—</div>
+      <div class="detail-status" id="detailStatusBadge"></div>
+    </div>
+    <div class="event-strip">
+      <div class="strip-item"><div class="strip-lbl">Event Type</div><div class="strip-val" id="dEventType">—</div></div>
+      <div class="strip-item"><div class="strip-lbl">Date</div><div class="strip-val" id="dEventDate">—</div></div>
+      <div class="strip-item"><div class="strip-lbl">Day</div><div class="strip-val" id="dEventDay">—</div></div>
+      <div class="strip-item"><div class="strip-lbl">Guests</div><div class="strip-val" id="dGuests">—</div></div>
+      <div class="strip-item"><div class="strip-lbl">Total</div><div class="strip-val" id="dTotal">—</div></div>
+      <div class="strip-item"><div class="strip-lbl">COT#</div><div class="strip-val" id="dCot">—</div></div>
+    </div>
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('payments',this)">Payments</div>
+      <div class="tab" onclick="switchTab('services',this)">Services</div>
+      <div class="tab" onclick="switchTab('expenses',this)">Expenses</div>
+      <div class="tab" onclick="switchTab('catering',this)">Catering</div>
+      <div class="tab" onclick="switchTab('documents',this)">Documents</div>
+    </div>
 
-    } else if (action === 'savePayment') {
-      const sheet = ss.getSheetByName('Payments');
-      sheet.appendRow([
-        data['Payment ID'], data['RES#'], data['COT#'], data['Client Name'],
-        data['Event Date'], data['Payment Date'], data['Amount'], data['Method'],
-        data['Type'], data['Reference'], data['Notes'], data['Recorded Date']
-      ]);
+    <!-- PAYMENTS TAB -->
+    <div class="tab-content active" id="tab-payments">
+      <div class="payments-summary">
+        <div class="summary-card"><div class="summary-lbl">Event Total</div><div class="summary-val white" id="sumTotal">$0</div></div>
+        <div class="summary-card"><div class="summary-lbl">Total Received</div><div class="summary-val green" id="sumReceived">$0</div></div>
+        <div class="summary-card"><div class="summary-lbl">Balance Due</div><div class="summary-val red" id="sumBalance">$0</div></div>
+        <div class="summary-card"><div class="summary-lbl">Payments</div><div class="summary-val white" id="sumCount">0</div></div>
+      </div>
 
-    } else if (action === 'saveExpense') {
-      const sheet = ss.getSheetByName('Expenses');
-      sheet.appendRow([
-        data['Expense ID'], data['RES#'], data['COT#'], data['Event Date'],
-        data['Provider ID'], data['Provider Name'], data['Category'], data['Role'],
-        data['Description'], data['Agreed Amount'], data['Amount Paid'],
-        data['Payment Date'], data['Method'], data['Type'], data['Status'],
-        data['Notes']
-      ]);
+      <div class="add-form">
+        <div class="add-form-title">+ Register Payment</div>
+        <div class="form-row form-row-5">
+          <div class="form-field"><div class="form-lbl">Date</div><input class="form-input" type="date" id="payDate"></div>
+          <div class="form-field"><div class="form-lbl">Amount</div><input class="form-input" type="number" id="payAmount" placeholder="0.00" min="0"></div>
+          <div class="form-field"><div class="form-lbl">Method</div>
+            <select class="form-select" id="payMethod">
+              <option value="Cash">Cash</option><option value="Zelle">Zelle</option><option value="Check">Check</option><option value="Card">Card</option>
+            </select>
+          </div>
+          <div class="form-field"><div class="form-lbl">Type</div>
+            <select class="form-select" id="payType">
+              <option value="Deposit">Deposit</option><option value="Abono">Abono</option><option value="Balance Final">Balance Final</option>
+            </select>
+          </div>
+          <button class="btn btn-gold" onclick="savePayment()">Save</button>
+        </div>
+        <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div class="form-field"><div class="form-lbl">Reference</div><input class="form-input" type="text" id="payReference" placeholder="Transaction ID, check #..."></div>
+          <div class="form-field"><div class="form-lbl">Notes</div><input class="form-input" type="text" id="payNotes" placeholder="Additional notes..."></div>
+        </div>
+      </div>
 
-    } else if (action === 'saveProvider') {
-      const sheet = ss.getSheetByName('Providers');
-      sheet.appendRow([
-        data['Provider ID'], data['Name'], data['Category'], data['Role'],
-        data['Phone'], data['Email'], data['Rate'], data['Rate Type'],
-        data['Rating'], data['Status'], data['Notes']
-      ]);
+      <div class="section-title">Payment History</div>
+      <table class="data-table">
+        <thead><tr><th>Payment ID</th><th>Date</th><th>Type</th><th>Method</th><th>Reference</th><th>Amount</th><th>Notes</th></tr></thead>
+        <tbody id="paymentsBody"><tr><td colspan="7" class="no-data">No payments registered</td></tr></tbody>
+      </table>
 
-    } else if (action === 'updateProvider') {
-      const sheet = ss.getSheetByName('Providers');
-      const rows = sheet.getDataRange().getValues();
-      for (let i = 1; i < rows.length; i++) {
-        if (rows[i][0] === data['Provider ID']) {
-          sheet.getRange(i + 1, 1, 1, 11).setValues([[
-            data['Provider ID'], data['Name'], data['Category'], data['Role'],
-            data['Phone'], data['Email'], data['Rate'], data['Rate Type'],
-            data['Rating'], data['Status'], data['Notes']
-          ]]);
-          break;
-        }
-      }
+      <div class="status-section">
+        <span class="status-label">Event Status:</span>
+        <button class="btn btn-blue btn-sm" onclick="generateReceipt()">⬇ Receipt PDF</button>
+        <button class="btn btn-green btn-sm" id="btnComplete" onclick="updateStatus('Completed')">✓ Mark as Completed</button>
+        <button class="btn btn-red btn-sm" onclick="updateStatus('Cancelled')">✕ Cancel Event</button>
+        <span class="alert-msg" id="completeAlert" style="display:none">Balance must be $0 to complete</span>
+      </div>
+    </div>
 
-    } else if (action === 'saveCateringOrder') {
-      const sheet = ss.getSheetByName('Catering Orders');
-      sheet.appendRow([
-        data['Order ID'], data['RES#'], data['COT#'], data['Event Date'],
-        data['Provider'], data['Course'], data['Category'], data['Item'],
-        data['Quantity'], data['Unit'], data['Notes']
-      ]);
+    <!-- SERVICES TAB -->
+    <div class="tab-content" id="tab-services">
+      <div class="service-total-bar">
+        <div class="service-total-lbl">Additional Services Total</div>
+        <div class="service-total-val" id="servicesTotalVal">$0</div>
+      </div>
 
-    } else if (action === 'saveDocument') {
-      const sheet = ss.getSheetByName('Documents');
-      sheet.appendRow([
-        data['Document ID'], data['RES#'], data['COT#'], data['Client Name'],
-        data['Event Date'], data['Type'], data['Generated Date'],
-        data['Status'], data['Notes']
-      ]);
+      <div class="add-form">
+        <div class="add-form-title">+ Add Service</div>
+        <div class="form-row form-row-3">
+          <div class="form-field"><div class="form-lbl">Service Name</div><input class="form-input" type="text" id="svcName" placeholder="e.g. Mariachi, CO2 Jets, Hour Loca..."></div>
+          <div class="form-field"><div class="form-lbl">Price</div><input class="form-input" type="number" id="svcPrice" placeholder="0.00" min="0"></div>
+          <button class="btn btn-gold" onclick="saveService()">Add</button>
+        </div>
+        <div style="margin-top:10px;">
+          <div class="form-field"><div class="form-lbl">Notes</div><input class="form-input" type="text" id="svcNotes" placeholder="Details, requirements..."></div>
+        </div>
+      </div>
 
-    } else if (action === 'saveServiceDetail') {
-      const sheet = ss.getSheetByName('Event Services Detail');
-      sheet.appendRow([
-        data['Detail ID'], data['RES#'], data['COT#'], data['Event Date'],
-        data['Division'], data['Type'], data['Item'], data['Description'],
-        data['Price'], data['Notes']
-      ]);
+      <div class="section-title">Additional Services</div>
+      <table class="data-table">
+        <thead><tr><th>Detail ID</th><th>Service</th><th>Price</th><th>Notes</th></tr></thead>
+        <tbody id="servicesBody"><tr><td colspan="4" class="no-data">No additional services</td></tr></tbody>
+      </table>
+    </div>
 
-    } else if (action === 'updateQuotationStatus') {
-      const sheet = ss.getSheetByName('Quotations');
-      const rows = sheet.getDataRange().getValues();
-      const headers = rows[0];
-      const statusIdx = headers.indexOf('Status');
-      const resIdx = headers.indexOf('RES#');
-      for (let i = 1; i < rows.length; i++) {
-        if (rows[i][0] === data['COT#']) {
-          if (resIdx > -1 && data['RES#']) sheet.getRange(i + 1, resIdx + 1).setValue(data['RES#']);
-          if (statusIdx > -1) sheet.getRange(i + 1, statusIdx + 1).setValue(data['Status']);
-          break;
-        }
-      }
+    <!-- EXPENSES TAB -->
+    <div class="tab-content" id="tab-expenses"><div class="empty-state"><div class="empty-title">Expenses</div><div class="empty-sub">Coming soon</div></div></div>
+    <!-- CATERING TAB -->
+    <div class="tab-content" id="tab-catering"><div class="empty-state"><div class="empty-title">Catering Orders</div><div class="empty-sub">Coming soon</div></div></div>
+    <!-- DOCUMENTS TAB -->
+    <div class="tab-content" id="tab-documents"><div class="empty-state"><div class="empty-title">Documents</div><div class="empty-sub">Coming soon</div></div></div>
+  </div>
+</div>
 
-    } else if (action === 'updateEventTotal') {
-      const sheet = ss.getSheetByName('Quotations');
-      const rows = sheet.getDataRange().getValues();
-      const headers = rows[0];
-      const totalIdx = headers.indexOf('Final Total');
-      for (let i = 1; i < rows.length; i++) {
-        if (rows[i][0] === data['COT#']) {
-          if (totalIdx > -1) sheet.getRange(i + 1, totalIdx + 1).setValue(data['Final Total']);
-          break;
-        }
-      }
-    }
+<div class="toast" id="toast"></div>
+<div class="overlay" id="overlay"><div class="overlay-text">Loading...</div></div>
 
-    return ContentService.createTextOutput(JSON.stringify({status:'ok'}))
-      .setMimeType(ContentService.MimeType.JSON);
+<script>
+const SCRIPT_URL='https://script.google.com/macros/s/AKfycbyUAKZyuX8xcdSTXNkJoagPlaW4fumRWnrDuuARiMntpS76sx_6I-6TYxUpjkhjVIADAQ/exec';
+const ET_LABELS={wedding:'Wedding',quinceanera:'Quinceañera',baby_shower:'Baby Shower',kids_party:'Kids Party',birthday:'Birthday Party',special_social:'Special Event',special_corporate:'Corporate'};
+let allEvents=[],currentEvent=null,currentPayments=[],currentServices=[];
 
-  } catch(err) {
-    return ContentService.createTextOutput(JSON.stringify({status:'error', message:err.toString()}))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
+function fmtMoney(n){return '$'+(parseFloat(n)||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});}
+function fmtDate(d){if(!d)return'—';try{const dt=new Date(d);if(isNaN(dt))return String(d);return dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});}catch{return String(d);}}
+function genID(prefix){return prefix+'-'+Date.now();}
+function showToast(msg,type='success'){const t=document.getElementById('toast');t.textContent=msg;t.className=`toast toast-${type} show`;setTimeout(()=>t.className='toast',4000);}
+function showLoading(){document.getElementById('overlay').classList.add('show');}
+function hideLoading(){document.getElementById('overlay').classList.remove('show');}
+
+function getEventTotal(){
+  const base=parseFloat(currentEvent['Final Total'])||0;
+  const extras=currentServices.reduce((s,sv)=>s+(parseFloat(sv['Price'])||0),0);
+  return base+extras;
 }
 
-function doGet(e) {
-  try {
-    const ss = SpreadsheetApp.openById(SHEET_ID);
-    const sheetName = e.parameter.sheet || 'Quotations';
-    const filterKey = e.parameter.filterKey;
-    const filterVal = e.parameter.filterVal;
-
-    const sheet = ss.getSheetByName(sheetName);
-    if (!sheet) return ContentService.createTextOutput(JSON.stringify([]))
-      .setMimeType(ContentService.MimeType.JSON);
-
-    const data = sheet.getDataRange().getValues();
-    if (data.length <= 1) return ContentService.createTextOutput(JSON.stringify([]))
-      .setMimeType(ContentService.MimeType.JSON);
-
-    const headers = data[0];
-    let rows = data.slice(1).map(row => {
-      const obj = {};
-      headers.forEach((h, i) => obj[h] = row[i]);
-      return obj;
-    });
-
-    if (filterKey && filterVal) {
-      rows = rows.filter(r => String(r[filterKey]) === String(filterVal));
-    }
-
-    return ContentService.createTextOutput(JSON.stringify(rows))
-      .setMimeType(ContentService.MimeType.JSON);
-
-  } catch(err) {
-    return ContentService.createTextOutput(JSON.stringify({status:'error', message:err.toString()}))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
+function getTotalReceived(){
+  return currentPayments.reduce((s,p)=>s+(parseFloat(p['Amount'])||0),0);
 }
+
+async function loadEvents(){
+  showLoading();
+  try{
+    const res=await fetch(SCRIPT_URL+'?sheet=Quotations&nocache='+Date.now());
+    const data=await res.json();
+    allEvents=data.filter(r=>r['RES#']&&String(r['RES#']).startsWith('RES'));
+    renderList();
+  }catch(e){
+    document.getElementById('listContent').innerHTML='<div class="empty-state"><div class="empty-title">Connection Error</div><div class="empty-sub">Could not load events.</div></div>';
+  }
+  hideLoading();
+}
+
+function filterEvents(){renderList();}
+
+function renderList(){
+  const search=document.getElementById('searchBox').value.toLowerCase();
+  const statusF=document.getElementById('filterStatus').value.toLowerCase();
+  const typeF=document.getElementById('filterType').value;
+  let filtered=allEvents.filter(e=>{
+    const matchSearch=!search||(e['Client Name']||'').toLowerCase().includes(search)||(e['RES#']||'').toLowerCase().includes(search);
+    const evStatus=(e['Event Status']||'reserved').toLowerCase();
+    const matchStatus=!statusF||evStatus===statusF;
+    const matchType=!typeF||(e['Event Type']||'')===typeF;
+    return matchSearch&&matchStatus&&matchType;
+  });
+  filtered.sort((a,b)=>new Date(a['Event Date'])-new Date(b['Event Date']));
+  document.getElementById('eventCount').textContent=filtered.length+' event'+(filtered.length!==1?'s':'');
+  if(!filtered.length){
+    document.getElementById('listContent').innerHTML='<div class="empty-state"><div class="empty-title">No events found</div><div class="empty-sub">Try adjusting your filters</div></div>';
+    return;
+  }
+  const rows=filtered.map(e=>{
+    const status=(e['Event Status']||'reserved').toLowerCase();
+    const sc={reserved:'status-reserved',completed:'status-completed',cancelled:'status-cancelled'}[status]||'status-reserved';
+    const sl={reserved:'Reserved',completed:'Completed',cancelled:'Cancelled'}[status]||'Reserved';
+    const etLabel=ET_LABELS[e['Event Type']]||e['Event Type']||'—';
+    return `<tr onclick="openEvent('${e['RES#']}')">
+      <td><div class="res-num">${e['RES#']}</div><div style="font-size:10px;color:#AAA;margin-top:2px">${e['COT#']||''}</div></td>
+      <td><div class="client-name">${e['Client Name']||'—'}</div><div class="client-sub">${e['Phone']||'—'}</div></td>
+      <td><span class="event-type-badge">${etLabel}</span></td>
+      <td><div class="event-date">${fmtDate(e['Event Date'])}</div><div class="event-day">${e['Day of Week']||''}</div></td>
+      <td style="text-align:center;font-weight:600">${e['Guests']||'—'}</td>
+      <td style="font-weight:600">${fmtMoney(e['Final Total'])}</td>
+      <td><span class="status-badge ${sc}">${sl}</span></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('listContent').innerHTML=`<table class="events-table"><thead><tr><th>RES# / COT#</th><th>Client</th><th>Type</th><th>Date</th><th style="text-align:center">Guests</th><th>Total</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+async function openEvent(resNum){
+  currentEvent=allEvents.find(e=>e['RES#']===resNum);
+  if(!currentEvent)return;
+  document.getElementById('detailRes').textContent=currentEvent['RES#'];
+  document.getElementById('detailClient').textContent=currentEvent['Client Name']||'—';
+  const status=(currentEvent['Event Status']||'reserved').toLowerCase();
+  const sc={reserved:'status-reserved',completed:'status-completed',cancelled:'status-cancelled'}[status]||'status-reserved';
+  const sl={reserved:'Reserved',completed:'Completed',cancelled:'Cancelled'}[status]||'Reserved';
+  document.getElementById('detailStatusBadge').innerHTML=`<span class="status-badge ${sc}">${sl}</span>`;
+  document.getElementById('dEventType').textContent=ET_LABELS[currentEvent['Event Type']]||currentEvent['Event Type']||'—';
+  document.getElementById('dEventDate').textContent=fmtDate(currentEvent['Event Date']);
+  document.getElementById('dEventDay').textContent=currentEvent['Day of Week']||'—';
+  document.getElementById('dGuests').textContent=(currentEvent['Guests']||'—')+' guests';
+  document.getElementById('dTotal').textContent=fmtMoney(currentEvent['Final Total']);
+  document.getElementById('dCot').textContent=currentEvent['COT#']||'—';
+  // Default payment date to today
+  document.getElementById('payDate').value=new Date().toISOString().split('T')[0];
+  document.getElementById('listView').style.display='none';
+  document.getElementById('detailView').style.display='block';
+  // Reset tabs
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===0));
+  document.querySelectorAll('.tab-content').forEach((t,i)=>t.classList.toggle('active',i===0));
+  showLoading();
+  await Promise.all([loadPayments(),loadServices()]);
+  hideLoading();
+}
+
+function showList(){
+  document.getElementById('detailView').style.display='none';
+  document.getElementById('listView').style.display='block';
+  currentEvent=null;currentPayments=[];currentServices=[];
+}
+
+function switchTab(name,el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  if(el)el.classList.add('active');
+  const tc=document.getElementById('tab-'+name);if(tc)tc.classList.add('active');
+}
+
+async function loadPayments(){
+  try{
+    const res=await fetch(`${SCRIPT_URL}?sheet=Payments&filterKey=RES%23&filterVal=${encodeURIComponent(currentEvent['RES#'])}&nocache=`+Date.now());
+    const data=await res.json();
+    currentPayments=Array.isArray(data)?data:[];
+  }catch(e){currentPayments=[];}
+  renderPayments();
+}
+
+async function loadServices(){
+  try{
+    const res=await fetch(`${SCRIPT_URL}?sheet=Event+Services+Detail&filterKey=RES%23&filterVal=${encodeURIComponent(currentEvent['RES#'])}&nocache=`+Date.now());
+    const data=await res.json();
+    currentServices=Array.isArray(data)?data:[];
+  }catch(e){currentServices=[];}
+  renderServices();
+}
+
+function renderPayments(){
+  const total=getEventTotal();
+  const received=getTotalReceived();
+  const balance=total-received;
+  document.getElementById('sumTotal').textContent=fmtMoney(total);
+  document.getElementById('sumReceived').textContent=fmtMoney(received);
+  document.getElementById('sumBalance').textContent=fmtMoney(balance);
+  document.getElementById('sumCount').textContent=currentPayments.length;
+  // Auto-select Deposit if first payment
+  if(currentPayments.length===0){
+    document.getElementById('payType').value='Deposit';
+  } else {
+    document.getElementById('payType').value='Abono';
+  }
+  // Complete button validation
+  const completeBtn=document.getElementById('btnComplete');
+  const alert=document.getElementById('completeAlert');
+  if(balance>0){completeBtn.disabled=true;completeBtn.style.opacity='0.4';alert.style.display='inline';}
+  else{completeBtn.disabled=false;completeBtn.style.opacity='1';alert.style.display='none';}
+
+  if(!currentPayments.length){
+    document.getElementById('paymentsBody').innerHTML='<tr><td colspan="7" class="no-data">No payments registered yet</td></tr>';
+    return;
+  }
+  const tc={'Deposit':'type-deposit','Abono':'type-abono','Balance Final':'type-balance'};
+  const rows=currentPayments.map(p=>`<tr>
+    <td style="font-size:10px;color:#AAA">${p['Payment ID']||'—'}</td>
+    <td>${fmtDate(p['Payment Date'])}</td>
+    <td><span class="method-badge ${tc[p['Type']]||''}">${p['Type']||'—'}</span></td>
+    <td><span class="method-badge">${p['Method']||'—'}</span></td>
+    <td style="font-size:11px;color:#888">${p['Reference']||'—'}</td>
+    <td class="amount-col">${fmtMoney(p['Amount'])}</td>
+    <td style="font-size:11px;color:#888">${p['Notes']||'—'}</td>
+  </tr>`).join('');
+  document.getElementById('paymentsBody').innerHTML=rows;
+}
+
+function renderServices(){
+  const total=currentServices.reduce((s,sv)=>s+(parseFloat(sv['Price'])||0),0);
+  document.getElementById('servicesTotalVal').textContent=fmtMoney(total);
+  // Update event total strip
+  document.getElementById('dTotal').textContent=fmtMoney(getEventTotal());
+  document.getElementById('sumTotal').textContent=fmtMoney(getEventTotal());
+  if(!currentServices.length){
+    document.getElementById('servicesBody').innerHTML='<tr><td colspan="4" class="no-data">No additional services added</td></tr>';
+    return;
+  }
+  const rows=currentServices.map(s=>`<tr>
+    <td style="font-size:10px;color:#AAA">${s['Detail ID']||'—'}</td>
+    <td style="font-weight:500">${s['Item']||'—'}</td>
+    <td class="amount-col">${fmtMoney(s['Price'])}</td>
+    <td style="font-size:11px;color:#888">${s['Notes']||'—'}</td>
+  </tr>`).join('');
+  document.getElementById('servicesBody').innerHTML=rows;
+}
+
+async function savePayment(){
+  const amount=parseFloat(document.getElementById('payAmount').value);
+  const date=document.getElementById('payDate').value;
+  if(!amount||amount<=0){showToast('Enter a valid amount','error');return;}
+  if(!date){showToast('Select a date','error');return;}
+  // Validate no future date
+  const today=new Date();today.setHours(0,0,0,0);
+  const payD=new Date(date+'T00:00:00');
+  if(payD>today){showToast('Payment date cannot be in the future','error');return;}
+  // Validate does not exceed balance
+  const balance=getEventTotal()-getTotalReceived();
+  if(amount>balance+0.01){showToast(`Amount exceeds balance due (${fmtMoney(balance)})','error`);return;}
+
+  const payload={
+    action:'savePayment',
+    'Payment ID':genID('PAY'),
+    'RES#':currentEvent['RES#'],
+    'COT#':currentEvent['COT#'],
+    'Client Name':currentEvent['Client Name'],
+    'Event Date':currentEvent['Event Date'],
+    'Payment Date':date,
+    'Amount':amount,
+    'Method':document.getElementById('payMethod').value,
+    'Type':document.getElementById('payType').value,
+    'Reference':document.getElementById('payReference').value,
+    'Notes':document.getElementById('payNotes').value,
+    'Recorded Date':new Date().toLocaleDateString('en-US')
+  };
+  showLoading();
+  try{
+    await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(payload),headers:{'Content-Type':'text/plain'}});
+    document.getElementById('payAmount').value='';
+    document.getElementById('payReference').value='';
+    document.getElementById('payNotes').value='';
+    showToast('Payment saved','success');
+    await loadPayments();
+  }catch(e){showToast('Error saving payment','error');}
+  hideLoading();
+}
+
+async function saveService(){
+  const name=document.getElementById('svcName').value.trim();
+  const price=parseFloat(document.getElementById('svcPrice').value);
+  if(!name){showToast('Enter a service name','error');return;}
+  if(!price||price<=0){showToast('Enter a valid price','error');return;}
+  const payload={
+    action:'saveServiceDetail',
+    'Detail ID':genID('SVC'),
+    'RES#':currentEvent['RES#'],
+    'COT#':currentEvent['COT#'],
+    'Event Date':currentEvent['Event Date'],
+    'Division':'Additional',
+    'Type':'Add-on',
+    'Item':name,
+    'Description':name,
+    'Price':price,
+    'Notes':document.getElementById('svcNotes').value
+  };
+  showLoading();
+  try{
+    await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(payload),headers:{'Content-Type':'text/plain'}});
+    document.getElementById('svcName').value='';
+    document.getElementById('svcPrice').value='';
+    document.getElementById('svcNotes').value='';
+    showToast('Service added','success');
+    await loadServices();
+    renderPayments();// recalc balance
+  }catch(e){showToast('Error saving service','error');}
+  hideLoading();
+}
+
+async function updateStatus(newStatus){
+  if(newStatus==='Completed'){
+    const balance=getEventTotal()-getTotalReceived();
+    if(balance>0.01){showToast('Cannot complete — balance due: '+fmtMoney(balance),'error');return;}
+  }
+  if(!confirm('Mark this event as '+newStatus+'?'))return;
+  const payload={action:'updateQuotationStatus','COT#':currentEvent['COT#'],'RES#':currentEvent['RES#'],'Status':newStatus.toLowerCase()};
+  showLoading();
+  try{
+    await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(payload),headers:{'Content-Type':'text/plain'}});
+    currentEvent['Event Status']=newStatus.toLowerCase();
+    const sc={reserved:'status-reserved',completed:'status-completed',cancelled:'status-cancelled'}[newStatus.toLowerCase()]||'status-reserved';
+    document.getElementById('detailStatusBadge').innerHTML=`<span class="status-badge ${sc}">${newStatus}</span>`;
+    showToast('Status updated to '+newStatus,'success');
+    await loadEvents();
+  }catch(e){showToast('Error updating status','error');}
+  hideLoading();
+}
+
+function generateReceipt(){
+  const today=new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+  const total=getEventTotal();
+  const received=getTotalReceived();
+  const balance=total-received;
+  const base=parseFloat(currentEvent['Final Total'])||0;
+  const extrasTotal=currentServices.reduce((s,sv)=>s+(parseFloat(sv['Price'])||0),0);
+  const fmtM=n=>'$'+(parseFloat(n)||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});
+
+  // Build services rows
+  const svcRows=currentServices.map(s=>`
+    <tr><td style="padding:6px 0;font-size:12px;color:#555">${s['Item']||'—'}</td><td style="padding:6px 0;text-align:right;font-weight:600;font-size:12px">${fmtM(s['Price'])}</td></tr>
+  `).join('');
+
+  // Build payments rows
+  const payRows=currentPayments.map(p=>`
+    <tr><td style="padding:5px 0;font-size:11px;color:#555">${fmtDate(p['Payment Date'])} — ${p['Type']} (${p['Method']})</td><td style="padding:5px 0;text-align:right;font-size:11px;font-weight:600;color:#1E5C2E">${fmtM(p['Amount'])}</td></tr>
+  `).join('');
+
+  const ET_LABELS={wedding:'Wedding',quinceanera:'Quinceañera',baby_shower:'Baby Shower',kids_party:'Kids Party',birthday:'Birthday Party',special_social:'Special Event',special_corporate:'Corporate'};
+  const etLabel=ET_LABELS[currentEvent['Event Type']]||currentEvent['Event Type']||'—';
+
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+@page{margin:0;size:A4;}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;}
+html,body{background:#fff;width:210mm;font-family:'Montserrat',sans-serif;font-size:13px;color:#1a1a1a;}
+.doc{width:210mm;background:#fff;}
+.hdr{background:#0A0A0A;padding:22px 28px 16px;display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2.5px solid #C9A84C;}
+.ch-name{font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:700;color:#C9A84C;letter-spacing:3px;text-transform:uppercase;}
+.pilab-line{font-size:11px;letter-spacing:2px;margin-top:5px;}
+.p-pi{color:#D4A853;}.p-la{color:#00B4D8;}.p-b{color:#C0368A;}.p-dot{color:#E8307A;}.p-rest{color:#bbb;}
+.doc-id{text-align:right;}
+.rec-num{font-size:14px;font-weight:600;color:#C9A84C;letter-spacing:1.5px;border:1px solid #C9A84C;padding:5px 14px;display:inline-block;margin-bottom:6px;}
+.rec-badge{display:inline-block;padding:3px 10px;font-size:9px;font-weight:600;letter-spacing:2px;text-transform:uppercase;background:#1a3a1a;color:#6EC98A;border:1px solid #2a4a2a;}
+.section{padding:14px 28px;border-bottom:0.5px solid #f0f0f0;}
+.sec-title{font-size:10px;font-weight:600;color:#C9A84C;letter-spacing:3px;text-transform:uppercase;margin-bottom:10px;}
+.info-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px;}
+.info-item{display:flex;flex-direction:column;gap:3px;}
+.info-lbl{font-size:9px;color:#C9A84C;letter-spacing:1.5px;text-transform:uppercase;opacity:0.8;}
+.info-val{font-size:13px;color:#1a1a1a;font-weight:500;}
+.event-bar{background:#E8DFD0;border-left:3px solid #C9A84C;padding:10px 14px;display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+.eb-lbl{font-size:8px;color:#7a6545;letter-spacing:1.5px;text-transform:uppercase;}
+.eb-val{font-size:13px;font-weight:600;color:#1a1a1a;margin-top:2px;}
+.concept-table{width:100%;border-collapse:collapse;}
+.concept-table td{padding:7px 0;border-bottom:0.5px solid #f0f0f0;font-size:12px;vertical-align:top;}
+.concept-table tr:last-child td{border-bottom:none;}
+.divider{height:1px;background:#E0E0E0;margin:10px 0;}
+.total-bar{background:#0A0A0A;padding:16px 28px;display:flex;align-items:center;justify-content:space-between;}
+.total-lbl{font-family:'Cormorant Garamond',serif;font-size:16px;color:#ddd;letter-spacing:2px;text-transform:uppercase;}
+.total-amt{font-family:'Cormorant Garamond',serif;font-size:36px;font-weight:700;color:#C9A84C;}
+.balance-bar{background:#111;padding:10px 28px;display:flex;justify-content:space-between;align-items:center;}
+.balance-lbl{font-size:10px;color:#888;letter-spacing:2px;text-transform:uppercase;}
+.balance-val{font-size:14px;font-weight:700;}
+.footer{background:#1a1a1a;padding:12px 28px;display:flex;justify-content:space-between;align-items:center;border-top:2px solid #C9A84C;}
+.footer-l{font-size:10px;color:#999;}
+.footer-r{display:flex;align-items:center;gap:10px;}
+.pdot{width:7px;height:7px;border-radius:50%;display:inline-block;}
+.pilab-f{font-size:12px;letter-spacing:1px;}
+@media print{*{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;}}
+</style></head><body><div class="doc">
+<div class="hdr">
+  <div>
+    <div class="ch-name">Cardona Hall</div>
+    <div class="pilab-line"><span class="p-rest">Produced by </span><span class="p-pi">Pi</span><span class="p-la">la</span><span class="p-b">b</span><span class="p-dot">.</span><span class="p-rest"> Productions</span></div>
+  </div>
+  <div class="doc-id">
+    <div class="rec-num">${currentEvent['RES#']}</div><br>
+    <div style="font-size:9px;color:#555;margin-bottom:4px">Ref. ${currentEvent['COT#']}</div>
+    <span class="rec-badge">Payment Receipt</span>
+  </div>
+</div>
+<div class="section">
+  <div class="sec-title">Client Information</div>
+  <div class="info-grid">
+    <div class="info-item"><div class="info-lbl">Client</div><div class="info-val">${currentEvent['Client Name']||'—'}</div></div>
+    <div class="info-item"><div class="info-lbl">Phone</div><div class="info-val">${currentEvent['Phone']||'—'}</div></div>
+    <div class="info-item"><div class="info-lbl">Issued</div><div class="info-val">${today}</div></div>
+  </div>
+  <div class="event-bar">
+    <div><div class="eb-lbl">Event Type</div><div class="eb-val">${etLabel}</div></div>
+    <div><div class="eb-lbl">Date</div><div class="eb-val">${fmtDate(currentEvent['Event Date'])}</div></div>
+    <div><div class="eb-lbl">Day</div><div class="eb-val">${currentEvent['Day of Week']||'—'}</div></div>
+    <div><div class="eb-lbl">Guests</div><div class="eb-val">${currentEvent['Guests']||'—'} adults</div></div>
+  </div>
+</div>
+<div class="section">
+  <div class="sec-title">Charges</div>
+  <table class="concept-table">
+    <tr><td style="color:#555">Event Services Package</td><td style="text-align:right;font-weight:600">${fmtM(base)}</td></tr>
+    ${svcRows}
+    <tr><td colspan="2"><div class="divider"></div></td></tr>
+    <tr><td style="font-weight:700;font-size:13px">Total</td><td style="text-align:right;font-weight:700;font-size:14px;color:#C9A84C">${fmtM(total)}</td></tr>
+  </table>
+</div>
+<div class="section">
+  <div class="sec-title">Payments Received</div>
+  <table class="concept-table">
+    ${payRows||'<tr><td colspan="2" style="color:#bbb;font-style:italic;text-align:center;padding:16px">No payments recorded</td></tr>'}
+    <tr><td colspan="2"><div class="divider"></div></td></tr>
+    <tr><td style="font-weight:700;font-size:13px;color:#1E5C2E">Total Received</td><td style="text-align:right;font-weight:700;font-size:14px;color:#1E5C2E">${fmtM(received)}</td></tr>
+  </table>
+</div>
+<div class="total-bar">
+  <div class="total-lbl">Balance Due</div>
+  <div class="total-amt" style="color:${balance<=0?'#6EC98A':'#C9A84C'}">${fmtM(balance)}</div>
+</div>
+${balance<=0?'<div class="balance-bar"><span class="balance-lbl">Payment Status</span><span class="balance-val" style="color:#6EC98A">✓ Paid in Full</span></div>':'<div class="balance-bar"><span class="balance-lbl">Payment Status</span><span class="balance-val" style="color:#E87070">Pending Balance</span></div>'}
+<div class="footer">
+  <div class="footer-l">cardonahall.com &nbsp;·&nbsp; jcardona@cardonahall.com &nbsp;·&nbsp; +1 862-232-0117</div>
+  <div class="footer-r">
+    <div style="display:flex;gap:4px"><div class="pdot" style="background:#D4A853"></div><div class="pdot" style="background:#00B4D8"></div><div class="pdot" style="background:#C0368A"></div></div>
+    <div class="pilab-f"><span class="p-pi">Pi</span><span class="p-la">la</span><span class="p-b">b</span><span class="p-dot">.</span><span style="color:#888"> Productions</span></div>
+  </div>
+</div>
+</div>
+<script>window.onload=function(){setTimeout(function(){window.print();},800);};<\/script>
+</body></html>`;
+
+  const win=window.open('','_blank','width=900,height=750');
+  if(!win){showToast('Allow popups to generate receipt','error');return;}
+  win.document.open();win.document.write(html);win.document.close();
+  showToast('Receipt opening...','success');
+}
+
+window.onload=()=>loadEvents();
+</script>
+</body>
+</html>
