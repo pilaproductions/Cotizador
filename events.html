@@ -112,6 +112,23 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
 .overlay{position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);z-index:9998;display:none;align-items:center;justify-content:center;}
 .overlay.show{display:flex;}
 .overlay-text{color:var(--gold);font-size:12px;letter-spacing:3px;text-transform:uppercase;}
+.doc-list{display:flex;flex-direction:column;gap:8px;margin-bottom:8px;}
+.doc-card{display:flex;align-items:center;gap:12px;padding:12px 16px;border:1px solid #EEE;background:var(--white);transition:border-color 0.2s;}
+.doc-card:hover{border-color:var(--gold-border);}
+.doc-icon{width:36px;height:36px;background:var(--dark);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px;}
+.doc-info{flex:1;}
+.doc-name{font-size:12px;font-weight:600;color:var(--dark);}
+.doc-sub{font-size:10px;color:#AAA;margin-top:2px;}
+.doc-status{margin-left:auto;display:flex;align-items:center;gap:10px;}
+.doc-status-badge{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:2px 8px;border:1px solid;}
+.dst-generated{color:var(--blue);border-color:#BFD0F0;background:#EEF3FF;}
+.dst-draft{color:#888;border-color:#DDD;background:#F5F5F5;}
+.dst-sent{color:var(--orange);border-color:#F5C97A;background:#FFF8EE;}
+.dst-signed{color:var(--green);border-color:#A8D5B5;background:#EAF4ED;}
+.dst-confirmed{color:var(--green);border-color:#A8D5B5;background:#EAF4ED;}
+.dst-printed{color:var(--blue);border-color:#BFD0F0;background:#EEF3FF;}
+.dst-delivered{color:var(--green);border-color:#A8D5B5;background:#EAF4ED;}
+.dst-na{color:#CCC;border-color:#EEE;background:#FAFAFA;}
 .service-total-bar{background:var(--dark);padding:10px 16px;display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;border-left:3px solid var(--gold);}
 .service-total-lbl{font-size:10px;color:#888;letter-spacing:2px;text-transform:uppercase;}
 .service-total-val{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:700;color:var(--gold);}
@@ -127,6 +144,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
     <div class="header-nav">
       <a class="nav-link" href="index.html">Quotations</a>
       <span class="nav-link active">Events</span>
+      <a class="nav-link" href="providers.html">Providers</a>
     </div>
   </div>
 
@@ -302,12 +320,15 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
         <div style="margin-top:8px;font-size:10px;color:#888">Provider not in directory? <a href="providers.html" target="_blank" style="color:var(--gold);text-decoration:none;font-weight:600">Add to directory →</a></div>
       </div>
 
-      <!-- Expenses Summary -->
       <div class="payments-summary" style="margin-bottom:20px;">
         <div class="summary-card"><div class="summary-lbl">Total Agreed</div><div class="summary-val white" id="expSumAgreed">$0</div></div>
         <div class="summary-card"><div class="summary-lbl">Total Paid Out</div><div class="summary-val red" id="expSumPaid">$0</div></div>
         <div class="summary-card"><div class="summary-lbl">Pending Payments</div><div class="summary-val" style="color:#E8A030" id="expSumPending">$0</div></div>
-        <div class="summary-card"><div class="summary-lbl">Providers</div><div class="summary-val white" id="expSumCount">0</div></div>
+        <div class="summary-card"><div class="summary-lbl">Overpaid</div><div class="summary-val" style="color:#E8A030" id="expSumOverpaid">$0</div></div>
+      </div>
+
+      <div style="margin-bottom:12px;text-align:right">
+        <a href="providers.html" target="_blank" class="btn btn-outline btn-sm">+ Add to Directory</a>
       </div>
 
       <div class="section-title">Assigned Providers</div>
@@ -370,7 +391,28 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
     </div>
 
     <!-- DOCUMENTS TAB -->
-    <div class="tab-content" id="tab-documents"><div class="empty-state"><div class="empty-title">Documents</div><div class="empty-sub">Coming soon</div></div></div>
+    <div class="tab-content" id="tab-documents">
+      <div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-size:10px;color:#888;letter-spacing:1px;">Documents are generated based on contracted services. Click Generate to create a document.</div>
+        <button class="btn btn-outline btn-sm" onclick="loadDocuments()">↺ Refresh</button>
+      </div>
+
+      <!-- CLIENT DOCUMENTS -->
+      <div class="section-title">Client Documents</div>
+      <div id="docListClient" class="doc-list"></div>
+
+      <!-- PROVIDER CONTRACTS -->
+      <div class="section-title" style="margin-top:20px;">Provider Contracts</div>
+      <div id="docListProvider" class="doc-list"></div>
+
+      <!-- OPERATIONAL REQUIREMENTS -->
+      <div class="section-title" style="margin-top:20px;">Operational Requirements</div>
+      <div id="docListOperational" class="doc-list"></div>
+
+      <!-- AMENDMENTS & OTHER -->
+      <div class="section-title" style="margin-top:20px;" id="docAmendTitle" style="display:none">Amendments & Other</div>
+      <div id="docListAmendments" class="doc-list"></div>
+    </div>
   </div>
 </div>
 
@@ -473,7 +515,7 @@ async function openEvent(resNum){
   dv.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===0));
   dv.querySelectorAll('.tab-content').forEach((t,i)=>t.classList.toggle('active',i===0));
   showLoading();
-  await Promise.all([loadPayments(),loadServices(),loadExpenses(),loadDirectoryProviders()]);
+  await Promise.all([loadPayments(),loadServices(),loadExpenses(),loadDirectoryProviders(),loadDocuments()]);
   hideLoading();
 }
 
@@ -490,6 +532,7 @@ function switchTab(name,el){
   if(el)el.classList.add('active');
   const tc=document.getElementById('tab-'+name);if(tc)tc.classList.add('active');
   if(name==='pandl')renderPL();
+  if(name==='documents')loadDocuments();
 }
 
 async function loadPayments(){
@@ -1014,10 +1057,12 @@ function filterProviderDropdown(){
 function renderExpenses(){
   const totalAgreed=currentExpenses.reduce((s,e)=>s+(parseFloat(e['Agreed Amount'])||0),0);
   const totalPaid=currentExpenses.reduce((s,e)=>s+(parseFloat(e['Amount Paid'])||0),0);
-  const pending=Math.max(0,totalAgreed-totalPaid);
+  const pending=currentExpenses.reduce((s,e)=>{const b=(parseFloat(e['Agreed Amount'])||0)-(parseFloat(e['Amount Paid'])||0);return s+(b>0?b:0);},0);
+  const overpaid=currentExpenses.reduce((s,e)=>{const b=(parseFloat(e['Amount Paid'])||0)-(parseFloat(e['Agreed Amount'])||0);return s+(b>0?b:0);},0);
   document.getElementById('expSumAgreed').textContent=fmtMoney(totalAgreed);
   document.getElementById('expSumPaid').textContent=fmtMoney(totalPaid);
   document.getElementById('expSumPending').textContent=fmtMoney(pending);
+  document.getElementById('expSumOverpaid').textContent=fmtMoney(overpaid);
   document.getElementById('expSumCount').textContent=currentExpenses.length;
 
   if(!currentExpenses.length){
@@ -1182,6 +1227,142 @@ function renderPL(){
   let expRows=currentExpenses.length?currentExpenses.map(e=>`<tr><td>${e['Provider Name']||'—'}<br><span style="font-size:10px;color:#AAA">${e['Role']||''}</span></td><td style="text-align:right;font-weight:600">${fmtMoney(e['Agreed Amount'])}</td></tr>`).join(''):'<tr><td colspan="2" class="no-data">No expenses</td></tr>';
   if(currentExpenses.length)expRows+=`<tr style="border-top:1px solid #EEE"><td style="font-weight:700">Total</td><td style="text-align:right;font-weight:700;color:#E87070">${fmtMoney(totalExpenses)}</td></tr>`;
   document.getElementById('plExpenseBody').innerHTML=expRows;
+}
+
+// ── DOCUMENTS ──
+let currentDocuments=[];
+
+const DOC_DEFINITIONS=[
+  // Client docs — always
+  {id:'quotation',name:'Quotation PDF',sub:'Event quotation document',group:'client',condition:()=>true,statuses:['Generated'],icon:'📋',canGenerate:true},
+  {id:'reservation',name:'Reservation PDF',sub:'Reservation confirmation document',group:'client',condition:()=>true,statuses:['Generated'],icon:'📄',canGenerate:true},
+  {id:'contract_client',name:'Client Contract',sub:'Service agreement with client',group:'client',condition:()=>true,statuses:['Draft','Sent','Signed'],icon:'📝',canGenerate:false},
+  {id:'venue_rules',name:'Venue Rules & Policies',sub:'Alcohol policy, anti-violence, overtime fees, restrictions',group:'client',condition:()=>true,statuses:['Draft','Sent','Signed'],icon:'📋',canGenerate:false},
+  {id:'receipt',name:'Payment Receipt',sub:'Generated from Payments tab',group:'client',condition:()=>true,statuses:['Generated'],icon:'🧾',canGenerate:true},
+  // Provider contracts
+  {id:'contract_entertainment',name:'Entertainment Contract',sub:'DJ / Performer service agreement',group:'provider',condition:()=>currentEvent&&currentEvent['Entertainment Plan']&&currentEvent['Entertainment Plan']!=='na',statuses:['Draft','Sent','Signed'],icon:'🎵',canGenerate:false},
+  {id:'contract_decor',name:'Decor Contract',sub:'Decoration service agreement',group:'provider',condition:()=>currentEvent&&currentEvent['Decor Plan']&&currentEvent['Decor Plan']!=='na',statuses:['Draft','Sent','Signed'],icon:'🎨',canGenerate:false},
+  {id:'contract_photo',name:'Photo & Video Contract',sub:'Photography / videography agreement',group:'provider',condition:()=>currentEvent&&currentEvent['Photo Plan']&&currentEvent['Photo Plan']!=='na',statuses:['Draft','Sent','Signed'],icon:'📷',canGenerate:false},
+  // Operational
+  {id:'catering_beo',name:'Catering Order (BEO)',sub:'Food & beverage order for Noches de Colombia',group:'operational',condition:()=>currentEvent&&['collection','luxury'].includes(currentEvent['Catering Line']),statuses:['Draft','Sent','Delivered'],icon:'🍽️',canGenerate:false},
+  {id:'venue_staff',name:'Venue Staff Sheet',sub:'Staff assignments, roles, arrival times',group:'operational',condition:()=>currentEvent&&currentEvent['Venue Tier']!=='EXTERNAL',statuses:['Draft','Printed'],icon:'👥',canGenerate:false},
+  {id:'decor_requirements',name:'Decor Requirements',sub:'Decoration specifications by plan',group:'operational',condition:()=>currentEvent&&currentEvent['Decor Plan']&&currentEvent['Decor Plan']!=='na',statuses:['Draft','Sent','Confirmed'],icon:'🎀',canGenerate:false},
+  {id:'music_program',name:'Music & Program Request',sub:'Music genres, event timeline, special moments',group:'operational',condition:()=>currentEvent&&currentEvent['Entertainment Plan']&&currentEvent['Entertainment Plan']!=='na',statuses:['Draft','Sent','Confirmed'],icon:'🎶',canGenerate:false},
+  {id:'photo_session',name:'Photo Session Details',sub:'Session locations, dates, times, directions',group:'operational',condition:()=>currentEvent&&currentEvent['Photo Plan']&&currentEvent['Photo Plan']!=='na',statuses:['Draft','Sent','Confirmed'],icon:'📸',canGenerate:false},
+  {id:'sitting_chart',name:'Sitting Chart',sub:'Table assignments for guests',group:'operational',condition:()=>currentEvent&&currentEvent['Decor Plan']&&currentEvent['Decor Plan']!=='na',statuses:['Draft','Printed'],icon:'🪑',canGenerate:false},
+];
+
+async function loadDocuments(){
+  try{
+    const res=await fetch(`${SCRIPT_URL}?sheet=Documents&filterKey=RES%23&filterVal=${encodeURIComponent(currentEvent['RES#'])}&nocache=`+Date.now());
+    const data=await res.json();
+    currentDocuments=Array.isArray(data)?data:[];
+  }catch(e){currentDocuments=[];}
+  renderDocuments();
+}
+
+function getDocStatus(docId){
+  const rec=currentDocuments.find(d=>d['Type']===docId);
+  return rec?rec['Status']:'';
+}
+
+function renderDocuments(){
+  const groups={client:[],provider:[],operational:[],amendments:[]};
+
+  DOC_DEFINITIONS.forEach(def=>{
+    if(!def.condition())return;
+    const status=getDocStatus(def.id);
+    const statusClass=status?`dst-${status.toLowerCase().replace(' ','-')}`:'dst-draft';
+    const statusLabel=status||'Not Generated';
+
+    const nextStatuses=def.statuses.filter(s=>s!==status);
+    const statusButtons=nextStatuses.map(s=>`<button class="btn btn-ghost btn-sm" onclick="updateDocStatus('${def.id}','${s}')">${s}</button>`).join('');
+
+    const card=`<div class="doc-card">
+      <div class="doc-icon">${def.icon}</div>
+      <div class="doc-info">
+        <div class="doc-name">${def.name}</div>
+        <div class="doc-sub">${def.sub}</div>
+      </div>
+      <div class="doc-status">
+        <span class="doc-status-badge ${statusClass}">${statusLabel}</span>
+        ${statusButtons}
+        ${def.canGenerate?`<button class="btn btn-outline btn-sm" onclick="generateDoc('${def.id}')">⬇ Generate</button>`:''}
+      </div>
+    </div>`;
+    groups[def.group].push(card);
+  });
+
+  // Amendments from services
+  currentServices.forEach(s=>{
+    const amdId=`amendment_${s['Detail ID']}`;
+    const status=getDocStatus(amdId);
+    const card=`<div class="doc-card">
+      <div class="doc-icon">📎</div>
+      <div class="doc-info">
+        <div class="doc-name">Amendment — ${s['Item']}</div>
+        <div class="doc-sub">${fmtMoney(s['Price'])} additional service</div>
+      </div>
+      <div class="doc-status">
+        <span class="doc-status-badge ${status?`dst-${status.toLowerCase()}`:'dst-draft'}">${status||'Not Generated'}</span>
+        <button class="btn btn-outline btn-sm" onclick="generateAmendmentFromDoc(${currentServices.indexOf(s)})">⬇ Generate</button>
+      </div>
+    </div>`;
+    groups.amendments.push(card);
+  });
+
+  document.getElementById('docListClient').innerHTML=groups.client.join('')||'<div style="font-size:11px;color:#AAA;padding:12px 0;font-style:italic">No documents in this category</div>';
+  document.getElementById('docListProvider').innerHTML=groups.provider.join('')||'<div style="font-size:11px;color:#AAA;padding:12px 0;font-style:italic">No provider contracts required based on contracted services</div>';
+  document.getElementById('docListOperational').innerHTML=groups.operational.join('')||'<div style="font-size:11px;color:#AAA;padding:12px 0;font-style:italic">No operational documents required</div>';
+
+  const amendSection=document.getElementById('docAmendTitle');
+  const amendList=document.getElementById('docListAmendments');
+  if(groups.amendments.length){
+    if(amendSection)amendSection.style.display='block';
+    amendList.innerHTML=groups.amendments.join('');
+  } else {
+    if(amendSection)amendSection.style.display='none';
+    amendList.innerHTML='';
+  }
+}
+
+async function updateDocStatus(docId,newStatus){
+  const existing=currentDocuments.find(d=>d['Type']===docId);
+  const payload={
+    action:'saveDocument',
+    'Document ID':existing?existing['Document ID']:`DOC-${currentEvent['RES#']}-${docId}`,
+    'RES#':currentEvent['RES#'],
+    'COT#':currentEvent['COT#'],
+    'Client Name':currentEvent['Client Name'],
+    'Event Date':currentEvent['Event Date'],
+    'Type':docId,
+    'Generated Date':new Date().toLocaleDateString('en-US'),
+    'Status':newStatus,
+    'Notes':''
+  };
+  showLoading();
+  try{
+    await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(payload),headers:{'Content-Type':'text/plain'}});
+    showToast('Status updated to '+newStatus,'success');
+    await loadDocuments();
+  }catch(e){showToast('Error updating status','error');}
+  hideLoading();
+}
+
+function generateDoc(docId){
+  if(docId==='quotation'||docId==='reservation'){
+    showToast('Open the Quotations module to generate this document','warn');
+    return;
+  }
+  if(docId==='receipt'){
+    generateReceipt();
+    return;
+  }
+  showToast('Document template coming soon','warn');
+}
+
+function generateAmendmentFromDoc(idx){
+  generateAmendment(idx);
 }
 
 window.onload=()=>loadEvents();
