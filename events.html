@@ -178,7 +178,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
       <div class="tab active" onclick="switchTab('payments',this)">Payments</div>
       <div class="tab" onclick="switchTab('services',this)">Services</div>
       <div class="tab" onclick="switchTab('expenses',this)">Expenses</div>
-      <div class="tab" onclick="switchTab('pl',this)">P&amp;L</div>
+      <div class="tab" onclick="switchTab('pandl',this)">P&amp;L</div>
       <div class="tab" onclick="switchTab('documents',this)">Documents</div>
     </div>
 
@@ -320,7 +320,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
     </div>
 
     <!-- P&L TAB -->
-    <div class="tab-content" id="tab-pl">
+    <div class="tab-content" id="tab-pandl">
       <div class="payments-summary" style="margin-bottom:24px;">
         <div class="summary-card"><div class="summary-lbl">Total Revenue</div><div class="summary-val green" id="plRevenue">$0</div></div>
         <div class="summary-card"><div class="summary-lbl">Total Expenses</div><div class="summary-val red" id="plExpenses">$0</div></div>
@@ -469,7 +469,7 @@ function switchTab(name,el){
   document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
   if(el)el.classList.add('active');
   const tc=document.getElementById('tab-'+name);if(tc)tc.classList.add('active');
-  if(name==='pl')renderPL();
+  if(name==='pandl')renderPL();
 }
 
 async function loadPayments(){
