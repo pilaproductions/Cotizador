@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cardona Hall — Providers</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--gold:#C9A84C;--gold-light:#E8D5A3;--gold-pale:#FDF8EE;--gold-border:#D4B86A;--black:#0A0A0A;--dark:#1A1A1A;--dark2:#242424;--gray:#5A5A5A;--gray-light:#F5F5F5;--white:#FFFFFF;--red:#8B2020;--red-light:#FDECEA;--green:#1E5C2E;--green-light:#EAF4ED;--blue:#1A3A6B;--orange:#B85C00;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:var(--dark);padding:20px;}
+.page{max-width:1100px;margin:0 auto;background:var(--white);box-shadow:0 0 60px rgba(0,0,0,0.7);}
+.header{background:var(--black);padding:18px 28px;display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid var(--gold);}
+.brand-title{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:700;color:var(--gold);letter-spacing:2px;text-transform:uppercase;}
+.brand-sub{font-size:9px;color:#888;letter-spacing:3px;text-transform:uppercase;margin-top:2px;}
+.header-nav{display:flex;gap:12px;align-items:center;}
+.nav-link{font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:#888;text-decoration:none;padding:5px 12px;border:1px solid #333;cursor:pointer;background:transparent;transition:all 0.2s;}
+.nav-link:hover{color:var(--gold);border-color:var(--gold);}
+.nav-link.active{color:var(--black);background:var(--gold);border-color:var(--gold);}
+.cat-tabs{background:var(--dark2);padding:0 28px;display:flex;border-bottom:1px solid #333;overflow-x:auto;}
+.cat-tab{padding:12px 20px;font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:#888;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all 0.2s;}
+.cat-tab:hover{color:var(--gold-light);}
+.cat-tab.active{color:var(--gold);border-bottom-color:var(--gold);}
+.toolbar{background:#F8F8F8;padding:10px 28px;display:flex;gap:10px;align-items:center;border-bottom:1px solid #EEE;}
+.search-box{background:var(--white);border:1px solid #DDD;padding:6px 12px;font-family:'Montserrat',sans-serif;font-size:11px;color:var(--dark);outline:none;width:220px;}
+.search-box:focus{border-color:var(--gold);}
+.search-box::placeholder{color:#AAA;}
+.filter-select{background:var(--white);border:1px solid #DDD;padding:6px 10px;font-family:'Montserrat',sans-serif;font-size:11px;color:var(--dark);outline:none;cursor:pointer;}
+.toolbar-right{margin-left:auto;display:flex;gap:8px;align-items:center;}
+.btn{padding:7px 16px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;border:none;transition:all 0.2s;}
+.btn-gold{background:var(--gold);color:var(--black);}
+.btn-gold:hover{background:var(--gold-light);}
+.btn-outline{background:transparent;color:var(--gold);border:1px solid var(--gold);}
+.btn-outline:hover{background:rgba(201,168,76,0.1);}
+.btn-ghost{background:transparent;color:#888;border:1px solid #DDD;}
+.btn-ghost:hover{color:var(--dark);border-color:#AAA;}
+.btn-red{background:var(--red);color:var(--white);}
+.btn-sm{padding:4px 10px;font-size:9px;}
+.count-badge{font-size:10px;color:#888;letter-spacing:1px;}
+/* PROVIDER CARDS GRID */
+.providers-grid{padding:20px 28px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;}
+.provider-card{border:1px solid #EEE;padding:0;cursor:pointer;transition:all 0.2s;overflow:hidden;}
+.provider-card:hover{border-color:var(--gold);box-shadow:0 2px 12px rgba(201,168,76,0.15);}
+.provider-card.blacklisted{opacity:0.5;border-color:var(--red);border-left:3px solid var(--red);}
+.card-header{background:var(--dark);padding:12px 16px;display:flex;justify-content:space-between;align-items:flex-start;}
+.card-name{font-family:'Cormorant Garamond',serif;font-size:17px;font-weight:600;color:var(--white);}
+.card-role{font-size:10px;color:#888;margin-top:2px;letter-spacing:1px;}
+.card-stars{display:flex;gap:2px;margin-top:4px;}
+.star{font-size:12px;color:#333;}
+.star.filled{color:var(--gold);}
+.card-body{padding:12px 16px;}
+.card-info{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
+.card-field{display:flex;flex-direction:column;gap:2px;}
+.card-lbl{font-size:8px;color:#AAA;letter-spacing:1.5px;text-transform:uppercase;}
+.card-val{font-size:11px;color:var(--dark);font-weight:500;}
+.card-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;}
+.card-tag{font-size:8px;padding:2px 7px;background:var(--gold-pale);color:#8B6914;border:1px solid var(--gold-border);}
+.card-footer{padding:8px 16px;background:var(--gray-light);display:flex;justify-content:space-between;align-items:center;border-top:1px solid #EEE;}
+.card-stats{display:flex;gap:14px;}
+.card-stat{display:flex;flex-direction:column;gap:1px;}
+.stat-lbl{font-size:8px;color:#AAA;letter-spacing:1px;text-transform:uppercase;}
+.stat-val{font-size:11px;font-weight:600;color:var(--dark);}
+.blacklist-badge{font-size:8px;font-weight:700;color:var(--red);letter-spacing:1px;text-transform:uppercase;padding:2px 6px;border:1px solid var(--red);}
+/* EMPTY */
+.empty-state{padding:60px 28px;text-align:center;}
+.empty-title{font-family:'Cormorant Garamond',serif;font-size:20px;color:#888;margin-bottom:8px;}
+.empty-sub{font-size:11px;color:#AAA;}
+.loading{padding:40px 28px;text-align:center;color:#888;font-size:11px;letter-spacing:2px;text-transform:uppercase;}
+/* MODAL */
+.modal-overlay{position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);z-index:9998;display:none;align-items:flex-start;justify-content:center;padding:40px 20px;overflow-y:auto;}
+.modal-overlay.show{display:flex;}
+.modal{background:var(--white);width:100%;max-width:680px;overflow:hidden;}
+.modal-header{background:var(--black);padding:16px 24px;display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid var(--gold);}
+.modal-title{font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--gold);letter-spacing:1px;}
+.modal-close{background:transparent;border:1px solid #444;color:#888;padding:4px 10px;cursor:pointer;font-family:'Montserrat',sans-serif;font-size:11px;}
+.modal-close:hover{color:var(--gold);border-color:var(--gold);}
+.modal-body{padding:20px 24px;max-height:70vh;overflow-y:auto;}
+.modal-footer{padding:14px 24px;background:var(--gray-light);display:flex;justify-content:flex-end;gap:10px;border-top:1px solid #EEE;}
+.form-section{margin-bottom:20px;}
+.form-section-title{font-size:9px;font-weight:600;color:var(--gold);letter-spacing:2.5px;text-transform:uppercase;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid #EEE;}
+.form-grid{display:grid;gap:10px;}
+.form-grid-2{grid-template-columns:1fr 1fr;}
+.form-grid-3{grid-template-columns:1fr 1fr 1fr;}
+.form-field{display:flex;flex-direction:column;gap:4px;}
+.form-lbl{font-size:9px;font-weight:600;color:var(--gray);letter-spacing:1px;text-transform:uppercase;}
+.form-input{border:1px solid #DDD;padding:7px 10px;font-family:'Montserrat',sans-serif;font-size:12px;color:var(--dark);background:var(--white);outline:none;width:100%;}
+.form-input:focus{border-color:var(--gold);}
+.form-select{border:1px solid #DDD;padding:7px 10px;font-family:'Montserrat',sans-serif;font-size:12px;color:var(--dark);background:var(--white);outline:none;cursor:pointer;width:100%;}
+.form-textarea{border:1px solid #DDD;padding:7px 10px;font-family:'Montserrat',sans-serif;font-size:12px;color:var(--dark);background:var(--white);outline:none;width:100%;min-height:70px;resize:vertical;}
+.star-rating{display:flex;gap:4px;align-items:center;}
+.star-btn{font-size:22px;color:#DDD;cursor:pointer;background:none;border:none;padding:0;line-height:1;transition:color 0.1s;}
+.star-btn.active{color:var(--gold);}
+/* PROFILE VIEW */
+.profile-view{display:none;}
+.profile-header{background:var(--black);padding:16px 28px;display:flex;align-items:center;gap:16px;border-bottom:1px solid #333;}
+.profile-back{background:transparent;border:1px solid #444;color:#888;padding:5px 12px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;cursor:pointer;transition:all 0.2s;}
+.profile-back:hover{color:var(--gold);border-color:var(--gold);}
+.profile-name{font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--white);margin-left:8px;}
+.profile-cat{font-size:10px;color:#888;letter-spacing:2px;text-transform:uppercase;margin-left:8px;}
+.profile-actions{margin-left:auto;display:flex;gap:8px;}
+.profile-strip{background:#111;padding:12px 28px;display:grid;grid-template-columns:repeat(5,1fr);gap:16px;border-bottom:2px solid var(--gold);}
+.strip-item{display:flex;flex-direction:column;gap:3px;}
+.strip-lbl{font-size:8px;color:#555;letter-spacing:2px;text-transform:uppercase;}
+.strip-val{font-size:12px;font-weight:600;color:#DDD;}
+.strip-stars{display:flex;gap:2px;margin-top:2px;}
+.strip-star{font-size:14px;color:#333;}
+.strip-star.on{color:var(--gold);}
+.profile-body{padding:20px 28px;}
+.profile-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px;}
+.info-card{background:var(--gray-light);padding:16px;}
+.info-card-title{font-size:9px;font-weight:600;color:var(--gold);letter-spacing:2.5px;text-transform:uppercase;margin-bottom:12px;}
+.info-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #EEE;font-size:12px;}
+.info-row:last-child{border-bottom:none;}
+.info-key{color:#888;}
+.info-val{color:var(--dark);font-weight:500;text-align:right;}
+.tags-section{margin-bottom:16px;}
+.tags-title{font-size:9px;font-weight:600;color:#888;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;}
+.tags-list{display:flex;flex-wrap:wrap;gap:6px;}
+.tag-item{font-size:10px;padding:3px 10px;background:var(--gold-pale);color:#8B6914;border:1px solid var(--gold-border);}
+.notes-box{background:#FAFAFA;border:1px solid #EEE;padding:14px;font-size:12px;color:#555;line-height:1.7;margin-bottom:20px;}
+.history-section{margin-top:20px;}
+.history-title{font-size:9px;font-weight:600;color:#888;letter-spacing:2.5px;text-transform:uppercase;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid #EEE;}
+.data-table{width:100%;border-collapse:collapse;}
+.data-table th{font-size:9px;font-weight:600;color:#888;letter-spacing:2px;text-transform:uppercase;padding:8px 12px;text-align:left;border-bottom:1px solid #EEE;background:var(--gray-light);}
+.data-table td{padding:9px 12px;border-bottom:1px solid #F5F5F5;font-size:12px;}
+.data-table tr:last-child td{border-bottom:none;}
+.no-data{text-align:center;padding:24px;color:#AAA;font-size:11px;font-style:italic;}
+/* TOAST & OVERLAY */
+.toast{position:fixed;bottom:24px;right:24px;padding:10px 20px;font-size:11px;font-weight:600;letter-spacing:1px;z-index:9999;opacity:0;transition:opacity 0.3s;pointer-events:none;}
+.toast.show{opacity:1;}
+.toast-success{background:var(--green);color:var(--white);}
+.toast-error{background:var(--red);color:var(--white);}
+.toast-warn{background:var(--orange);color:var(--white);}
+.overlay{position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);z-index:9997;display:none;align-items:center;justify-content:center;}
+.overlay.show{display:flex;}
+.overlay-text{color:var(--gold);font-size:12px;letter-spacing:3px;text-transform:uppercase;}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    <div>
+      <div class="brand-title">Cardona Hall</div>
+      <div class="brand-sub">Provider Directory</div>
+    </div>
+    <div class="header-nav">
+      <a class="nav-link" href="index.html">Quotations</a>
+      <a class="nav-link" href="events.html">Events</a>
+      <span class="nav-link active">Providers</span>
+    </div>
+  </div>
+
+  <!-- LIST VIEW -->
+  <div id="listView">
+    <div class="cat-tabs">
+      <div class="cat-tab active" onclick="switchCat('all',this)">All</div>
+      <div class="cat-tab" onclick="switchCat('Decor',this)">Decor</div>
+      <div class="cat-tab" onclick="switchCat('Entertainment',this)">Entertainment</div>
+      <div class="cat-tab" onclick="switchCat('Photo',this)">Photo & Video</div>
+      <div class="cat-tab" onclick="switchCat('Catering',this)">Catering</div>
+      <div class="cat-tab" onclick="switchCat('Venue',this)">Venue / Staff</div>
+      <div class="cat-tab" onclick="switchCat('Other',this)">Other</div>
+    </div>
+    <div class="toolbar">
+      <input class="search-box" id="searchBox" type="text" placeholder="Search provider..." oninput="renderProviders()">
+      <select class="filter-select" id="filterStatus" onchange="renderProviders()">
+        <option value="">All Status</option>
+        <option value="Active" selected>Active</option>
+        <option value="Inactive">Inactive</option>
+      </select>
+      <select class="filter-select" id="filterRating" onchange="renderProviders()">
+        <option value="">All Ratings</option>
+        <option value="5">★★★★★ 5</option>
+        <option value="4">★★★★ 4+</option>
+        <option value="3">★★★ 3+</option>
+      </select>
+      <div class="toolbar-right">
+        <span class="count-badge" id="providerCount">Loading...</span>
+        <button class="btn btn-outline" onclick="loadProviders()">↺ Refresh</button>
+        <button class="btn btn-gold" onclick="openAddModal()">+ Add Provider</button>
+      </div>
+    </div>
+    <div id="listContent"><div class="loading">Loading providers...</div></div>
+  </div>
+
+  <!-- PROFILE VIEW -->
+  <div id="profileView" class="profile-view">
+    <div class="profile-header">
+      <button class="profile-back" onclick="showList()">← Back</button>
+      <div class="profile-name" id="profName">—</div>
+      <div class="profile-cat" id="profCat">—</div>
+      <div class="profile-actions">
+        <button class="btn btn-outline btn-sm" onclick="openEditModal()">✎ Edit</button>
+        <button class="btn btn-ghost btn-sm" id="btnBlacklist" onclick="toggleBlacklist()">⊘ Blacklist</button>
+      </div>
+    </div>
+    <div class="profile-strip">
+      <div class="strip-item"><div class="strip-lbl">Rating</div><div class="strip-stars" id="profStars"></div></div>
+      <div class="strip-item"><div class="strip-lbl">Phone</div><div class="strip-val" id="profPhone">—</div></div>
+      <div class="strip-item"><div class="strip-lbl">Rate</div><div class="strip-val" id="profRate">—</div></div>
+      <div class="strip-item"><div class="strip-lbl">Total Events</div><div class="strip-val" id="profEvents">—</div></div>
+      <div class="strip-item"><div class="strip-lbl">Total Paid</div><div class="strip-val" id="profPaid">—</div></div>
+    </div>
+    <div class="profile-body">
+      <div class="profile-grid">
+        <div>
+          <div class="info-card">
+            <div class="info-card-title">Contact & Business</div>
+            <div class="info-row"><span class="info-key">Email</span><span class="info-val" id="profEmail">—</span></div>
+            <div class="info-row"><span class="info-key">Instagram</span><span class="info-val" id="profInstagram">—</span></div>
+            <div class="info-row"><span class="info-key">Rate Type</span><span class="info-val" id="profRateType">—</span></div>
+            <div class="info-row"><span class="info-key">Role</span><span class="info-val" id="profRole">—</span></div>
+            <div class="info-row"><span class="info-key">Status</span><span class="info-val" id="profStatus">—</span></div>
+          </div>
+        </div>
+        <div>
+          <div class="info-card">
+            <div class="info-card-title">Specialty Details</div>
+            <div id="profSpecialtyDetails"></div>
+          </div>
+        </div>
+      </div>
+      <div id="profTagsSection" style="display:none">
+        <div class="tags-section">
+          <div class="tags-title" id="profTagsTitle">Tags</div>
+          <div class="tags-list" id="profTags"></div>
+        </div>
+      </div>
+      <div id="profNotesSection" style="display:none">
+        <div class="tags-title" style="font-size:9px;font-weight:600;color:#888;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;">Internal Notes</div>
+        <div class="notes-box" id="profNotes"></div>
+      </div>
+      <div class="history-section">
+        <div class="history-title">Event History</div>
+        <table class="data-table">
+          <thead><tr><th>RES#</th><th>Client</th><th>Event Type</th><th>Date</th><th>Agreed</th><th>Paid</th></tr></thead>
+          <tbody id="profHistory"><tr><td colspan="6" class="no-data">Loading...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADD/EDIT MODAL -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle">Add Provider</div>
+      <button class="modal-close" onclick="closeModal()">✕ Close</button>
+    </div>
+    <div class="modal-body">
+      <!-- BASIC INFO -->
+      <div class="form-section">
+        <div class="form-section-title">Basic Information</div>
+        <div class="form-grid form-grid-2">
+          <div class="form-field"><div class="form-lbl">Name *</div><input class="form-input" id="fName" placeholder="Full name or business name"></div>
+          <div class="form-field"><div class="form-lbl">Category *</div>
+            <select class="form-select" id="fCategory" onchange="updateExtraFields()">
+              <option value="">— Select —</option>
+              <option value="Decor">Decor</option>
+              <option value="Entertainment">Entertainment</option>
+              <option value="Photo">Photo & Video</option>
+              <option value="Catering">Catering</option>
+              <option value="Venue">Venue / Staff</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div class="form-field"><div class="form-lbl">Role</div><input class="form-input" id="fRole" placeholder="e.g. DJ, Decoradora, Fotógrafo..."></div>
+          <div class="form-field"><div class="form-lbl">Status</div>
+            <select class="form-select" id="fStatus">
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <!-- CONTACT -->
+      <div class="form-section">
+        <div class="form-section-title">Contact</div>
+        <div class="form-grid form-grid-3">
+          <div class="form-field"><div class="form-lbl">Phone</div><input class="form-input" id="fPhone" placeholder="(000) 000-0000"></div>
+          <div class="form-field"><div class="form-lbl">Email</div><input class="form-input" id="fEmail" placeholder="email@example.com"></div>
+          <div class="form-field"><div class="form-lbl">Instagram</div><input class="form-input" id="fInstagram" placeholder="@username"></div>
+        </div>
+      </div>
+      <!-- RATE & RATING -->
+      <div class="form-section">
+        <div class="form-section-title">Rate & Rating</div>
+        <div class="form-grid form-grid-3">
+          <div class="form-field"><div class="form-lbl">Rate ($)</div><input class="form-input" type="number" id="fRate" placeholder="0.00"></div>
+          <div class="form-field"><div class="form-lbl">Rate Type</div>
+            <select class="form-select" id="fRateType">
+              <option value="Per Event">Per Event</option>
+              <option value="Per Hour">Per Hour</option>
+            </select>
+          </div>
+          <div class="form-field"><div class="form-lbl">Rating</div>
+            <div class="star-rating">
+              <button class="star-btn" onclick="setRating(1)" id="star1">★</button>
+              <button class="star-btn" onclick="setRating(2)" id="star2">★</button>
+              <button class="star-btn" onclick="setRating(3)" id="star3">★</button>
+              <button class="star-btn" onclick="setRating(4)" id="star4">★</button>
+              <button class="star-btn" onclick="setRating(5)" id="star5">★</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- CATEGORY-SPECIFIC FIELDS -->
+      <div id="extraFields" style="display:none">
+        <div class="form-section">
+          <div class="form-section-title" id="extraFieldsTitle">Specialty Details</div>
+          <div id="extraFieldsContent"></div>
+        </div>
+      </div>
+      <!-- NOTES -->
+      <div class="form-section">
+        <div class="form-section-title">Internal Notes</div>
+        <div class="form-field"><textarea class="form-textarea" id="fNotes" placeholder="Private notes, recommendations, past experiences..."></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-gold" onclick="saveProvider()">Save Provider</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="overlay" id="overlay"><div class="overlay-text">Loading...</div></div>
+
+<script>
+const SCRIPT_URL='https://script.google.com/macros/s/AKfycbyUAKZyuX8xcdSTXNkJoagPlaW4fumRWnrDuuARiMntpS76sx_6I-6TYxUpjkhjVIADAQ/exec';
+let allProviders=[],allExpenses=[],currentCat='all',currentProvider=null,editMode=false,currentRating=0;
+
+function fmtMoney(n){return '$'+(parseFloat(n)||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});}
+function fmtDate(d){if(!d)return'—';try{const dt=new Date(d);if(isNaN(dt))return String(d);return dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});}catch{return String(d);}}
+function genID(){return'PRV-'+Date.now();}
+function showToast(msg,type='success'){const t=document.getElementById('toast');t.textContent=msg;t.className=`toast toast-${type} show`;setTimeout(()=>t.className='toast',4000);}
+function showLoading(){document.getElementById('overlay').classList.add('show');}
+function hideLoading(){document.getElementById('overlay').classList.remove('show');}
+function stars(n,size=12){return[1,2,3,4,5].map(i=>`<span style="font-size:${size}px;color:${i<=n?'#C9A84C':'#333'}">★</span>`).join('');}
+
+function setRating(n){
+  currentRating=n;
+  [1,2,3,4,5].forEach(i=>document.getElementById('star'+i).classList.toggle('active',i<=n));
+}
+
+// ── CATEGORY-SPECIFIC FIELDS ──
+const extraFieldDefs={
+  Decor:`
+    <div class="form-grid form-grid-2">
+      <div class="form-field"><div class="form-lbl">Specialty</div>
+        <select class="form-select" id="xSpecialty"><option value="">—</option><option>Globos</option><option>Flores Naturales</option><option>Flores Artificiales</option><option>Globos y Flores</option><option>Full Decor</option></select>
+      </div>
+      <div class="form-field"><div class="form-lbl">Setup Time (hrs before)</div><input class="form-input" id="xSetupTime" placeholder="e.g. 3"></div>
+      <div class="form-field"><div class="form-lbl">Equipment</div>
+        <select class="form-select" id="xEquipment"><option value="">—</option><option>Own Equipment</option><option>Requires Venue Equipment</option><option>Both</option></select>
+      </div>
+      <div class="form-field"><div class="form-lbl">Portfolio / Instagram</div><input class="form-input" id="xPortfolio" placeholder="Link or @handle"></div>
+    </div>`,
+  Entertainment:`
+    <div class="form-grid form-grid-2">
+      <div class="form-field"><div class="form-lbl">Music Genres</div><input class="form-input" id="xGenres" placeholder="e.g. Bachata, Salsa, Merengue, Ranchera..."></div>
+      <div class="form-field"><div class="form-lbl">Countries / Nationalities Covered</div><input class="form-input" id="xCountries" placeholder="e.g. Colombia, Dominican Republic, Mexico..."></div>
+      <div class="form-field"><div class="form-lbl">Event Types Recommended</div><input class="form-input" id="xEventTypes" placeholder="e.g. Quinceañera, Wedding, Birthday..."></div>
+      <div class="form-field"><div class="form-lbl">Languages</div><input class="form-input" id="xLanguages" placeholder="e.g. Spanish, English..."></div>
+      <div class="form-field"><div class="form-lbl">Equipment</div>
+        <select class="form-select" id="xEquipment"><option value="">—</option><option>Own Equipment</option><option>Requires Venue Equipment</option><option>Both</option></select>
+      </div>
+      <div class="form-field"><div class="form-lbl">Setup Time (hrs before)</div><input class="form-input" id="xSetupTime" placeholder="e.g. 2"></div>
+      <div class="form-field"><div class="form-lbl">Min Guests</div><input class="form-input" type="number" id="xMinGuests" placeholder="30"></div>
+      <div class="form-field"><div class="form-lbl">Max Guests</div><input class="form-input" type="number" id="xMaxGuests" placeholder="200"></div>
+    </div>`,
+  Photo:`
+    <div class="form-grid form-grid-2">
+      <div class="form-field"><div class="form-lbl">Specialty</div>
+        <select class="form-select" id="xSpecialty"><option value="">—</option><option>Photo Only</option><option>Video Only</option><option>Photo & Video</option><option>Drone</option></select>
+      </div>
+      <div class="form-field"><div class="form-lbl">Delivery Time</div><input class="form-input" id="xDelivery" placeholder="e.g. 2 weeks"></div>
+      <div class="form-field"><div class="form-lbl">Equipment</div><input class="form-input" id="xEquipment" placeholder="e.g. Canon R5, DJI Drone..."></div>
+      <div class="form-field"><div class="form-lbl">Portfolio Link</div><input class="form-input" id="xPortfolio" placeholder="Website or Instagram"></div>
+    </div>`,
+  Catering:`
+    <div class="form-grid form-grid-2">
+      <div class="form-field"><div class="form-lbl">Cuisine Type</div><input class="form-input" id="xCuisine" placeholder="e.g. Colombian, Dominican, Peruvian..."></div>
+      <div class="form-field"><div class="form-lbl">Service Type</div>
+        <select class="form-select" id="xServiceType"><option value="">—</option><option>On-Site</option><option>Delivery</option><option>Both</option></select>
+      </div>
+      <div class="form-field"><div class="form-lbl">Min Guests</div><input class="form-input" type="number" id="xMinGuests" placeholder="30"></div>
+      <div class="form-field"><div class="form-lbl">Max Guests</div><input class="form-input" type="number" id="xMaxGuests" placeholder="300"></div>
+    </div>`,
+  Venue:`
+    <div class="form-grid form-grid-2">
+      <div class="form-field"><div class="form-lbl">Role / Position</div><input class="form-input" id="xRole" placeholder="e.g. Mesero, Bartender, Security..."></div>
+      <div class="form-field"><div class="form-lbl">Languages</div><input class="form-input" id="xLanguages" placeholder="e.g. Spanish, English..."></div>
+      <div class="form-field"><div class="form-lbl">Availability</div><input class="form-input" id="xAvailability" placeholder="e.g. Weekends only, Any day..."></div>
+      <div class="form-field"><div class="form-lbl">Experience (years)</div><input class="form-input" type="number" id="xExperience" placeholder="0"></div>
+    </div>`,
+  Other:`
+    <div class="form-grid form-grid-2">
+      <div class="form-field"><div class="form-lbl">Specialty</div><input class="form-input" id="xSpecialty" placeholder="Description of service..."></div>
+      <div class="form-field"><div class="form-lbl">Details</div><input class="form-input" id="xDetails" placeholder="Any relevant details..."></div>
+    </div>`
+};
+
+function updateExtraFields(){
+  const cat=document.getElementById('fCategory').value;
+  const container=document.getElementById('extraFields');
+  const content=document.getElementById('extraFieldsContent');
+  const titles={Decor:'Decor Details',Entertainment:'DJ / Entertainment Details',Photo:'Photo & Video Details',Catering:'Catering Details',Venue:'Staff Details',Other:'Other Details'};
+  if(cat&&extraFieldDefs[cat]){
+    document.getElementById('extraFieldsTitle').textContent=titles[cat]||'Specialty Details';
+    content.innerHTML=extraFieldDefs[cat];
+    container.style.display='block';
+  } else {
+    container.style.display='none';
+  }
+}
+
+function getExtraInfo(){
+  const cat=document.getElementById('fCategory').value;
+  const get=id=>{const el=document.getElementById(id);return el?el.value:''};
+  const info={};
+  if(cat==='Entertainment'){
+    info.genres=get('xGenres');info.countries=get('xCountries');
+    info.eventTypes=get('xEventTypes');info.languages=get('xLanguages');
+    info.equipment=get('xEquipment');info.setupTime=get('xSetupTime');
+    info.minGuests=get('xMinGuests');info.maxGuests=get('xMaxGuests');
+  } else if(cat==='Decor'){
+    info.specialty=get('xSpecialty');info.setupTime=get('xSetupTime');
+    info.equipment=get('xEquipment');info.portfolio=get('xPortfolio');
+  } else if(cat==='Photo'){
+    info.specialty=get('xSpecialty');info.delivery=get('xDelivery');
+    info.equipment=get('xEquipment');info.portfolio=get('xPortfolio');
+  } else if(cat==='Catering'){
+    info.cuisine=get('xCuisine');info.serviceType=get('xServiceType');
+    info.minGuests=get('xMinGuests');info.maxGuests=get('xMaxGuests');
+  } else if(cat==='Venue'){
+    info.role=get('xRole');info.languages=get('xLanguages');
+    info.availability=get('xAvailability');info.experience=get('xExperience');
+  } else if(cat==='Other'){
+    info.specialty=get('xSpecialty');info.details=get('xDetails');
+  }
+  return JSON.stringify(info);
+}
+
+function setExtraInfo(cat,infoStr){
+  try{
+    const info=JSON.parse(infoStr||'{}');
+    const set=(id,val)=>{const el=document.getElementById(id);if(el)el.value=val||'';};
+    if(cat==='Entertainment'){
+      set('xGenres',info.genres);set('xCountries',info.countries);
+      set('xEventTypes',info.eventTypes);set('xLanguages',info.languages);
+      set('xEquipment',info.equipment);set('xSetupTime',info.setupTime);
+      set('xMinGuests',info.minGuests);set('xMaxGuests',info.maxGuests);
+    } else if(cat==='Decor'){
+      set('xSpecialty',info.specialty);set('xSetupTime',info.setupTime);
+      set('xEquipment',info.equipment);set('xPortfolio',info.portfolio);
+    } else if(cat==='Photo'){
+      set('xSpecialty',info.specialty);set('xDelivery',info.delivery);
+      set('xEquipment',info.equipment);set('xPortfolio',info.portfolio);
+    } else if(cat==='Catering'){
+      set('xCuisine',info.cuisine);set('xServiceType',info.serviceType);
+      set('xMinGuests',info.minGuests);set('xMaxGuests',info.maxGuests);
+    } else if(cat==='Venue'){
+      set('xRole',info.role);set('xLanguages',info.languages);
+      set('xAvailability',info.availability);set('xExperience',info.experience);
+    } else if(cat==='Other'){
+      set('xSpecialty',info.specialty);set('xDetails',info.details);
+    }
+  }catch(e){}
+}
+
+// ── LOAD DATA ──
+async function loadProviders(){
+  showLoading();
+  try{
+    const [pRes,eRes]=await Promise.all([
+      fetch(SCRIPT_URL+'?sheet=Providers&nocache='+Date.now()),
+      fetch(SCRIPT_URL+'?sheet=Expenses&nocache='+Date.now())
+    ]);
+    allProviders=await pRes.json();
+    allExpenses=await eRes.json();
+    if(!Array.isArray(allProviders))allProviders=[];
+    if(!Array.isArray(allExpenses))allExpenses=[];
+    renderProviders();
+  }catch(e){
+    document.getElementById('listContent').innerHTML='<div class="empty-state"><div class="empty-title">Connection Error</div><div class="empty-sub">Could not load providers.</div></div>';
+  }
+  hideLoading();
+}
+
+function switchCat(cat,el){
+  currentCat=cat;
+  document.querySelectorAll('.cat-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  renderProviders();
+}
+
+function renderProviders(){
+  const search=document.getElementById('searchBox').value.toLowerCase();
+  const statusF=document.getElementById('filterStatus').value;
+  const ratingF=parseInt(document.getElementById('filterRating').value)||0;
+
+  let filtered=allProviders.filter(p=>{
+    const matchCat=currentCat==='all'||(p['Category']||'')===currentCat;
+    const matchSearch=!search||(p['Name']||'').toLowerCase().includes(search)||(p['Role']||'').toLowerCase().includes(search);
+    const matchStatus=!statusF||(p['Status']||'')=== statusF;
+    const matchRating=!ratingF||(parseInt(p['Rating'])||0)>=ratingF;
+    return matchCat&&matchSearch&&matchStatus&&matchRating;
+  });
+
+  filtered.sort((a,b)=>(parseInt(b['Rating'])||0)-(parseInt(a['Rating'])||0));
+  document.getElementById('providerCount').textContent=filtered.length+' provider'+(filtered.length!==1?'s':'');
+
+  if(!filtered.length){
+    document.getElementById('listContent').innerHTML='<div class="empty-state"><div class="empty-title">No providers found</div><div class="empty-sub">Try adjusting your filters or add a new provider</div></div>';
+    return;
+  }
+
+  const cards=filtered.map(p=>{
+    const rating=parseInt(p['Rating'])||0;
+    const isBlacklist=p['Status']==='Blacklisted';
+    let extra={};try{extra=JSON.parse(p['Extra Info']||'{}');}catch(e){}
+    const tags=[];
+    if(extra.genres)extra.genres.split(',').slice(0,3).forEach(g=>g.trim()&&tags.push(g.trim()));
+    if(extra.specialty)tags.push(extra.specialty);
+    if(extra.cuisine)tags.push(extra.cuisine);
+    if(extra.countries)extra.countries.split(',').slice(0,2).forEach(c=>c.trim()&&tags.push(c.trim()));
+
+    return `<div class="provider-card${isBlacklist?' blacklisted':''}" onclick="openProfile('${p['Provider ID']}')">
+      <div class="card-header">
+        <div>
+          <div class="card-name">${p['Name']||'—'}</div>
+          <div class="card-role">${p['Role']||p['Category']||'—'}</div>
+          <div class="card-stars">${stars(rating)}</div>
+        </div>
+        ${isBlacklist?'<span class="blacklist-badge">Blacklisted</span>':''}
+      </div>
+      <div class="card-body">
+        <div class="card-info">
+          <div class="card-field"><div class="card-lbl">Phone</div><div class="card-val">${p['Phone']||'—'}</div></div>
+          <div class="card-field"><div class="card-lbl">Rate</div><div class="card-val">${p['Rate']?fmtMoney(p['Rate'])+' / '+(p['Rate Type']||'event'):'—'}</div></div>
+          <div class="card-field"><div class="card-lbl">Category</div><div class="card-val">${p['Category']||'—'}</div></div>
+          <div class="card-field"><div class="card-lbl">Status</div><div class="card-val">${p['Status']||'—'}</div></div>
+        </div>
+        ${tags.length?`<div class="card-tags">${tags.map(t=>`<span class="card-tag">${t}</span>`).join('')}</div>`:''}
+      </div>
+      <div class="card-footer">
+        <div class="card-stats">
+          <div class="card-stat"><div class="stat-lbl">Events</div><div class="stat-val">${getProviderEvents(p['Name'])}</div></div>
+          <div class="card-stat"><div class="stat-lbl">Total Paid</div><div class="stat-val">${fmtMoney(getProviderPaid(p['Name']))}</div></div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('listContent').innerHTML=`<div class="providers-grid">${cards}</div>`;
+}
+
+function getProviderEvents(name){
+  return allExpenses.filter(e=>e['Provider Name']===name).length;
+}
+function getProviderPaid(name){
+  return allExpenses.filter(e=>e['Provider Name']===name).reduce((s,e)=>s+(parseFloat(e['Amount Paid'])||0),0);
+}
+
+// ── PROFILE ──
+async function openProfile(id){
+  currentProvider=allProviders.find(p=>p['Provider ID']===id);
+  if(!currentProvider)return;
+  const p=currentProvider;
+  let extra={};try{extra=JSON.parse(p['Extra Info']||'{}');}catch(e){}
+  const rating=parseInt(p['Rating'])||0;
+
+  document.getElementById('profName').textContent=p['Name']||'—';
+  document.getElementById('profCat').textContent=p['Category']||'—';
+  document.getElementById('profPhone').textContent=p['Phone']||'—';
+  document.getElementById('profRate').textContent=p['Rate']?fmtMoney(p['Rate'])+' / '+(p['Rate Type']||'event'):'—';
+  document.getElementById('profStars').innerHTML=stars(rating,16);
+  document.getElementById('profEmail').textContent=p['Email']||'—';
+  document.getElementById('profInstagram').textContent=p['Instagram']||extra.portfolio||'—';
+  document.getElementById('profRateType').textContent=p['Rate Type']||'—';
+  document.getElementById('profRole').textContent=p['Role']||'—';
+  document.getElementById('profStatus').textContent=p['Status']||'—';
+
+  // Stats
+  const events=allExpenses.filter(e=>e['Provider Name']===p['Name']);
+  document.getElementById('profEvents').textContent=events.length;
+  document.getElementById('profPaid').textContent=fmtMoney(events.reduce((s,e)=>s+(parseFloat(e['Amount Paid'])||0),0));
+
+  // Blacklist button
+  document.getElementById('btnBlacklist').textContent=p['Status']==='Blacklisted'?'✓ Remove Blacklist':'⊘ Blacklist';
+
+  // Specialty details
+  const detailsEl=document.getElementById('profSpecialtyDetails');
+  const rows=[];
+  if(extra.genres)rows.push(['Music Genres',extra.genres]);
+  if(extra.countries)rows.push(['Countries',extra.countries]);
+  if(extra.eventTypes)rows.push(['Event Types',extra.eventTypes]);
+  if(extra.languages)rows.push(['Languages',extra.languages]);
+  if(extra.specialty)rows.push(['Specialty',extra.specialty]);
+  if(extra.equipment)rows.push(['Equipment',extra.equipment]);
+  if(extra.setupTime)rows.push(['Setup Time',extra.setupTime+' hrs']);
+  if(extra.delivery)rows.push(['Delivery Time',extra.delivery]);
+  if(extra.cuisine)rows.push(['Cuisine',extra.cuisine]);
+  if(extra.serviceType)rows.push(['Service',extra.serviceType]);
+  if(extra.minGuests)rows.push(['Min Guests',extra.minGuests]);
+  if(extra.maxGuests)rows.push(['Max Guests',extra.maxGuests]);
+  if(extra.availability)rows.push(['Availability',extra.availability]);
+  if(extra.experience)rows.push(['Experience',extra.experience+' yrs']);
+  if(extra.details)rows.push(['Details',extra.details]);
+  detailsEl.innerHTML=rows.map(([k,v])=>`<div class="info-row"><span class="info-key">${k}</span><span class="info-val">${v}</span></div>`).join('')||'<div style="font-size:11px;color:#AAA;font-style:italic">No specialty details</div>';
+
+  // Notes
+  const notesSection=document.getElementById('profNotesSection');
+  const notesEl=document.getElementById('profNotes');
+  if(p['Notes']){notesEl.textContent=p['Notes'];notesSection.style.display='block';}
+  else notesSection.style.display='none';
+
+  // History
+  const histRows=events.map(e=>`<tr>
+    <td style="font-size:10px;color:#C9A84C;font-weight:600">${e['RES#']||'—'}</td>
+    <td>${e['Client Name']||'—'}</td>
+    <td>${e['Category']||'—'}</td>
+    <td>${fmtDate(e['Event Date'])}</td>
+    <td style="font-weight:600">${fmtMoney(e['Agreed Amount'])}</td>
+    <td style="font-weight:600;color:#1E5C2E">${fmtMoney(e['Amount Paid'])}</td>
+  </tr>`).join('');
+  document.getElementById('profHistory').innerHTML=histRows||`<tr><td colspan="6" class="no-data">No events recorded</td></tr>`;
+
+  document.getElementById('listView').style.display='none';
+  document.getElementById('profileView').style.display='block';
+}
+
+function showList(){
+  document.getElementById('profileView').style.display='none';
+  document.getElementById('listView').style.display='block';
+  currentProvider=null;
+}
+
+async function toggleBlacklist(){
+  if(!currentProvider)return;
+  const newStatus=currentProvider['Status']==='Blacklisted'?'Inactive':'Blacklisted';
+  if(!confirm(`${newStatus==='Blacklisted'?'Blacklist':'Remove blacklist from'} ${currentProvider['Name']}?`))return;
+  currentProvider['Status']=newStatus;
+  await saveProviderData(currentProvider);
+  document.getElementById('profStatus').textContent=newStatus;
+  document.getElementById('btnBlacklist').textContent=newStatus==='Blacklisted'?'✓ Remove Blacklist':'⊘ Blacklist';
+  showToast('Status updated','success');
+  await loadProviders();
+}
+
+// ── MODAL ──
+function openAddModal(){
+  editMode=false;currentRating=0;
+  document.getElementById('modalTitle').textContent='Add Provider';
+  ['fName','fRole','fPhone','fEmail','fInstagram','fRate','fNotes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('fCategory').value='';
+  document.getElementById('fStatus').value='Active';
+  document.getElementById('fRateType').value='Per Event';
+  document.getElementById('extraFields').style.display='none';
+  [1,2,3,4,5].forEach(i=>document.getElementById('star'+i).classList.remove('active'));
+  document.getElementById('modalOverlay').classList.add('show');
+}
+
+function openEditModal(){
+  if(!currentProvider)return;
+  editMode=true;
+  const p=currentProvider;
+  document.getElementById('modalTitle').textContent='Edit Provider';
+  document.getElementById('fName').value=p['Name']||'';
+  document.getElementById('fRole').value=p['Role']||'';
+  document.getElementById('fPhone').value=p['Phone']||'';
+  document.getElementById('fEmail').value=p['Email']||'';
+  document.getElementById('fInstagram').value=p['Instagram']||'';
+  document.getElementById('fRate').value=p['Rate']||'';
+  document.getElementById('fRateType').value=p['Rate Type']||'Per Event';
+  document.getElementById('fStatus').value=p['Status']||'Active';
+  document.getElementById('fNotes').value=p['Notes']||'';
+  document.getElementById('fCategory').value=p['Category']||'';
+  currentRating=parseInt(p['Rating'])||0;
+  setRating(currentRating);
+  updateExtraFields();
+  setTimeout(()=>setExtraInfo(p['Category'],p['Extra Info']),100);
+  document.getElementById('modalOverlay').classList.add('show');
+}
+
+function closeModal(){document.getElementById('modalOverlay').classList.remove('show');}
+
+async function saveProvider(){
+  const name=document.getElementById('fName').value.trim();
+  const cat=document.getElementById('fCategory').value;
+  if(!name){showToast('Name is required','error');return;}
+  if(!cat){showToast('Category is required','error');return;}
+
+  const data={
+    'Provider ID':editMode?currentProvider['Provider ID']:genID(),
+    'Name':name,
+    'Category':cat,
+    'Role':document.getElementById('fRole').value,
+    'Phone':document.getElementById('fPhone').value,
+    'Email':document.getElementById('fEmail').value,
+    'Instagram':document.getElementById('fInstagram').value,
+    'Rate':document.getElementById('fRate').value,
+    'Rate Type':document.getElementById('fRateType').value,
+    'Rating':currentRating,
+    'Status':document.getElementById('fStatus').value,
+    'Notes':document.getElementById('fNotes').value,
+    'Extra Info':getExtraInfo()
+  };
+
+  showLoading();
+  await saveProviderData(data);
+  closeModal();
+  showToast(editMode?'Provider updated':'Provider added','success');
+  await loadProviders();
+  if(editMode&&currentProvider){
+    currentProvider=allProviders.find(p=>p['Provider ID']===data['Provider ID']);
+    if(currentProvider)openProfile(currentProvider['Provider ID']);
+  }
+  hideLoading();
+}
+
+async function saveProviderData(data){
+  const action=editMode||data['Status']?'updateProvider':'saveProvider';
+  const isNew=!editMode&&!allProviders.find(p=>p['Provider ID']===data['Provider ID']);
+  const payload={action:isNew?'saveProvider':'updateProvider',...data};
+  try{await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(payload),headers:{'Content-Type':'text/plain'}});}
+  catch(e){showToast('Error saving','error');}
+}
+
+window.onload=()=>loadProviders();
+</script>
+</body>
+</html>
