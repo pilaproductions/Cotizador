@@ -1235,13 +1235,13 @@ const DOC_DEFINITIONS=[
   // Client docs — always
   {id:'quotation',name:'Quotation PDF',sub:'Event quotation document',group:'client',condition:()=>true,statuses:['Generated'],icon:'📋',canGenerate:true},
   {id:'reservation',name:'Reservation PDF',sub:'Reservation confirmation document',group:'client',condition:()=>true,statuses:['Generated'],icon:'📄',canGenerate:true},
-  {id:'contract_client',name:'Client Contract',sub:'Service agreement with client',group:'client',condition:()=>true,statuses:['Draft','Sent','Signed'],icon:'📝',canGenerate:false},
-  {id:'venue_rules',name:'Venue Rules & Policies',sub:'Alcohol policy, anti-violence, overtime fees, restrictions',group:'client',condition:()=>true,statuses:['Draft','Sent','Signed'],icon:'📋',canGenerate:false},
+  {id:'contract_client',name:'Client Contract',sub:'Service agreement with client',group:'client',condition:()=>true,statuses:['Draft','Sent','Signed'],icon:'📝',canGenerate:true},
+  {id:'venue_rules',name:'Venue Rules & Policies',sub:'Alcohol policy, anti-violence, overtime fees, restrictions',group:'client',condition:()=>true,statuses:['Draft','Sent','Signed'],icon:'📋',canGenerate:true},
   {id:'receipt',name:'Payment Receipt',sub:'Generated from Payments tab',group:'client',condition:()=>true,statuses:['Generated'],icon:'🧾',canGenerate:true},
   // Provider contracts
-  {id:'contract_entertainment',name:'Entertainment Contract',sub:'DJ / Performer service agreement',group:'provider',condition:()=>currentEvent&&currentEvent['Entertainment Plan']&&currentEvent['Entertainment Plan']!=='na',statuses:['Draft','Sent','Signed'],icon:'🎵',canGenerate:false},
-  {id:'contract_decor',name:'Decor Contract',sub:'Decoration service agreement',group:'provider',condition:()=>currentEvent&&currentEvent['Decor Plan']&&currentEvent['Decor Plan']!=='na',statuses:['Draft','Sent','Signed'],icon:'🎨',canGenerate:false},
-  {id:'contract_photo',name:'Photo & Video Contract',sub:'Photography / videography agreement',group:'provider',condition:()=>currentEvent&&currentEvent['Photo Plan']&&currentEvent['Photo Plan']!=='na',statuses:['Draft','Sent','Signed'],icon:'📷',canGenerate:false},
+  {id:'contract_entertainment',name:'Entertainment Contract',sub:'DJ / Performer service agreement',group:'provider',condition:()=>currentEvent&&currentEvent['Entertainment Plan']&&currentEvent['Entertainment Plan']!=='na',statuses:['Draft','Sent','Signed'],icon:'🎵',canGenerate:true},
+  {id:'contract_decor',name:'Decor Contract',sub:'Decoration service agreement',group:'provider',condition:()=>currentEvent&&currentEvent['Decor Plan']&&currentEvent['Decor Plan']!=='na',statuses:['Draft','Sent','Signed'],icon:'🎨',canGenerate:true},
+  {id:'contract_photo',name:'Photo & Video Contract',sub:'Photography / videography agreement',group:'provider',condition:()=>currentEvent&&currentEvent['Photo Plan']&&currentEvent['Photo Plan']!=='na',statuses:['Draft','Sent','Signed'],icon:'📷',canGenerate:true},
   // Operational
   {id:'catering_beo',name:'Catering Order (BEO)',sub:'Food & beverage order for Noches de Colombia',group:'operational',condition:()=>currentEvent&&['collection','luxury'].includes(currentEvent['Catering Line']),statuses:['Draft','Sent','Delivered'],icon:'🍽️',canGenerate:false},
   {id:'venue_staff',name:'Venue Staff Sheet',sub:'Staff assignments, roles, arrival times',group:'operational',condition:()=>currentEvent&&currentEvent['Venue Tier']!=='EXTERNAL',statuses:['Draft','Printed'],icon:'👥',canGenerate:false},
@@ -1353,11 +1353,886 @@ function generateDoc(docId){
     showToast('Open the Quotations module to generate this document','warn');
     return;
   }
-  if(docId==='receipt'){
-    generateReceipt();
-    return;
-  }
+  if(docId==='receipt'){generateReceipt();return;}
+  if(docId==='contract_client'){generateClientContract();return;}
+  if(docId==='venue_rules'){generateVenueRules();return;}
+  if(docId==='contract_entertainment'){generateEntertainmentContract();return;}
+  if(docId==='contract_decor'){generateDecorContract();return;}
+  if(docId==='contract_photo'){generatePhotoContract();return;}
   showToast('Document template coming soon','warn');
+}
+
+// ── SHARED HELPERS ────────────────────────────────────────────────────────────
+function docOpen(){const win=window.open('','_blank','width=960,height=800');if(!win){showToast('Allow popups to generate document','error');return null;}return win;}
+function docWrite(win,html){win.document.open();win.document.write(html);win.document.close();showToast('Document opening...','success');}
+function docToday(){return new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});}
+function fmtM(n){return '$'+(parseFloat(n)||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});}
+const ET_LABELS_DOC={wedding:'Wedding',quinceanera:'Quinceañera',sweet16:'Sweet 16',baby_shower:'Baby Shower',kids_party:'Kids Party',birthday:'Birthday Party',special_social:'Special Event — Social',special_corporate:'Special Event — Corporate',bautizo:'Bautizo',graduacion:'Graduation',primera_comunion:'Primera Comunión'};
+function etLabel(){return ET_LABELS_DOC[currentEvent['Event Type']]||currentEvent['Event Type']||'—';}
+
+function baseStyles(accentColor='#C9A84C',bgColor='#F8F5EE'){
+  return `
+@page{margin:15mm;size:A4;}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;}
+html,body{background:#fff;font-family:'Montserrat',sans-serif;font-size:12px;color:#2A2A2A;}
+.doc{width:100%;background:#fff;}
+.hdr{background:#EDE8DC;padding:20px 24px 14px;display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid ${accentColor};}
+.ch-name{font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:700;color:${accentColor === '#C9A84C' ? '#8B6914' : accentColor};letter-spacing:2px;text-transform:uppercase;}
+.ch-addr{font-size:10px;color:#888;margin-top:3px;}
+.ch-sub{font-size:9px;color:${accentColor};font-weight:600;letter-spacing:1.5px;margin-top:3px;}
+.doc-ref{text-align:right;}
+.doc-title{font-size:13px;font-weight:700;color:${accentColor === '#C9A84C' ? '#8B6914' : accentColor};letter-spacing:1px;text-transform:uppercase;}
+.doc-num{font-size:11px;color:#888;margin-top:4px;}
+.doc-date{font-size:10px;color:#999;margin-top:2px;}
+.notice-bar{background:#1A1A1A;padding:8px 18px;font-size:10px;color:#CCC;font-style:italic;border-left:4px solid ${accentColor};}
+.sec{padding:14px 24px;border-bottom:0.5px solid #EEEEEE;}
+.sec-title{font-size:9px;font-weight:700;color:${accentColor === '#C9A84C' ? '#8B6914' : accentColor};letter-spacing:3px;text-transform:uppercase;margin-bottom:10px;padding-bottom:5px;border-bottom:2px solid ${accentColor};}
+.field-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.field-item{display:flex;flex-direction:column;gap:2px;}
+.field-lbl{font-size:8px;font-weight:600;color:#888;letter-spacing:1.5px;text-transform:uppercase;}
+.field-val{font-size:12px;color:#2A2A2A;font-weight:500;border-bottom:1px solid #CCCCCC;padding-bottom:3px;}
+.info-box{background:#FBF5E6;border-left:4px solid ${accentColor};border-top:1px solid ${accentColor};border-bottom:1px solid ${accentColor};padding:10px 14px;margin:10px 0;font-size:11px;font-weight:600;color:#2A2A2A;}
+.warn-box{background:#FFF0EE;border-left:4px solid #CC2200;border-top:1px solid #CC2200;border-bottom:1px solid #CC2200;padding:10px 14px;margin:10px 0;font-size:11px;font-weight:600;color:#2A2A2A;}
+.services-table{width:100%;border-collapse:collapse;margin-top:8px;}
+.services-table th{background:#1A1A1A;color:${accentColor};font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:8px 10px;text-align:left;}
+.services-table td{padding:8px 10px;border-bottom:1px solid #F0F0F0;font-size:11px;vertical-align:top;}
+.services-table tr:nth-child(even) td{background:#FAFAFA;}
+.services-table .total-row td{background:#1A1A1A;color:${accentColor};font-weight:700;font-size:12px;}
+.bullet-list{list-style:none;padding:0;}
+.bullet-list li{padding:4px 0 4px 14px;font-size:11px;color:#333;border-bottom:0.5px solid #F5F5F5;position:relative;}
+.bullet-list li:before{content:"•";position:absolute;left:0;color:${accentColor};font-weight:700;}
+.cancel-table{width:100%;border-collapse:collapse;margin-top:8px;}
+.cancel-table th{background:#1A1A1A;color:${accentColor};font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:8px 10px;}
+.cancel-table td{padding:7px 10px;border-bottom:1px solid #F0F0F0;font-size:11px;}
+.cancel-table tr:nth-child(even) td{background:#FAFAFA;}
+.sig-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:16px;}
+.sig-block{display:flex;flex-direction:column;gap:6px;}
+.sig-line{border-bottom:1px solid #444;height:36px;}
+.sig-lbl{font-size:9px;color:#888;letter-spacing:1px;}
+.sig-name{font-size:11px;font-weight:600;color:#333;margin-top:3px;}
+.sig-date{border-bottom:1px solid #CCCCCC;height:28px;margin-top:14px;}
+.footer-bar{background:#1A1A1A;padding:10px 24px;display:flex;justify-content:space-between;align-items:center;border-top:2px solid ${accentColor};margin-top:auto;}
+.footer-l{font-size:9px;color:#888;}
+.footer-r{display:flex;align-items:center;gap:8px;}
+.pdot{width:6px;height:6px;border-radius:50%;display:inline-block;}
+.pilab-txt{font-size:10px;}
+.p-pi{color:#D4A853;}.p-la{color:#00B4D8;}.p-b{color:#E040A0;}.p-dot{color:#E8307A;}.p-rest{color:#888;}
+@media print{*{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;}}`;
+}
+
+function docHeader(title, refNum, division='Produced by Pilab Productions', accentColor='#C9A84C'){
+  const textColor = accentColor === '#C9A84C' ? '#8B6914' : accentColor;
+  return `
+<div class="hdr">
+  <div>
+    <div class="ch-name">Cardona Hall</div>
+    <div class="ch-addr">72 Hoover Avenue, Passaic, NJ 07055</div>
+    <div class="ch-sub">${division}</div>
+  </div>
+  <div class="doc-ref">
+    <div class="doc-title">${title}</div>
+    <div class="doc-num">${refNum}</div>
+    <div class="doc-date">Issued: ${docToday()}</div>
+  </div>
+</div>`;
+}
+
+function docFooter(division='Pilab Productions · Cardona Hall LLC · Passaic, NJ 07055'){
+  return `
+<div class="footer-bar">
+  <div class="footer-l">cardonahall.com &nbsp;·&nbsp; jcardona@cardonahall.com &nbsp;·&nbsp; +1 862-232-0117</div>
+  <div class="footer-r">
+    <div style="display:flex;gap:3px"><div class="pdot" style="background:#D4A853"></div><div class="pdot" style="background:#00B4D8"></div><div class="pdot" style="background:#E040A0"></div></div>
+    <div class="pilab-txt"><span class="p-pi">Pi</span><span class="p-la">la</span><span class="p-b">b</span><span class="p-dot">.</span><span class="p-rest"> ${division}</span></div>
+  </div>
+</div>`;
+}
+
+function sigBlock(leftLabel, leftName, rightLabel='Client Signature'){
+  return `
+<div class="sig-grid">
+  <div class="sig-block">
+    <div class="sig-line"></div>
+    <div class="sig-lbl">${leftLabel}</div>
+    <div class="sig-name">${leftName}</div>
+    <div class="sig-date"></div>
+    <div class="sig-lbl">Date</div>
+  </div>
+  <div class="sig-block">
+    <div class="sig-line"></div>
+    <div class="sig-lbl">${rightLabel}</div>
+    <div class="sig-name">Print Name: ___________________</div>
+    <div class="sig-date"></div>
+    <div class="sig-lbl">Date</div>
+  </div>
+</div>`;
+}
+
+function servicesTableHTML(){
+  const e=currentEvent;
+  const rows=[
+    ['Venue & Host Services', e['Venue Tier']||'—', `${e['Day of Week']||''} · ${e['Guests']||'—'} guests`, fmtM(e['Price Venue'])],
+    ['Catering & Hospitality', e['Catering Line']||'—', e['Catering Plan']||'', fmtM(e['Price Catering'])],
+    ['Design & Decor', e['Decor Plan']||'—', '', fmtM(e['Price Decor'])],
+    ['Entertainment & Production', e['Entertainment Plan']||'—', e['Sound Plan']||'', fmtM(e['Price Entertainment'])],
+    ['Photo & Video', e['Photo Plan']||'—', e['Photo Tier']||'', fmtM(e['Price Photo'])],
+  ].filter(r=>r[3]!=='$0'&&r[3]!==fmtM(0));
+  return `
+<table class="services-table">
+  <thead><tr><th>Division</th><th>Service / Plan</th><th>Details</th><th style="text-align:right">Amount</th></tr></thead>
+  <tbody>
+    ${rows.map(([div,plan,det,amt],i)=>`<tr><td style="font-weight:600">${div}</td><td>${plan}</td><td style="color:#777">${det}</td><td style="text-align:right;font-weight:600">${amt}</td></tr>`).join('')}
+    <tr class="total-row"><td colspan="3">TOTAL AGREED AMOUNT (taxes included)</td><td style="text-align:right">${fmtM(currentEvent['Final Total'])}</td></tr>
+  </tbody>
+</table>`;
+}
+
+function depositHTML(){
+  const total=parseFloat(currentEvent['Final Total'])||0;
+  const dep=total>5000?`20% = ${fmtM(total*0.2)}`:`$1,000`;
+  return dep;
+}
+
+// ── 1. CLIENT CONTRACT ────────────────────────────────────────────────────────
+function generateClientContract(){
+  const win=docOpen(); if(!win)return;
+  const e=currentEvent;
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>${baseStyles('#C9A84C')}</style></head><body><div class="doc">
+${docHeader('Service Agreement',`${e['COT#']} / ${e['RES#']}`)}
+<div class="notice-bar">This contract must be signed and returned within 7 days of issuance. After this period, the reserved date will be released and any deposit paid will be forfeited.</div>
+
+<div class="sec">
+  <div class="sec-title">1. Parties</div>
+  <p style="font-size:11px;color:#555;margin-bottom:10px">This Service Agreement is entered into on ${docToday()}, between:</p>
+  <div class="field-grid">
+    <div class="field-item"><div class="field-lbl">Service Provider</div><div class="field-val">Cardona Hall LLC / Pilab Productions — 72 Hoover Ave, Passaic, NJ 07055</div></div>
+    <div class="field-item"><div class="field-lbl">Client Name</div><div class="field-val">${e['Client Name']||'—'}</div></div>
+    <div class="field-item"><div class="field-lbl">Client Phone</div><div class="field-val">${e['Phone']||'—'}</div></div>
+    <div class="field-item"><div class="field-lbl">Client Email</div><div class="field-val">${e['Email']||'—'}</div></div>
+  </div>
+</div>
+
+<div class="sec">
+  <div class="sec-title">2. Event Details</div>
+  <div class="field-grid">
+    <div class="field-item"><div class="field-lbl">Event Type</div><div class="field-val">${etLabel()}</div></div>
+    <div class="field-item"><div class="field-lbl">Event Date</div><div class="field-val">${e['Event Date']||'—'} · ${e['Day of Week']||''}</div></div>
+    <div class="field-item"><div class="field-lbl">Guests</div><div class="field-val">${e['Guests']||'—'} adults</div></div>
+    <div class="field-item"><div class="field-lbl">Venue</div><div class="field-val">72 Hoover Ave, Passaic, NJ 07055 — Cardona Hall</div></div>
+  </div>
+</div>
+
+<div class="sec">
+  <div class="sec-title">3. Services & Pricing</div>
+  <p style="font-size:10px;color:#777;margin-bottom:8px">All prices are final and include applicable taxes. No additional fees or surcharges apply.</p>
+  ${servicesTableHTML()}
+</div>
+
+<div class="sec">
+  <div class="sec-title">4. Guest Count & Final Confirmation</div>
+  <ul class="bullet-list">
+    <li>Final confirmed guest count must be submitted no later than <strong>14 days before the event</strong>.</li>
+    <li>If the final count is higher than stated, additional per-person charges apply and must be settled before the event.</li>
+    <li>Reductions after the final confirmation date are not permitted — the guaranteed count remains the billing basis.</li>
+    <li>Children age 5 and over count as adults for guest count, catering, and venue capacity purposes.</li>
+  </ul>
+</div>
+
+<div class="sec">
+  <div class="sec-title">5. Payment Schedule</div>
+  <table class="services-table">
+    <thead><tr><th>Installment</th><th>Amount</th><th>Due Date</th><th>Method</th></tr></thead>
+    <tbody>
+      <tr><td style="font-weight:600">Deposit</td><td>${depositHTML()}</td><td>To confirm reservation</td><td>Cash / Zelle / Check / Card</td></tr>
+      <tr><td style="font-weight:600">Balance</td><td>${fmtM((parseFloat(e['Final Total'])||0)-(parseFloat(e['Final Total'])>5000?(parseFloat(e['Final Total'])||0)*0.2:1000))}</td><td>8 days before event</td><td>Cash / Zelle / Check / Card</td></tr>
+    </tbody>
+  </table>
+  <p style="font-size:10px;color:#777;margin-top:8px">A receipt will be issued for each payment. All discounts apply exclusively to events held at Cardona Hall.</p>
+</div>
+
+<div class="sec">
+  <div class="sec-title">6. Security Deposit</div>
+  <div class="info-box">A refundable security deposit of $500.00 USD is required no later than 8 days before the event.</div>
+  <p style="font-size:11px;color:#555;margin:8px 0 6px">Refunded within 7 business days after the event if no damage, no penalty fees, and all terms met. If damage or penalties exceed $500, the client is responsible for the balance within 7 days.</p>
+</div>
+
+<div class="sec">
+  <div class="sec-title">7. Cancellation Policy</div>
+  <table class="cancel-table">
+    <thead><tr><th style="text-align:left">Timeframe</th><th style="text-align:left">Penalty</th><th style="text-align:left">Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Within 72 hours of signing</td><td style="font-weight:600">$200 admin fee only</td><td>Cooling-off period</td></tr>
+      <tr><td>> 90 days before event</td><td style="font-weight:600">25% of total</td><td>Early cancellation</td></tr>
+      <tr><td>60 – 90 days before event</td><td style="font-weight:600">50% of total</td><td></td></tr>
+      <tr><td>30 – 59 days before event</td><td style="font-weight:600">75% of total</td><td></td></tr>
+      <tr><td>15 – 29 days before event</td><td style="font-weight:600">90% of total</td><td></td></tr>
+      <tr><td>< 15 days before event</td><td style="font-weight:600">100% of total</td><td>No refund</td></tr>
+    </tbody>
+  </table>
+  <p style="font-size:10px;color:#777;margin-top:8px">Cancellation must be submitted in writing. See Section 14 — Force Majeure for exceptions.</p>
+</div>
+
+<div class="sec">
+  <div class="sec-title">8. Date Change Policy</div>
+  <div class="info-box">A date change is permitted only once per contract, subject to availability, and carries a non-refundable fee regardless of reason.</div>
+  <table class="cancel-table">
+    <thead><tr><th style="text-align:left">Anticipation</th><th style="text-align:left">Fee</th></tr></thead>
+    <tbody>
+      <tr><td>> 90 days before event</td><td style="font-weight:600">$150</td></tr>
+      <tr><td>60 – 90 days</td><td style="font-weight:600">$250</td></tr>
+      <tr><td>30 – 59 days</td><td style="font-weight:600">$400</td></tr>
+      <tr><td>15 – 29 days</td><td style="font-weight:600">$600</td></tr>
+      <tr><td>< 15 days</td><td style="font-weight:600">Not permitted — treated as cancellation</td></tr>
+    </tbody>
+  </table>
+  <p style="font-size:10px;color:#777;margin-top:8px">New date must be available within 12 months of the original event date. Only one change permitted per contract.</p>
+</div>
+
+<div class="sec">
+  <div class="sec-title">9. Modifications & Additions</div>
+  <ul class="bullet-list">
+    <li>Services cannot be cancelled or reduced after signing. Substitutions of equal or greater value require written approval.</li>
+    <li>Additional services may be added at any time. Every modification requires a signed Amendment document.</li>
+    <li>If an approved modification results in a lower total, a manual price override is required in writing.</li>
+  </ul>
+</div>
+
+<div class="sec">
+  <div class="sec-title">10. Alcohol & Beverage Policy</div>
+  <div class="warn-box">Cardona Hall does not sell alcohol. Clients may bring their own (BYOB) subject to the conditions below.</div>
+  <ul class="bullet-list">
+    <li>All alcohol must be handed to Cardona Hall staff upon arrival. Staff manages all service from the bar.</li>
+    <li>No bottles or cans on guest tables at any time. All beverages must be served in glassware provided by Cardona Hall.</li>
+    <li>The bar closes 1 hour before the agreed event end time. All remaining alcohol is returned to the client at venue handover.</li>
+    <li>The client is responsible for ensuring no person under 21 consumes alcohol. Violations are governed by the Venue Rules & Policies document.</li>
+  </ul>
+</div>
+
+<div class="sec">
+  <div class="sec-title">11. External Vendor Policy</div>
+  <ul class="bullet-list">
+    <li>External vendors must be approved in writing by Pilab Productions at least 14 days before the event.</li>
+    <li>Every external vendor must submit a valid Certificate of Insurance (COI) — minimum $500,000 General Liability — naming Pilab Productions / Cardona Hall LLC as Additional Insured.</li>
+    <li>Vendors without a valid COI will not be permitted to enter the premises on the event date.</li>
+  </ul>
+</div>
+
+<div class="sec">
+  <div class="sec-title">12. Conduct & Liability</div>
+  <ul class="bullet-list">
+    <li>The Client is responsible for the conduct of all guests. Cardona Hall may terminate the event for aggressive behavior or policy violations — no refund will be issued.</li>
+    <li>The Client shall indemnify, defend, and hold harmless Cardona Hall LLC, Pilab Productions, and their staff from any claims, damages, or expenses arising from the event.</li>
+    <li>Cardona Hall's liability to the Client shall not exceed the total amount paid under this Agreement.</li>
+  </ul>
+</div>
+
+<div class="sec">
+  <div class="sec-title">13. Media, Privacy & Intellectual Property</div>
+  <ul class="bullet-list">
+    <li><strong>Marketing Consent:</strong> Cardona Hall / Pilab Productions may use event photos and video for marketing purposes. To opt out, notify in writing at signing.</li>
+    <li><strong>Client Recording:</strong> The client and guests may photograph/record for personal use. Commercial streaming requires prior written approval.</li>
+    <li><strong>Delivered Media:</strong> Photos and video delivered by Pilab Productions are for personal, non-commercial use only.</li>
+    <li><strong>IP — Decor:</strong> All decoration designs created by Pilab Productions are their intellectual property and may not be replicated without written authorization.</li>
+  </ul>
+</div>
+
+<div class="sec">
+  <div class="sec-title">14. Force Majeure</div>
+  <p style="font-size:11px;color:#555">Neither party shall be liable for failure to perform due to circumstances beyond their reasonable control (natural disasters, government restrictions, public health emergencies, building damage). If Cardona Hall cancels due to force majeure, all payments will be refunded within 14 business days.</p>
+</div>
+
+<div class="sec">
+  <div class="sec-title">15. Governing Law & Entire Agreement</div>
+  <p style="font-size:11px;color:#555">This Agreement is governed by the laws of the State of New Jersey. Any dispute shall be submitted to mediation or arbitration in New Jersey. This Agreement, together with the Venue Rules & Policies and any signed Amendments, constitutes the entire agreement between the parties.</p>
+</div>
+
+<div class="sec">
+  <div class="sec-title">Signatures</div>
+  ${sigBlock('Authorized — James Cardona / Cardona Hall','James Cardona · Cardona Hall LLC')}
+</div>
+${docFooter('Productions')}
+</div>
+<script>window.onload=function(){setTimeout(function(){window.print();},800);};<\/script>
+</body></html>`;
+  docWrite(win,html);
+}
+
+// ── 2. VENUE RULES & POLICIES ─────────────────────────────────────────────────
+function generateVenueRules(){
+  const win=docOpen(); if(!win)return;
+  const e=currentEvent;
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>${baseStyles('#C9A84C')}</style></head><body><div class="doc">
+${docHeader('Venue Rules & Policies',`REF: ${e['RES#']}`)}
+<div class="notice-bar">Please read this document carefully. By signing, you confirm that you and all your guests agree to abide by these rules.</div>
+
+<div class="sec">
+  <div class="field-grid">
+    <div class="field-item"><div class="field-lbl">Client Name</div><div class="field-val">${e['Client Name']||'—'}</div></div>
+    <div class="field-item"><div class="field-lbl">Event Date</div><div class="field-val">${e['Event Date']||'—'} · ${e['Day of Week']||''}</div></div>
+    <div class="field-item"><div class="field-lbl">Reservation #</div><div class="field-val">${e['RES#']||'—'}</div></div>
+    <div class="field-item"><div class="field-lbl">Event Type</div><div class="field-val">${etLabel()}</div></div>
+  </div>
+</div>
+
+<div class="sec">
+  <div class="sec-title">1. Alcohol Policy</div>
+  <div class="warn-box">STRICT POLICY: No person under the age of 21 may consume or be served alcoholic beverages. NO exceptions.</div>
+  <ul class="bullet-list">
+    <li>It is the Client's sole responsibility to ensure no minors consume alcohol at any time.</li>
+    <li>Cardona Hall reserves the right to request identification from any guest at any time.</li>
+    <li>If alcohol is consumed by a minor, a <strong>$1,000 penalty</strong> will be charged and the event may be terminated without refund.</li>
+    <li>The bar closes <strong>1 hour before</strong> the agreed event end time, without exception.</li>
+    <li>Law enforcement may be called if alcohol policies are violated.</li>
+  </ul>
+</div>
+
+<div class="sec">
+  <div class="sec-title">2. Anti-Violence & Conduct Policy</div>
+  <div class="warn-box">Zero-tolerance: any aggressive conduct, harassment, or physical altercation results in immediate event termination.</div>
+  <ul class="bullet-list">
+    <li>Any physical altercation or aggressive behavior by any guest will result in immediate event termination.</li>
+    <li>A penalty of <strong>40% of the total contracted amount</strong> will be charged.</li>
+    <li>Law enforcement will be called if venue staff cannot control the situation.</li>
+    <li>No refund will be issued if the event is terminated due to a conduct violation.</li>
+  </ul>
+</div>
+
+<div class="sec">
+  <div class="sec-title">3. Event Timing & Overtime</div>
+  <ul class="bullet-list">
+    <li>Events must begin and end at the agreed times stated in the Service Agreement.</li>
+    <li>Music and entertainment must conclude <strong>30 minutes before</strong> the event end time.</li>
+    <li>Overtime is charged at <strong>$650 per hour</strong> (or any portion thereof) — deducted from the security deposit.</li>
+    <li>The absolute maximum event end time is <strong>1:00 AM</strong>. No exceptions.</li>
+  </ul>
+</div>
+
+<div class="sec">
+  <div class="sec-title">4. Decorations & Setup</div>
+  <ul class="bullet-list">
+    <li>All decorations must be approved in advance by Cardona Hall management.</li>
+    <li>No staples, nails, screws, tacks, or adhesive tape on walls, ceilings, columns, or light fixtures.</li>
+    <li>Client-provided decorations must be removed within <strong>90 minutes</strong> of the event's conclusion. Items not removed will be discarded.</li>
+    <li>Violations may result in partial or full forfeiture of the $500 security deposit.</li>
+  </ul>
+</div>
+
+<div class="sec">
+  <div class="sec-title">5. Security</div>
+  <ul class="bullet-list">
+    <li>Cardona Hall staff includes security personnel assigned to every event.</li>
+    <li>External security may not be brought without prior written approval.</li>
+    <li>For Quinceañera and Sweet 16 events, enhanced security protocols apply.</li>
+  </ul>
+</div>
+
+<div class="sec">
+  <div class="sec-title">6. Venue Access & Vendor Policy</div>
+  <ul class="bullet-list">
+    <li>Venue access for setup is granted <strong>3 hours before</strong> the event start time.</li>
+    <li>All vendors must coordinate arrival and access times with management in advance.</li>
+    <li>Vendors may not use Cardona Hall waste containers. All waste must be removed at the event's conclusion.</li>
+    <li>No furniture may be moved without prior written approval.</li>
+    <li>Emergency exits and passageways must remain unobstructed at all times.</li>
+  </ul>
+</div>
+
+<div class="sec">
+  <div class="sec-title">7. Damage Policy</div>
+  <ul class="bullet-list">
+    <li>The Client assumes full financial responsibility for any damage caused by guests or vendors.</li>
+    <li>Damage costs will be deducted from the $500 security deposit. If costs exceed the deposit, the Client is responsible for the difference within 7 days of written notification.</li>
+    <li>The premises will be inspected before and after the event. The Client will be notified within 24 hours of any damage identified.</li>
+  </ul>
+</div>
+
+<div class="sec">
+  <div class="sec-title">8. Smoke-Free Premises</div>
+  <ul class="bullet-list">
+    <li>Cardona Hall is a 100% smoke-free facility. Smoking, vaping, and e-cigarettes are strictly prohibited inside and within 25 feet of any entrance.</li>
+    <li>Violation may result in event termination and full forfeiture of the security deposit.</li>
+  </ul>
+</div>
+
+<div class="sec">
+  <div class="sec-title">9. General Restrictions</div>
+  <ul class="bullet-list">
+    <li>No cans or bottles on guest tables. All beverages must be served in glassware provided by Cardona Hall.</li>
+    <li>Outside food or beverages are not permitted without prior written approval.</li>
+    <li>Firearms, weapons, and illegal substances are strictly prohibited on the premises.</li>
+    <li>Children age 5 and over count as adults for guest count, catering, and capacity purposes.</li>
+    <li>Cardona Hall is not responsible for personal belongings, gifts, or items left at the venue.</li>
+  </ul>
+</div>
+
+<div class="sec">
+  <div class="sec-title">10. Pricing & Charges</div>
+  <p style="font-size:11px;color:#555;margin-bottom:8px">All amounts in the Service Agreement are final and all-inclusive. The only additional charges that may apply:</p>
+  <ul class="bullet-list">
+    <li>Security deposit ($500) — refundable</li>
+    <li>Overtime charges ($650/hr) — only if the event runs past the agreed end time</li>
+    <li>Penalty fees — only if a violation described in this document occurs</li>
+    <li>Additional services added post-contract — governed by signed Amendment documents</li>
+  </ul>
+</div>
+
+<div class="sec">
+  <div class="sec-title">11. Penalty Summary</div>
+  <table class="cancel-table">
+    <thead><tr><th style="text-align:left">Violation</th><th style="text-align:left">Penalty</th></tr></thead>
+    <tbody>
+      <tr><td>Alcohol consumed by person under age 21</td><td style="font-weight:600;color:#8B2020">$1,000 — Event may be terminated</td></tr>
+      <tr><td>Physical altercation or aggressive behavior</td><td style="font-weight:600;color:#8B2020">40% of total contracted amount</td></tr>
+      <tr><td>Damage to premises, equipment, or furniture</td><td style="font-weight:600">Cost of repair — deducted from deposit</td></tr>
+      <tr><td>Overtime beyond agreed end time</td><td style="font-weight:600">$650 per hour</td></tr>
+      <tr><td>Unauthorized decorations / wall damage</td><td style="font-weight:600">Partial or full forfeiture of $500 deposit</td></tr>
+      <tr><td>Smoking inside the premises</td><td style="font-weight:600;color:#8B2020">Forfeiture of deposit + event termination</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="sec">
+  <div class="sec-title">12. Acknowledgment</div>
+  <p style="font-size:11px;color:#555;margin-bottom:14px">By signing below, the Client confirms they have read, understood, and agreed to all rules and policies in this document, and will communicate them to all guests and vendors attending the event.</p>
+  ${sigBlock('Authorized — James Cardona / Cardona Hall','James Cardona · Cardona Hall LLC')}
+</div>
+${docFooter('Productions')}
+</div>
+<script>window.onload=function(){setTimeout(function(){window.print();},800);};<\/script>
+</body></html>`;
+  docWrite(win,html);
+}
+
+// ── 3. ENTERTAINMENT CONTRACT ─────────────────────────────────────────────────
+function generateEntertainmentContract(){
+  const win=docOpen(); if(!win)return;
+  const e=currentEvent;
+  const ACCENT='#E040A0';
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>${baseStyles(ACCENT)}
+.hdr{background:#EDE8DC;border-bottom:3px solid ${ACCENT};}
+.ch-name{color:#9C1060;}
+.ch-sub{color:${ACCENT};}
+.doc-title{color:#9C1060;}
+.sec-title{color:#9C1060;border-bottom:2px solid ${ACCENT};}
+.info-box{background:#FDE8F4;border-left:4px solid ${ACCENT};border-top:1px solid ${ACCENT};border-bottom:1px solid ${ACCENT};}
+.services-table th{background:#2A1020;color:${ACCENT};}
+.cancel-table th{background:#2A1020;color:${ACCENT};}
+.footer-bar{border-top:2px solid ${ACCENT};}
+</style></head><body><div class="doc">
+${docHeader('Entertainment Contract',`${e['RES#']}-ENT`,'Entertainment & Production — Pilab Productions',ACCENT)}
+
+<div class="sec">
+  <div class="sec-title">1. Parties</div>
+  <div class="field-grid">
+    <div class="field-item"><div class="field-lbl">Contracting Party</div><div class="field-val">Pilab Productions / Cardona Hall LLC — 72 Hoover Ave, Passaic, NJ 07055</div></div>
+    <div class="field-item"><div class="field-lbl">Provider Name</div><div class="field-val">___________________________________</div></div>
+    <div class="field-item"><div class="field-lbl">Provider Category</div><div class="field-val">Entertainment — DJ / Performer / Show</div></div>
+    <div class="field-item"><div class="field-lbl">Provider Phone</div><div class="field-val">___________________________________</div></div>
+    <div class="field-item"><div class="field-lbl">Provider Email</div><div class="field-val">___________________________________</div></div>
+    <div class="field-item"><div class="field-lbl">Business / Trade Name</div><div class="field-val">___________________________________</div></div>
+  </div>
+</div>
+
+<div class="sec">
+  <div class="sec-title">2. Event Details</div>
+  <div class="field-grid">
+    <div class="field-item"><div class="field-lbl">Event Type</div><div class="field-val">${etLabel()}</div></div>
+    <div class="field-item"><div class="field-lbl">Event Date</div><div class="field-val">${e['Event Date']||'—'} · ${e['Day of Week']||''}</div></div>
+    <div class="field-item"><div class="field-lbl">Guests</div><div class="field-val">${e['Guests']||'—'}</div></div>
+    <div class="field-item"><div class="field-lbl">Reservation #</div><div class="field-val">${e['RES#']||'—'}</div></div>
+    <div class="field-item"><div class="field-lbl">Setup Time</div><div class="field-val">___________</div></div>
+    <div class="field-item"><div class="field-lbl">Event Start / End</div><div class="field-val">___________ / ___________</div></div>
+    <div class="field-item"><div class="field-lbl">Venue</div><div class="field-val">72 Hoover Ave, Passaic NJ — Cardona Hall</div></div>
+    <div class="field-item"><div class="field-lbl">Entertainment Plan</div><div class="field-val">${e['Entertainment Plan']||'—'} · ${e['Sound Plan']||''}</div></div>
+  </div>
+</div>
+
+<div class="sec">
+  <div class="sec-title">3. Scope of Services</div>
+  <table class="services-table">
+    <thead><tr><th>Item</th><th>Description</th><th style="text-align:right">Amount</th></tr></thead>
+    <tbody>
+      <tr><td style="font-weight:600">DJ / Music Service</td><td>Genres, languages, style: ___________________</td><td style="text-align:right">___________</td></tr>
+      <tr><td style="font-weight:600">Sound System</td><td>${e['Sound Plan']||'Sound & Lighting'}</td><td style="text-align:right">Included</td></tr>
+      <tr><td style="font-weight:600">Coverage Hours</td><td>___________ to ___________</td><td style="text-align:right">Included</td></tr>
+      <tr><td style="font-weight:600">Additional Show / Act</td><td>N/A unless specified</td><td style="text-align:right">___________</td></tr>
+      <tr class="total-row"><td colspan="2">TOTAL AGREED AMOUNT</td><td style="text-align:right">${fmtM(e['Price Entertainment'])}</td></tr>
+    </tbody>
+  </table>
+  <ul class="bullet-list" style="margin-top:10px">
+    <li>Music must end <strong>30 minutes before</strong> the agreed event end time.</li>
+    <li>Song requests and program timing must be coordinated with Pilab Productions at least 7 days before the event.</li>
+    <li>Provider must have a backup plan for equipment failure.</li>
+    <li>Explicit or inappropriate content is prohibited without written authorization.</li>
+  </ul>
+</div>
+
+<div class="sec">
+  <div class="sec-title">3a. Music Licensing & Copyright</div>
+  <div class="info-box">Provider is solely responsible for holding valid music performance licenses (ASCAP, BMI, SESAC) for all music played.</div>
+  <ul class="bullet-list" style="margin-top:8px">
+    <li>Any fines or legal claims from unlicensed music are the sole responsibility of the Provider.</li>
+    <li>Pilab Productions shall be held harmless from any copyright-related claims.</li>
+  </ul>
+</div>
+
+<div class="sec">
+  <div class="sec-title">3b. Brand & Image — Pilab Productions</div>
+  <div class="info-box">Provider may not use Cardona Hall events to promote their personal brand without prior written approval.</div>
+  <ul class="bullet-list" style="margin-top:8px">
+    <li>All promotion related to events at Cardona Hall must be done under the <strong>Pilab Productions brand</strong> — not the Provider's personal name.</li>
+    <li>Provider may not display personal business cards, banners, or signage at the event without written approval.</li>
+    <li>Provider may not tag Cardona Hall or Pilab Productions without prior written approval per event.</li>
+    <li>Provider may reference the event in their portfolio only with written permission, without disclosing client information.</li>
+  </ul>
+</div>
+
+<div class="sec">
+  <div class="sec-title">3c. Streaming & Media Rights</div>
+  <ul class="bullet-list">
+    <li>Pilab Productions may live-stream events (Twitch and other platforms). Provider consents to being captured in these streams.</li>
+    <li>Provider may not independently stream or record any portion of the event without prior written approval.</li>
+    <li>Any content published by Provider must be under the Pilab Productions brand with prior written approval.</li>
+  </ul>
+</div>
+
+<div class="sec">
+  <div class="sec-title">4. Payment Terms</div>
+  <table class="services-table">
+    <thead><tr><th>Installment</th><th>Amount</th><th>Due Date</th><th>Method</th></tr></thead>
+    <tbody>
+      <tr><td>Advance (if requested)</td><td>_____________</td><td>Upon provider request</td><td>Cash / Zelle / Check</td></tr>
+      <tr><td>Balance</td><td>_____________</td><td>Event completion or upon request</td><td>Cash / Zelle / Check</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="sec">
+  <div class="sec-title">5. Non-Performance & Penalties</div>
+  <div class="info-box" style="background:#FDE8F4">Provider non-performance (no-show, early departure, or material failure) is a serious breach carrying significant financial consequences.</div>
+  <ul class="bullet-list" style="margin-top:8px">
+    <li>Provider must refund 100% of any advance payment within 24 hours of the scheduled event.</li>
+    <li>Provider owes Pilab Productions a penalty equal to <strong>1.5x the total agreed contract value</strong> as liquidated damages.</li>
+    <li>Provider is responsible for all costs to obtain emergency replacement services.</li>
+    <li>Pilab Productions may contract a replacement at the Provider's expense without further notice.</li>
+  </ul>
+</div>
+
+<div class="sec">
+  <div class="sec-title">6. Insurance Requirements</div>
+  <div class="info-box">Provider must submit a valid Certificate of Insurance (COI) no later than 14 days before the event.</div>
+  <ul class="bullet-list" style="margin-top:8px">
+    <li>Minimum General Liability coverage: <strong>$500,000 per occurrence</strong>.</li>
+    <li>COI must name Pilab Productions / Cardona Hall LLC as Additional Insured.</li>
+    <li>Coverage must be active on the event date.</li>
+  </ul>
+</div>
+
+<div class="sec">
+  <div class="sec-title">7. Venue Rules & Access</div>
+  <ul class="bullet-list">
+    <li>Setup access begins 3 hours before the event start time.</li>
+    <li>All equipment must be fully set up no later than 30 minutes before the event start.</li>
+    <li>Provider must comply with all Cardona Hall Venue Rules & Policies at all times.</li>
+    <li>All equipment and materials must be removed within 90 minutes of event conclusion.</li>
+  </ul>
+</div>
+
+<div class="sec">
+  <div class="sec-title">8–9. Liability, Independent Contractor & Force Majeure</div>
+  <ul class="bullet-list">
+    <li>Provider shall indemnify and hold harmless Pilab Productions and Cardona Hall LLC from any claims arising from Provider's performance.</li>
+    <li>Provider is an independent contractor — not an employee. Provider is responsible for their own taxes, insurance, and staff.</li>
+    <li>Neither party shall be penalized for force majeure events. Both parties will work in good faith to reschedule.</li>
+  </ul>
+</div>
+
+<div class="sec">
+  <div class="sec-title">10–11. Governing Law & Entire Agreement</div>
+  <p style="font-size:11px;color:#555">This Agreement is governed by the laws of New Jersey. Disputes shall be submitted to mediation or arbitration before legal proceedings. This is the entire agreement — no verbal representations are binding.</p>
+</div>
+
+<div class="sec">
+  <div class="sec-title">Signatures</div>
+  ${sigBlock('Authorized — James Cardona / Pilab Productions','James Cardona · Pilab Productions','Provider Signature')}
+</div>
+${docFooter('Productions · Entertainment & Production')}
+</div>
+<script>window.onload=function(){setTimeout(function(){window.print();},800);};<\/script>
+</body></html>`;
+  docWrite(win,html);
+}
+
+// ── 4. DECOR CONTRACT ─────────────────────────────────────────────────────────
+function generateDecorContract(){
+  const win=docOpen(); if(!win)return;
+  const e=currentEvent;
+  const ACCENT='#D4A853';
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>${baseStyles(ACCENT)}
+.hdr{background:#EDE8DC;border-bottom:3px solid ${ACCENT};}
+.ch-name{color:#7A5C10;}
+.ch-sub{color:${ACCENT};}
+.doc-title{color:#7A5C10;}
+.sec-title{color:#7A5C10;border-bottom:2px solid ${ACCENT};}
+.info-box{background:#FBF5E6;border-left:4px solid ${ACCENT};border-top:1px solid ${ACCENT};border-bottom:1px solid ${ACCENT};}
+.services-table th{background:#1A1200;color:${ACCENT};}
+.cancel-table th{background:#1A1200;color:${ACCENT};}
+.footer-bar{border-top:2px solid ${ACCENT};}
+</style></head><body><div class="doc">
+${docHeader('Decor Service Contract',`${e['RES#']}-DEC`,'Design & Decor — Pilab Productions',ACCENT)}
+
+<div class="sec">
+  <div class="sec-title">1. Parties</div>
+  <div class="field-grid">
+    <div class="field-item"><div class="field-lbl">Contracting Party</div><div class="field-val">Pilab Productions / Cardona Hall LLC</div></div>
+    <div class="field-item"><div class="field-lbl">Provider Name</div><div class="field-val">___________________________________</div></div>
+    <div class="field-item"><div class="field-lbl">Provider Category</div><div class="field-val">Design & Decor — Decorator / Florist</div></div>
+    <div class="field-item"><div class="field-lbl">Provider Phone</div><div class="field-val">___________________________________</div></div>
+    <div class="field-item"><div class="field-lbl">Provider Email</div><div class="field-val">___________________________________</div></div>
+    <div class="field-item"><div class="field-lbl">Business / Trade Name</div><div class="field-val">___________________________________</div></div>
+  </div>
+</div>
+
+<div class="sec">
+  <div class="sec-title">2. Event Details</div>
+  <div class="field-grid">
+    <div class="field-item"><div class="field-lbl">Event Type</div><div class="field-val">${etLabel()}</div></div>
+    <div class="field-item"><div class="field-lbl">Event Date</div><div class="field-val">${e['Event Date']||'—'} · ${e['Day of Week']||''}</div></div>
+    <div class="field-item"><div class="field-lbl">Guests / Tables</div><div class="field-val">${e['Guests']||'—'} guests · ${e['Tables']||'—'} tables</div></div>
+    <div class="field-item"><div class="field-lbl">Reservation #</div><div class="field-val">${e['RES#']||'—'}</div></div>
+    <div class="field-item"><div class="field-lbl">Setup Access</div><div class="field-val">___________ (3h before event)</div></div>
+    <div class="field-item"><div class="field-lbl">Decor Plan</div><div class="field-val">${e['Decor Plan']||'—'} · ${e['Decor CP Tier']||''} · ${e['Decor CP Type']||''}</div></div>
+  </div>
+</div>
+
+<div class="sec">
+  <div class="sec-title">3. Scope of Services</div>
+  <table class="services-table">
+    <thead><tr><th>Item</th><th>Description</th><th style="text-align:right">Amount</th></tr></thead>
+    <tbody>
+      <tr><td style="font-weight:600">Honor Table / Focal Point</td><td>${e['Decor Honor Tier']||'—'} · ${e['Decor Honor Type']||''}</td><td style="text-align:right">___________</td></tr>
+      <tr><td style="font-weight:600">Centerpieces</td><td>${e['Decor CP Tier']||'—'} · ${e['Decor CP Type']||''} · ${e['Tables']||'—'} tables</td><td style="text-align:right">___________</td></tr>
+      <tr><td style="font-weight:600">Additional Elements</td><td>Per Decor Requirements document</td><td style="text-align:right">___________</td></tr>
+      <tr><td style="font-weight:600">Setup & Breakdown</td><td>Included in service</td><td style="text-align:right">Included</td></tr>
+      <tr class="total-row"><td colspan="2">TOTAL AGREED AMOUNT</td><td style="text-align:right">${fmtM(e['Price Decor'])}</td></tr>
+    </tbody>
+  </table>
+  <ul class="bullet-list" style="margin-top:10px">
+    <li>All items delivered must exactly match what is described and agreed. Substitutions require prior written approval from Pilab Productions.</li>
+    <li>Balloons are a service — Provider is responsible for inflation, installation, and structural integrity throughout the event.</li>
+    <li>Provider must not attach any elements to walls, ceilings, or light fixtures without prior written approval.</li>
+    <li>All decoration elements must be removed within 90 minutes of event conclusion.</li>
+  </ul>
+</div>
+
+<div class="sec">
+  <div class="sec-title">3a. Substitution Policy</div>
+  <ul class="bullet-list">
+    <li>Provider must notify Pilab Productions of any necessary substitution no later than <strong>48 hours before the event</strong>.</li>
+    <li>Approved substitutions must maintain the agreed color palette and use materials of equivalent or greater value.</li>
+    <li>Unauthorized substitutions on the event day constitute partial non-performance under Section 5.</li>
+  </ul>
+</div>
+
+<div class="sec">
+  <div class="sec-title">3b. Rental Items & Damage</div>
+  <ul class="bullet-list">
+    <li>Non-consumable items (vases, bases, stands, arches) are the property of the Provider and are considered rental items.</li>
+    <li>Damage to Provider's rental items caused by guests or staff will be assessed and invoiced to Pilab Productions, who reserves the right to recover costs from the client's security deposit.</li>
+    <li>Pilab Productions is not responsible for items damaged due to Provider's own setup failure or negligence.</li>
+  </ul>
+</div>
+
+<div class="sec">
+  <div class="sec-title">3c. Price Adjustment</div>
+  <ul class="bullet-list">
+    <li>Prices are locked at signing. Adjustments exceeding 10% of the total require written approval from Pilab Productions at least 30 days before the event.</li>
+    <li>Unapproved price increases will not be honored.</li>
+  </ul>
+</div>
+
+<div class="sec">
+  <div class="sec-title">4. Payment Terms</div>
+  <table class="services-table">
+    <thead><tr><th>Installment</th><th>Amount</th><th>Due Date</th><th>Method</th></tr></thead>
+    <tbody>
+      <tr><td>Advance (if requested)</td><td>_____________</td><td>Upon provider request</td><td>Cash / Zelle / Check</td></tr>
+      <tr><td>Balance</td><td>_____________</td><td>Event completion or upon request</td><td>Cash / Zelle / Check</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="sec">
+  <div class="sec-title">5. Non-Performance & Penalties</div>
+  <ul class="bullet-list">
+    <li>Provider must refund 100% of any advance payment within 24 hours of the scheduled event.</li>
+    <li>Provider owes Pilab Productions a penalty equal to <strong>1.5x the total agreed contract value</strong>.</li>
+    <li>Provider is responsible for all costs to obtain emergency replacement services.</li>
+  </ul>
+</div>
+
+<div class="sec">
+  <div class="sec-title">6. Insurance — 7. Venue Rules — 8. Liability — 9. Independent Contractor — 10. Force Majeure</div>
+  <ul class="bullet-list">
+    <li>COI minimum $500,000 GL required 14 days before event. Pilab Productions named as Additional Insured.</li>
+    <li>Setup access 3 hours before event. All materials removed within 90 minutes of conclusion.</li>
+    <li>Provider indemnifies and holds harmless Pilab Productions and Cardona Hall LLC from any claims.</li>
+    <li>Provider is an independent contractor — responsible for own taxes, insurance, and staff.</li>
+    <li>Force majeure: both parties work in good faith to reschedule. Advances returned if no reschedule within 90 days.</li>
+  </ul>
+</div>
+
+<div class="sec">
+  <div class="sec-title">Signatures</div>
+  ${sigBlock('Authorized — James Cardona / Pilab Productions','James Cardona · Pilab Productions','Provider Signature')}
+</div>
+${docFooter('Productions · Design & Decor')}
+</div>
+<script>window.onload=function(){setTimeout(function(){window.print();},800);};<\/script>
+</body></html>`;
+  docWrite(win,html);
+}
+
+// ── 5. PHOTO & VIDEO CONTRACT ─────────────────────────────────────────────────
+function generatePhotoContract(){
+  const win=docOpen(); if(!win)return;
+  const e=currentEvent;
+  const ACCENT='#00B4D8';
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>${baseStyles(ACCENT)}
+.hdr{background:#EDE8DC;border-bottom:3px solid ${ACCENT};}
+.ch-name{color:#006B82;}
+.ch-sub{color:${ACCENT};}
+.doc-title{color:#006B82;}
+.sec-title{color:#006B82;border-bottom:2px solid ${ACCENT};}
+.info-box{background:#E8F7FB;border-left:4px solid ${ACCENT};border-top:1px solid ${ACCENT};border-bottom:1px solid ${ACCENT};}
+.services-table th{background:#001A20;color:${ACCENT};}
+.cancel-table th{background:#001A20;color:${ACCENT};}
+.footer-bar{border-top:2px solid ${ACCENT};}
+</style></head><body><div class="doc">
+${docHeader('Photo & Video Contract',`${e['RES#']}-PHO`,'Photo & Video — Pilab Productions',ACCENT)}
+
+<div class="sec">
+  <div class="sec-title">1. Parties</div>
+  <div class="field-grid">
+    <div class="field-item"><div class="field-lbl">Contracting Party</div><div class="field-val">Pilab Productions / Cardona Hall LLC</div></div>
+    <div class="field-item"><div class="field-lbl">Provider Name</div><div class="field-val">___________________________________</div></div>
+    <div class="field-item"><div class="field-lbl">Provider Category</div><div class="field-val">Photo & Video — Photographer / Videographer</div></div>
+    <div class="field-item"><div class="field-lbl">Provider Phone</div><div class="field-val">___________________________________</div></div>
+    <div class="field-item"><div class="field-lbl">Provider Email</div><div class="field-val">___________________________________</div></div>
+    <div class="field-item"><div class="field-lbl">Business / Trade Name</div><div class="field-val">___________________________________</div></div>
+  </div>
+</div>
+
+<div class="sec">
+  <div class="sec-title">2. Event Details</div>
+  <div class="field-grid">
+    <div class="field-item"><div class="field-lbl">Event Type</div><div class="field-val">${etLabel()}</div></div>
+    <div class="field-item"><div class="field-lbl">Event Date</div><div class="field-val">${e['Event Date']||'—'} · ${e['Day of Week']||''}</div></div>
+    <div class="field-item"><div class="field-lbl">Guests</div><div class="field-val">${e['Guests']||'—'}</div></div>
+    <div class="field-item"><div class="field-lbl">Reservation #</div><div class="field-val">${e['RES#']||'—'}</div></div>
+    <div class="field-item"><div class="field-lbl">Photo Plan</div><div class="field-val">${e['Photo Plan']||'—'} · ${e['Photo Tier']||''}</div></div>
+    <div class="field-item"><div class="field-lbl">Event Start / End</div><div class="field-val">___________ / ___________</div></div>
+  </div>
+</div>
+
+<div class="sec">
+  <div class="sec-title">3. Scope of Services</div>
+  <table class="services-table">
+    <thead><tr><th>Item</th><th>Description</th><th style="text-align:right">Amount</th></tr></thead>
+    <tbody>
+      <tr><td style="font-weight:600">Photography Coverage</td><td>${e['Photo Tier']||'—'} — Full event coverage</td><td style="text-align:right">___________</td></tr>
+      <tr><td style="font-weight:600">Videography Coverage</td><td>Per plan — see Photo & Video Details document</td><td style="text-align:right">___________</td></tr>
+      <tr><td style="font-weight:600">Photo Shoot Session</td><td>${e['Photo Shoot']&&e['Photo Shoot']!=='na'?e['Photo Shoot']:'Not included'}</td><td style="text-align:right">___________</td></tr>
+      <tr><td style="font-weight:600">Deliverables</td><td>Online gallery + per plan</td><td style="text-align:right">Included</td></tr>
+      <tr><td style="font-weight:600">Delivery Timeline</td><td>___ weeks after event</td><td style="text-align:right">—</td></tr>
+      <tr class="total-row"><td colspan="2">TOTAL AGREED AMOUNT</td><td style="text-align:right">${fmtM(e['Price Photo'])}</td></tr>
+    </tbody>
+  </table>
+  <ul class="bullet-list" style="margin-top:10px">
+    <li>Provider must arrive at the venue no later than 30 minutes before the event start time.</li>
+    <li>Provider must have backup equipment on-site: minimum one backup camera body, extra memory cards, and extra batteries.</li>
+    <li>Raw/unedited files are not required to be delivered unless explicitly agreed upon in writing.</li>
+  </ul>
+</div>
+
+<div class="sec">
+  <div class="sec-title">3a. Copyright & Image Ownership</div>
+  <ul class="bullet-list">
+    <li>Provider retains the copyright to all original images and footage captured during the event.</li>
+    <li>Provider grants Pilab Productions and the Client a non-exclusive, perpetual license to use and display the delivered images and footage for personal and business purposes.</li>
+    <li>Pilab Productions has the right to use event photos and video clips for marketing purposes without additional compensation to the Provider.</li>
+    <li>Provider may not sell, license, or commercially distribute event images to third parties without written consent from Pilab Productions.</li>
+  </ul>
+</div>
+
+<div class="sec">
+  <div class="sec-title">3b. Right of Publicity & Model Release</div>
+  <div class="info-box">Provider must handle all guest images in compliance with applicable privacy laws.</div>
+  <ul class="bullet-list" style="margin-top:8px">
+    <li>Provider may not publish or post images of event guests without prior written approval from Pilab Productions.</li>
+    <li>Images of minors may never be published publicly under any circumstances without explicit written approval from Pilab Productions.</li>
+  </ul>
+</div>
+
+<div class="sec">
+  <div class="sec-title">3c. Delivery Timeline & Overtime</div>
+  <ul class="bullet-list">
+    <li>Deliverables must be provided within the agreed timeline. Delays beyond 30 days of the agreed deadline require written justification.</li>
+    <li>Delays beyond 60 days without justification constitute partial non-performance under Section 5.</li>
+    <li>Overtime must be pre-approved by Pilab Productions on the night of the event. Unapproved overtime will not be compensated.</li>
+  </ul>
+</div>
+
+<div class="sec">
+  <div class="sec-title">3d. Brand & Image — Pilab Productions</div>
+  <ul class="bullet-list">
+    <li>Any social media content related to Cardona Hall events must be done under the Pilab Productions brand or with explicit written approval per event.</li>
+    <li>Provider may not tag Cardona Hall or Pilab Productions without prior written approval.</li>
+  </ul>
+</div>
+
+<div class="sec">
+  <div class="sec-title">4. Payment Terms</div>
+  <table class="services-table">
+    <thead><tr><th>Installment</th><th>Amount</th><th>Due Date</th><th>Method</th></tr></thead>
+    <tbody>
+      <tr><td>Advance (if requested)</td><td>_____________</td><td>Upon provider request</td><td>Cash / Zelle / Check</td></tr>
+      <tr><td>Balance</td><td>_____________</td><td>Event completion or upon request</td><td>Cash / Zelle / Check</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="sec">
+  <div class="sec-title">5. Non-Performance — 6. Insurance — 7–9. Venue, Liability, Contractor — 10. Force Majeure</div>
+  <ul class="bullet-list">
+    <li><strong>Non-performance:</strong> 100% advance refund + 1.5x contract value penalty + replacement costs at Provider's expense.</li>
+    <li><strong>Insurance:</strong> COI minimum $500,000 GL required 14 days before event. Pilab Productions as Additional Insured.</li>
+    <li><strong>Venue:</strong> Setup access 3 hours before. No equipment on walls/fixtures without approval.</li>
+    <li><strong>Liability:</strong> Provider indemnifies and holds harmless Pilab Productions and Cardona Hall LLC.</li>
+    <li><strong>Independent Contractor:</strong> Provider is not an employee — responsible for own taxes, insurance, and staff conduct.</li>
+    <li><strong>Force Majeure:</strong> Both parties work in good faith to reschedule. Advances returned if no reschedule within 90 days.</li>
+  </ul>
+</div>
+
+<div class="sec">
+  <div class="sec-title">Signatures</div>
+  ${sigBlock('Authorized — James Cardona / Pilab Productions','James Cardona · Pilab Productions','Provider Signature')}
+</div>
+${docFooter('Productions · Photo & Video')}
+</div>
+<script>window.onload=function(){setTimeout(function(){window.print();},800);};<\/script>
+</body></html>`;
+  docWrite(win,html);
 }
 
 function generateAmendmentFromDoc(idx){
