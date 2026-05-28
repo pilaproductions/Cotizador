@@ -1252,11 +1252,14 @@ const DOC_DEFINITIONS=[
   {id:'contract_photo',name:'Photo & Video Contract',sub:'Photography / videography agreement',group:'provider',condition:()=>currentEvent&&currentEvent['Photo Plan']&&currentEvent['Photo Plan']!=='na',statuses:['Draft','Sent','Signed'],icon:'📷',canGenerate:true},
   // Operational
   {id:'catering_beo',name:'Catering Order (BEO)',sub:'Food & beverage order for Noches de Colombia',group:'operational',condition:()=>currentEvent&&['collection','luxury'].includes(currentEvent['Catering Line']),statuses:['Draft','Sent','Delivered'],icon:'🍽️',canGenerate:true},
+  {id:'menu_selection',name:'Menu Selection Form',sub:'Client selects dishes based on their catering plan',group:'operational',condition:()=>currentEvent&&['collection','luxury'].includes(currentEvent['Catering Line']),statuses:['Draft','Sent','Confirmed'],icon:'📋',canGenerate:true},
   {id:'venue_staff',name:'Venue Staff Sheet',sub:'Staff assignments, roles, arrival times',group:'operational',condition:()=>currentEvent&&currentEvent['Venue Tier']!=='EXTERNAL',statuses:['Draft','Printed'],icon:'👥',canGenerate:true},
   {id:'decor_requirements',name:'Decor Requirements',sub:'Decoration specifications by plan',group:'operational',condition:()=>currentEvent&&currentEvent['Decor Plan']&&currentEvent['Decor Plan']!=='na',statuses:['Draft','Sent','Confirmed'],icon:'🎀',canGenerate:true},
   {id:'music_program',name:'Music & Program Request',sub:'Music genres, event timeline, special moments',group:'operational',condition:()=>currentEvent&&currentEvent['Entertainment Plan']&&currentEvent['Entertainment Plan']!=='na',statuses:['Draft','Sent','Confirmed'],icon:'🎶',canGenerate:true},
   {id:'photo_session',name:'Photo Session Details',sub:'Session locations, dates, times, directions',group:'operational',condition:()=>currentEvent&&currentEvent['Photo Plan']&&currentEvent['Photo Plan']!=='na',statuses:['Draft','Sent','Confirmed'],icon:'📸',canGenerate:true},
-  {id:'sitting_chart',name:'Sitting Chart',sub:'Table assignments for guests',group:'operational',condition:()=>currentEvent&&currentEvent['Decor Plan']&&currentEvent['Decor Plan']!=='na',statuses:['Draft','Printed'],icon:'🪑',canGenerate:true},
+  {id:'cancellation',name:'Cancellation Notice',sub:'Event cancellation with penalty calculation',group:'operational',condition:()=>true,statuses:['Generated'],icon:'🚫',canGenerate:true},
+  {id:'date_change',name:'Date Change Amendment',sub:'Event date change with applicable fee',group:'operational',condition:()=>true,statuses:['Generated','Signed'],icon:'📅',canGenerate:true},
+  {id:'force_majeure',name:'Force Majeure — Event Freeze',sub:'Event suspension due to extraordinary circumstances',group:'operational',condition:()=>true,statuses:['Generated','Signed'],icon:'❄️',canGenerate:true},
 ];
 
 async function loadDocuments(){
@@ -1379,11 +1382,15 @@ function generateDoc(docId){
   if(docId==='contract_decor'){generateDecorContract();return;}
   if(docId==='contract_photo'){generatePhotoContract();return;}
   if(docId==='catering_beo'){generateCateringBEO();return;}
+  if(docId==='menu_selection'){generateMenuSelection();return;}
   if(docId==='venue_staff'){generateVenueStaff();return;}
   if(docId==='decor_requirements'){generateDecorRequirements();return;}
   if(docId==='music_program'){generateMusicProgram();return;}
   if(docId==='photo_session'){generatePhotoSession();return;}
   if(docId==='sitting_chart'){generateSittingChart();return;}
+  if(docId==='cancellation'){generateCancellationNotice();return;}
+  if(docId==='date_change'){generateDateChange();return;}
+  if(docId==='force_majeure'){generateForceMajeure();return;}
   showToast('Document template coming soon','warn');
 }
 
@@ -1394,8 +1401,19 @@ function docToday(){return new Date().toLocaleDateString('en-US',{month:'long',d
 function fmtM(n){return '$'+(parseFloat(n)||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});}
 function fmtDateDoc(d){
   if(!d)return '—';
-  const dt=new Date(d+'T00:00:00');
-  if(isNaN(dt))return d;
+  // Handle ISO format: 2026-10-24T04:00:00.000Z or 2026-10-24
+  let dt;
+  if(typeof d==='string'&&d.includes('T')){
+    // Parse date part only to avoid timezone shift
+    const parts=d.split('T')[0].split('-');
+    dt=new Date(parseInt(parts[0]),parseInt(parts[1])-1,parseInt(parts[2]));
+  } else if(typeof d==='string'&&d.match(/^\d{4}-\d{2}-\d{2}$/)){
+    const parts=d.split('-');
+    dt=new Date(parseInt(parts[0]),parseInt(parts[1])-1,parseInt(parts[2]));
+  } else {
+    dt=new Date(d);
+  }
+  if(isNaN(dt))return String(d);
   const mm=String(dt.getMonth()+1).padStart(2,'0');
   const dd=String(dt.getDate()).padStart(2,'0');
   const yyyy=dt.getFullYear();
@@ -1424,6 +1442,28 @@ function isCopy(docId){
 function copyWatermark(){
   return `<div style="position:fixed;top:40%;left:50%;transform:translate(-50%,-50%) rotate(-35deg);font-size:80px;font-weight:900;color:rgba(200,50,50,0.08);pointer-events:none;z-index:9999;letter-spacing:10px;font-family:Arial">COPY</div>`;
 }
+function getProviderByCategory(cat){
+  if(!currentExpenses||!currentExpenses.length)return null;
+  const target=cat.toLowerCase();
+  return currentExpenses.find(ex=>(ex['Category']||'').toLowerCase()===target)||null;
+}
+function getStaffByRole(role){
+  if(!currentExpenses||!currentExpenses.length)return null;
+  return currentExpenses.find(ex=>(ex['Role']||'').toLowerCase().includes(role.toLowerCase()))||null;
+}
+function provField(cat,field='Provider Name'){
+  const p=getProviderByCategory(cat);
+  return p&&p[field]?String(p[field]):'';
+}
+function staffF(role,field='Provider Name'){
+  const p=getStaffByRole(role);
+  return p&&p[field]?String(p[field]):'';
+}
+function mLine(val,hint=''){
+  // If val exists show it as filled, otherwise show manual dashed field
+  if(val&&String(val).trim())return `<span style="font-weight:500;color:#2A2A2A">${val}</span>`;
+  return `<span style="border-bottom:2px dashed #BBBBBB;padding:2px 4px;background:#FAFAFA;font-size:11px;color:#BBB;font-style:italic;min-width:120px;display:inline-block">${hint||''}</span>`;
+}
 
 function baseStyles(accentColor='#C9A84C',bgColor='#F8F5EE'){
   return `
@@ -1446,6 +1486,9 @@ html,body{background:#fff;font-family:'Montserrat',sans-serif;font-size:12px;col
 .field-item{display:flex;flex-direction:column;gap:2px;}
 .field-lbl{font-size:8px;font-weight:600;color:#888;letter-spacing:1.5px;text-transform:uppercase;}
 .field-val{font-size:12px;color:#2A2A2A;font-weight:500;border-bottom:1px solid #CCCCCC;padding-bottom:3px;}
+/* MANUAL fields — dotted border, light background */
+.field-manual{font-size:12px;color:#2A2A2A;font-weight:400;border-bottom:2px dashed #BBBBBB;padding:3px 4px;background:#FAFAFA;min-height:20px;}
+.manual-line{border-bottom:2px dashed #BBBBBB;padding:3px 4px;background:#FAFAFA;min-height:20px;font-size:11px;color:#AAA;font-style:italic;}
 .info-box{background:#FBF5E6;border-left:4px solid ${accentColor};border-top:1px solid ${accentColor};border-bottom:1px solid ${accentColor};padding:10px 14px;margin:10px 0;font-size:11px;font-weight:600;color:#2A2A2A;}
 .warn-box{background:#FFF0EE;border-left:4px solid #CC2200;border-top:1px solid #CC2200;border-bottom:1px solid #CC2200;padding:10px 14px;margin:10px 0;font-size:11px;font-weight:600;color:#2A2A2A;}
 .services-table{width:100%;border-collapse:collapse;margin-top:8px;}
@@ -1474,8 +1517,9 @@ html,body{background:#fff;font-family:'Montserrat',sans-serif;font-size:12px;col
 .p-pi{color:#D4A853;}.p-la{color:#00B4D8;}.p-b{color:#E040A0;}.p-dot{color:#E8307A;}.p-rest{color:#888;}
 @media print{
   *{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;}
-  @page{margin:12mm;size:A4;}
-  head title{display:none;}
+  @page{margin:12mm;size:A4;marks:none;}
+  head,head *{display:none !important;}
+  html{-webkit-print-color-adjust:exact;}
 }`;
 }
 
@@ -1885,11 +1929,11 @@ ${docHeader('Entertainment Contract',`${e['RES#']}-ENT`,'Entertainment & Product
   <div class="sec-title">1. Parties</div>
   <div class="field-grid">
     <div class="field-item"><div class="field-lbl">Contracting Party</div><div class="field-val">Pilab Productions / Cardona Hall LLC — 72 Hoover Ave, Passaic, NJ 07055</div></div>
-    <div class="field-item"><div class="field-lbl">Provider Name</div><div class="field-val">___________________________________</div></div>
+    <div class="field-item"><div class="field-lbl">Provider Name</div><div class="field-val">${mLine(provField('Entertainment'),'write provider name')}</div></div>
     <div class="field-item"><div class="field-lbl">Provider Category</div><div class="field-val">Entertainment — DJ / Performer / Show</div></div>
-    <div class="field-item"><div class="field-lbl">Provider Phone</div><div class="field-val">___________________________________</div></div>
-    <div class="field-item"><div class="field-lbl">Provider Email</div><div class="field-val">___________________________________</div></div>
-    <div class="field-item"><div class="field-lbl">Business / Trade Name</div><div class="field-val">___________________________________</div></div>
+    <div class="field-item"><div class="field-lbl">Provider Phone</div><div class="field-val">${mLine('','write phone')}</div></div>
+    <div class="field-item"><div class="field-lbl">Provider Email</div><div class="field-val">${mLine('','write email')}</div></div>
+    <div class="field-item"><div class="field-lbl">Business / Trade Name</div><div class="field-val">${mLine('','write business name')}</div></div>
   </div>
 </div>
 
@@ -2047,11 +2091,11 @@ ${docHeader('Decor Service Contract',`${e['RES#']}-DEC`,'Design & Decor — Pila
   <div class="sec-title">1. Parties</div>
   <div class="field-grid">
     <div class="field-item"><div class="field-lbl">Contracting Party</div><div class="field-val">Pilab Productions / Cardona Hall LLC</div></div>
-    <div class="field-item"><div class="field-lbl">Provider Name</div><div class="field-val">___________________________________</div></div>
+    <div class="field-item"><div class="field-lbl">Provider Name</div><div class="field-val">${mLine(provField('Decor'),'write provider name')}</div></div>
     <div class="field-item"><div class="field-lbl">Provider Category</div><div class="field-val">Design & Decor — Decorator / Florist</div></div>
-    <div class="field-item"><div class="field-lbl">Provider Phone</div><div class="field-val">___________________________________</div></div>
-    <div class="field-item"><div class="field-lbl">Provider Email</div><div class="field-val">___________________________________</div></div>
-    <div class="field-item"><div class="field-lbl">Business / Trade Name</div><div class="field-val">___________________________________</div></div>
+    <div class="field-item"><div class="field-lbl">Provider Phone</div><div class="field-val">${mLine('','write phone')}</div></div>
+    <div class="field-item"><div class="field-lbl">Provider Email</div><div class="field-val">${mLine('','write email')}</div></div>
+    <div class="field-item"><div class="field-lbl">Business / Trade Name</div><div class="field-val">${mLine('','write business name')}</div></div>
   </div>
 </div>
 
@@ -2179,11 +2223,11 @@ ${docHeader('Photo & Video Contract',`${e['RES#']}-PHO`,'Photo & Video — Pilab
   <div class="sec-title">1. Parties</div>
   <div class="field-grid">
     <div class="field-item"><div class="field-lbl">Contracting Party</div><div class="field-val">Pilab Productions / Cardona Hall LLC</div></div>
-    <div class="field-item"><div class="field-lbl">Provider Name</div><div class="field-val">___________________________________</div></div>
+    <div class="field-item"><div class="field-lbl">Provider Name</div><div class="field-val">${mLine(provField('Photo'),'write provider name')}</div></div>
     <div class="field-item"><div class="field-lbl">Provider Category</div><div class="field-val">Photo & Video — Photographer / Videographer</div></div>
-    <div class="field-item"><div class="field-lbl">Provider Phone</div><div class="field-val">___________________________________</div></div>
-    <div class="field-item"><div class="field-lbl">Provider Email</div><div class="field-val">___________________________________</div></div>
-    <div class="field-item"><div class="field-lbl">Business / Trade Name</div><div class="field-val">___________________________________</div></div>
+    <div class="field-item"><div class="field-lbl">Provider Phone</div><div class="field-val">${mLine('','write phone')}</div></div>
+    <div class="field-item"><div class="field-lbl">Provider Email</div><div class="field-val">${mLine('','write email')}</div></div>
+    <div class="field-item"><div class="field-lbl">Business / Trade Name</div><div class="field-val">${mLine('','write business name')}</div></div>
   </div>
 </div>
 
@@ -2289,7 +2333,170 @@ ${docFooter('Productions · Photo & Video')}
   docWrite(win,html);
 }
 
-// ── 6. CATERING BEO ──────────────────────────────────────────────────────────
+// ── 6a. MENU SELECTION FORM (Client-facing) ───────────────────────────────────
+function generateMenuSelection(){
+  const win=docOpen();if(!win)return;
+  const e=currentEvent;
+  const copy=isCopy('menu_selection');
+  const tier=e['Catering Plan']||'Essential';
+  const guests=parseInt(e['Guests'])||0;
+  const range=e['Guest Range']||'Medium';
+  const isEssential=tier==='Essential';
+  const isElegant=tier==='Elegant';
+  const isPrestige=tier==='Prestige';
+  const isLuxury=e['Catering Line']==='luxury';
+
+  // Slot counts by tier and range
+  const ri=['Small','Medium','Large','XL'].indexOf(
+    range.replace('Extra Small','Small').replace('Extra Large','XL')
+  );
+  const idx=ri>=0?Math.min(ri,3):1;
+  const slots={
+    Essential: {mc:[2,2,3,3],sal:[1,1,2,2],side:[1,2,2,3]},
+    Elegant:   {mc:[2,3,4,4],sal:[1,2,2,3],side:[2,2,3,3]},
+    Prestige:  {mc:[2,3,4,5],sal:[1,2,3,3],side:[2,3,3,3]},
+  };
+  const s=slots[tier]||slots['Elegant'];
+  const mcCount=s.mc[idx], salCount=s.sal[idx], sideCount=s.side[idx];
+
+  // Plan summary card content
+  const planCards={
+    Essential:`Main Course: ${mcCount} · Salads: ${salCount} · Sides: ${sideCount} · No softdrinks, dessert, or jugo included.`,
+    Elegant:`Main Course: ${mcCount} · Salads: ${salCount} · Sides: ${sideCount} · Softdrinks included. No dessert or jugo.`,
+    Prestige:`Main Course: ${mcCount} · Salads: ${salCount} · Sides: ${sideCount} · Softdrinks + Dessert (1/guest) + Jugo Natural + Café included.`,
+    Legacy:`Full service. Appetizers (table service) · Main Course · Full Salad Bar · Sides · Dessert Station · Jugos · Softdrinks · Café · Special Dish for honor table.`,
+  };
+
+  const writeRows=(label,count)=>Array.from({length:count},(_,i)=>`
+    <tr>
+      <td style="color:#AAA;font-size:10px;width:28px;text-align:center">${i+1}</td>
+      <td style="border-bottom:1px solid #EEEEEE;padding:8px 10px"></td>
+      <td style="border-bottom:1px solid #EEEEEE;padding:8px 10px;font-size:10px;color:#AAA"></td>
+      <td style="border-bottom:1px solid #EEEEEE;padding:8px 10px"></td>
+    </tr>`).join('');
+
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>Menu Selection — ${e['RES#']}</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>${baseStyles('#C9A84C')}
+.plan-card{background:#FBF5E6;border-left:4px solid #C9A84C;border-top:1px solid #C9A84C;border-bottom:1px solid #C9A84C;padding:12px 16px;margin:10px 0;}
+.plan-name{font-size:16px;font-weight:700;color:#8B6914;font-family:'Cormorant Garamond',serif;margin-bottom:4px;}
+.plan-detail{font-size:11px;color:#555;}
+.sel-table{width:100%;border-collapse:collapse;margin-top:8px;}
+.sel-table th{background:#1A1A1A;color:#C9A84C;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:8px 10px;text-align:left;}
+.sel-table td{vertical-align:middle;}
+.sel-cat{font-size:11px;font-weight:700;color:#333;padding:10px 0 6px;border-bottom:2px solid #E8E0CC;margin-top:14px;}
+</style></head><body>
+${copy?copyWatermark():''}
+<div class="doc">
+${docHeader('Menu Selection Form',e['RES#'],'Catering by Noches de Colombia')}
+<div class="notice-bar">Use the Cardona Hall Menu Guide to choose your dishes, then write your selections below. Return this completed form at least 14 days before your event.</div>
+
+<div class="sec">
+  <div class="field-grid">
+    <div class="field-item"><div class="field-lbl">Client Name</div><div class="field-val">${e['Client Name']||'—'}</div></div>
+    <div class="field-item"><div class="field-lbl">Event Date</div><div class="field-val">${fmtDateDoc(e['Event Date'])}</div></div>
+    <div class="field-item"><div class="field-lbl">Guests</div><div class="field-val">${guests} · ${range}</div></div>
+    <div class="field-item"><div class="field-lbl">Catering Plan</div><div class="field-val">${isLuxury?'Legacy — Luxury Collection':tier+' Collection'}</div></div>
+    <div class="field-item"><div class="field-lbl">Buffet Open Time</div><div class="field-val" style="border-bottom:1px solid #CCC;padding-bottom:3px">___________ (your choice)</div></div>
+  </div>
+</div>
+
+<div class="sec">
+  <div class="sec-title">Your Plan</div>
+  <div class="plan-card">
+    <div class="plan-name">${isLuxury?'Legacy — Luxury Collection':tier+' Collection'} · ${range}</div>
+    <div class="plan-detail">${planCards[isLuxury?'Legacy':tier]||planCards['Elegant']}</div>
+  </div>
+</div>
+
+<div class="sec">
+  <div class="sec-title">Main Course Selections — ${mcCount} option${mcCount>1?'s':''}</div>
+  <p style="font-size:10px;color:#777;margin-bottom:8px">Write the dish name as it appears in your Menu Guide. Include the cuisine section (Colombian, Caribbean, Italian, etc.).</p>
+  <table class="sel-table">
+    <thead><tr><th>#</th><th>Dish Name</th><th>Cuisine / Section</th><th>Notes</th></tr></thead>
+    <tbody>${writeRows('Main Course',mcCount)}</tbody>
+  </table>
+  <p style="font-size:10px;color:#777;margin-top:6px">Special requests / substitutions: _______________________________________________</p>
+</div>
+
+<div class="sec">
+  <div class="sec-title">Salad Selections — ${salCount} option${salCount>1?'s':''}</div>
+  <table class="sel-table">
+    <thead><tr><th>#</th><th>Salad Name</th><th>Section</th><th>Notes</th></tr></thead>
+    <tbody>${writeRows('Salad',salCount)}</tbody>
+  </table>
+</div>
+
+<div class="sec">
+  <div class="sec-title">Side Dish Selections — ${sideCount} option${sideCount>1?'s':''}</div>
+  <table class="sel-table">
+    <thead><tr><th>#</th><th>Side Dish Name</th><th>Section</th><th>Notes</th></tr></thead>
+    <tbody>${writeRows('Side',sideCount)}</tbody>
+  </table>
+</div>
+
+${isPrestige||isLuxury?`<div class="sec">
+  <div class="sec-title">Dessert — 1 option (individual per guest)</div>
+  <table class="sel-table">
+    <thead><tr><th>#</th><th>Dessert Name</th><th>Section</th><th>Notes</th></tr></thead>
+    <tbody>${writeRows('Dessert',1)}</tbody>
+  </table>
+</div>`:''}
+
+${isPrestige||isLuxury?`<div class="sec">
+  <div class="sec-title">Jugo Natural — 1 flavor</div>
+  <table class="sel-table">
+    <thead><tr><th>#</th><th>Juice Flavor</th><th>Section</th><th>Notes</th></tr></thead>
+    <tbody>${writeRows('Jugo',1)}</tbody>
+  </table>
+</div>`:''}
+
+${isLuxury?`<div class="sec">
+  <div class="sec-title">Appetizers — 3 options (table service)</div>
+  <table class="sel-table">
+    <thead><tr><th>#</th><th>Appetizer Name</th><th>Section</th><th>Notes</th></tr></thead>
+    <tbody>${writeRows('Appetizer',3)}</tbody>
+  </table>
+</div>
+<div class="sec">
+  <div class="sec-title">Special Dish — Legacy Only (Honor Table)</div>
+  <p style="font-size:11px;color:#555;margin-bottom:8px">Served as individual table service exclusively for the guest(s) of honor.</p>
+  <div class="field-grid">
+    <div class="field-item"><div class="field-lbl">Special Dish</div><div class="field-val" style="border-bottom:1px solid #CCC;padding-bottom:3px;min-height:18px"></div></div>
+    <div class="field-item"><div class="field-lbl">For (guest of honor)</div><div class="field-val" style="border-bottom:1px solid #CCC;padding-bottom:3px;min-height:18px"></div></div>
+  </div>
+</div>`:''}
+
+<div class="sec">
+  <div class="sec-title">Celebration Cake — Optional</div>
+  <div class="field-grid">
+    <div class="field-item"><div class="field-lbl">Cake requested</div><div class="field-val" style="font-size:11px">□ Yes &nbsp;&nbsp; □ No</div></div>
+    <div class="field-item"><div class="field-lbl">Flavor</div><div class="field-val" style="border-bottom:1px solid #CCC;padding-bottom:3px;min-height:18px"></div></div>
+    <div class="field-item"><div class="field-lbl">Filling</div><div class="field-val" style="border-bottom:1px solid #CCC;padding-bottom:3px;min-height:18px"></div></div>
+    <div class="field-item"><div class="field-lbl">Decoration / Theme</div><div class="field-val" style="border-bottom:1px solid #CCC;padding-bottom:3px;min-height:18px"></div></div>
+  </div>
+</div>
+
+<div class="sec">
+  <div class="sec-title">Additional Notes</div>
+  <div style="border-bottom:1px solid #DDD;height:28px;margin-bottom:8px"></div>
+  <div style="border-bottom:1px solid #DDD;height:28px"></div>
+</div>
+
+<div class="sec">
+  <div class="sec-title">Acknowledgment</div>
+  <p style="font-size:11px;color:#555;margin-bottom:14px">By signing below, I confirm that the menu selections above are final. Changes after submission are subject to availability and must be approved by Cardona Hall at least 7 days before the event.</p>
+  ${sigBlock('Authorized — James Cardona · Cardona Hall LLC / Pilab Productions LLC','James Cardona · Cardona Hall LLC / Pilab Productions LLC')}
+</div>
+${docFooter('Productions LLC · Catering by Noches de Colombia')}
+</div>
+<script>window.onload=function(){setTimeout(function(){window.print();},800);};<\/script>
+</body></html>`;
+  docWrite(win,html);
+}
+
+// ── 6b. CATERING BEO ──────────────────────────────────────────────────────────
 function generateCateringBEO(){
   const win=docOpen();if(!win)return;
   const e=currentEvent;
@@ -2434,7 +2641,17 @@ ${docHeader('Venue Staff Sheet',`${e['RES#']}`,'INTERNAL — Manager Copy')}
   <table class="staff-table">
     <thead><tr><th>Role</th><th>Name</th><th>Phone</th><th>Arrival</th><th>Departure</th></tr></thead>
     <tbody>
-      ${['Manager','Bartender','Server 1','Server 2','Security','Setup','Cleaning'].map((r,i)=>`<tr><td style="font-weight:600;color:#333">${r}</td><td>___________________</td><td>___________________</td><td>_______</td><td>_______</td></tr>`).join('')}
+      ${['Manager','Bartender','Server 1','Server 2','Security','Setup','Cleaning'].map((r,i)=>{
+        const p=getStaffByRole(r);
+        const name=p&&p['Provider Name']?p['Provider Name']:'';
+        return `<tr>
+          <td style="font-weight:600;color:#333">${r}</td>
+          <td>${mLine(name,'write name')}</td>
+          <td class="manual-line" style="border-bottom:2px dashed #BBB;background:#FAFAFA;font-size:10px;color:#BBB;padding:6px 10px"></td>
+          <td class="manual-line" style="border-bottom:2px dashed #BBB;background:#FAFAFA;font-size:10px;color:#BBB;padding:6px 10px;text-align:center">__:__</td>
+          <td class="manual-line" style="border-bottom:2px dashed #BBB;background:#FAFAFA;font-size:10px;color:#BBB;padding:6px 10px;text-align:center">__:__</td>
+        </tr>`;
+      }).join('')}
     </tbody>
   </table>
 </div>
@@ -2457,7 +2674,7 @@ ${docHeader('Venue Staff Sheet',`${e['RES#']}`,'INTERNAL — Manager Copy')}
         ['Event End','___________',''],
         ['Venue Handover to Client','___________','Return alcohol + personal items'],
         ['Cleanup Complete','___________','90 min after event end'],
-      ].map(([m,t,n],i)=>`<tr><td style="font-weight:${i===5||i===10?'700':'500'}">${m}</td><td style="color:#C9A84C;font-weight:700">${t}</td><td style="font-size:10px;color:#888">${n}</td></tr>`).join('')}
+      ].map(([m,t,n],i)=>`<tr><td style="font-weight:${i===5||i===10?'700':'500'}">${m}</td><td style="border-bottom:2px dashed #BBBBBB;background:#FAFAFA;padding:6px 10px;font-size:11px;color:#BBB">__:__</td><td style="font-size:10px;color:#888">${n}</td></tr>`).join('')}
     </tbody>
   </table>
 </div>
@@ -2908,6 +3125,254 @@ ${docHeader('Sitting Chart',e['RES#'],'Venue & Host Services — Cardona Hall LL
 <div class="sec">
   <div class="sec-title">Acknowledgment</div>
   <p style="font-size:11px;color:#555;margin-bottom:14px">By signing, I confirm that seating assignments above are final. Changes must be requested in writing at least 7 days before the event.</p>
+  ${sigBlock('Authorized — James Cardona · Cardona Hall LLC / Pilab Productions LLC','James Cardona · Cardona Hall LLC / Pilab Productions LLC')}
+</div>
+${docFooter('Productions LLC')}
+</div>
+<script>window.onload=function(){setTimeout(function(){window.print();},800);};<\/script>
+</body></html>`;
+  docWrite(win,html);
+}
+
+
+// ── CANCELLATION NOTICE ───────────────────────────────────────────────────────
+function generateCancellationNotice(){
+  const win=docOpen();if(!win)return;
+  const e=currentEvent;
+  const total=parseFloat(e['Final Total'])||0;
+  const paid=currentPayments.reduce((s,p)=>s+(parseFloat(p['Amount'])||0),0);
+  const today=new Date();
+  const eventDate=e['Event Date']?new Date(e['Event Date'].split('T')[0]+'T00:00:00'):null;
+  const daysRemaining=eventDate?Math.floor((eventDate-today)/(1000*60*60*24)):null;
+  let penaltyPct=100,penaltyNote='No refund';
+  if(daysRemaining!==null){
+    if(daysRemaining>90){penaltyPct=25;penaltyNote='Early cancellation';}
+    else if(daysRemaining>=60){penaltyPct=50;penaltyNote='';}
+    else if(daysRemaining>=30){penaltyPct=75;penaltyNote='';}
+    else if(daysRemaining>=15){penaltyPct=90;penaltyNote='';}
+    else{penaltyPct=100;penaltyNote='No refund';}
+  }
+  const penaltyAmt=total*(penaltyPct/100);
+  const refundAmt=Math.max(0,paid-penaltyAmt);
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>Cancellation Notice — ${e['RES#']}</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>${baseStyles('#CC2200')}
+.hdr{background:#EDE8DC;border-bottom:3px solid #CC2200;}
+.ch-name{color:#8B1500;}.ch-sub{color:#CC2200;}.doc-title{color:#8B1500;}
+.sec-title{color:#8B1500;border-bottom:2px solid #CC2200;}
+.services-table th{background:#2A0000;color:#FF8888;}
+.cancel-table th{background:#2A0000;color:#FF8888;}
+.footer-bar{border-top:2px solid #CC2200;}
+.type-badge{background:#FFF0EE;border-left:4px solid #CC2200;border-top:1px solid #CC2200;border-bottom:1px solid #CC2200;padding:12px 16px;margin:10px 0;}
+.type-title{font-size:16px;font-weight:700;color:#CC2200;font-family:'Cormorant Garamond',serif;}
+.type-sub{font-size:11px;color:#555;margin-top:4px;}
+</style></head><body><div class="doc">
+${docHeader('Cancellation Notice',`CAN-${e['RES#']}`,'Produced by Pilab Productions','#CC2200')}
+<div class="type-badge">
+  <div class="type-title">EVENT CANCELLATION</div>
+  <div class="type-sub">This document confirms the cancellation of the event referenced below. Penalties apply per the signed Service Agreement.</div>
+</div>
+<div class="sec">
+  <div class="sec-title">1. Event & Contract Reference</div>
+  <div class="field-grid">
+    <div class="field-item"><div class="field-lbl">Client Name</div><div class="field-val">${e['Client Name']||'—'}</div></div>
+    <div class="field-item"><div class="field-lbl">Reservation #</div><div class="field-val">${e['RES#']||'—'}</div></div>
+    <div class="field-item"><div class="field-lbl">Event Type</div><div class="field-val">${etLabel()}</div></div>
+    <div class="field-item"><div class="field-lbl">Original Event Date</div><div class="field-val">${fmtDateDoc(e['Event Date'])}</div></div>
+    <div class="field-item"><div class="field-lbl">Cancellation Date</div><div class="field-val">${docToday()}</div></div>
+    <div class="field-item"><div class="field-lbl">Days Before Event</div><div class="field-val">${daysRemaining!==null?daysRemaining+' days':'—'}</div></div>
+  </div>
+</div>
+<div class="sec">
+  <div class="sec-title">2. Penalty Calculation</div>
+  <table class="services-table">
+    <thead><tr><th>Concept</th><th style="text-align:right">Amount</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>Total Agreed Contract Amount</td><td style="text-align:right;font-weight:600">${fmtM(total)}</td><td>Original</td></tr>
+      <tr><td>Total Paid by Client</td><td style="text-align:right;font-weight:600">${fmtM(paid)}</td><td>Received</td></tr>
+      <tr><td style="font-weight:700;color:#8B1500">Cancellation Penalty (${penaltyPct}%)</td><td style="text-align:right;font-weight:700;color:#8B1500">${fmtM(penaltyAmt)}</td><td style="color:#8B1500;font-weight:600">Retained</td></tr>
+      <tr class="total-row"><td>Amount to be Refunded to Client</td><td style="text-align:right">${fmtM(refundAmt)}</td><td>${refundAmt>0?'Refund due':'No refund'}</td></tr>
+    </tbody>
+  </table>
+  <p style="font-size:10px;color:#777;margin-top:8px">Cancellation policy applied: ${daysRemaining!==null?daysRemaining+' days before event':'date not available'}. ${penaltyNote}</p>
+</div>
+<div class="sec">
+  <div class="sec-title">3. Refund Terms</div>
+  <p style="font-size:11px;color:#555;margin-bottom:10px">${refundAmt>0?`A refund of ${fmtM(refundAmt)} will be processed within 14 business days of signing, via the same payment method as the original payment(s).`:'No refund is applicable per the cancellation policy.'}</p>
+  <div class="field-grid">
+    <div class="field-item"><div class="field-lbl">Refund Method</div><div class="field-val">${refundAmt>0?'Same as original payment':'N/A'}</div></div>
+    <div class="field-item"><div class="field-lbl">Processing Time</div><div class="field-val">${refundAmt>0?'Within 14 business days':'N/A'}</div></div>
+  </div>
+</div>
+<div class="sec">
+  <div class="sec-title">4. Acknowledgment</div>
+  <p style="font-size:11px;color:#555;margin-bottom:14px">By signing below, the Client confirms they understand and accept the cancellation terms and penalty amounts stated in this document. This document becomes an official amendment to the original Service Agreement.</p>
+  ${sigBlock('Authorized — James Cardona · Cardona Hall LLC / Pilab Productions LLC','James Cardona · Cardona Hall LLC / Pilab Productions LLC')}
+</div>
+${docFooter('Productions LLC')}
+</div>
+<script>window.onload=function(){setTimeout(function(){window.print();},800);};<\/script>
+</body></html>`;
+  docWrite(win,html);
+}
+
+// ── DATE CHANGE AMENDMENT ─────────────────────────────────────────────────────
+function generateDateChange(){
+  const win=docOpen();if(!win)return;
+  const e=currentEvent;
+  const today=new Date();
+  const eventDate=e['Event Date']?new Date(e['Event Date'].split('T')[0]+'T00:00:00'):null;
+  const daysRemaining=eventDate?Math.floor((eventDate-today)/(1000*60*60*24)):null;
+  let fee=600,feeNote='15–29 days';
+  if(daysRemaining!==null){
+    if(daysRemaining>90){fee=150;feeNote='>90 days';}
+    else if(daysRemaining>=60){fee=250;feeNote='60–90 days';}
+    else if(daysRemaining>=30){fee=400;feeNote='30–59 days';}
+    else if(daysRemaining>=15){fee=600;feeNote='15–29 days';}
+    else{fee=null;feeNote='< 15 days — not permitted';}
+  }
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>Date Change — ${e['RES#']}</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>${baseStyles('#D4680A')}
+.hdr{background:#EDE8DC;border-bottom:3px solid #D4680A;}
+.ch-name{color:#8B4500;}.ch-sub{color:#D4680A;}.doc-title{color:#8B4500;}
+.sec-title{color:#8B4500;border-bottom:2px solid #D4680A;}
+.services-table th{background:#1A0800;color:#FFB877;}
+.footer-bar{border-top:2px solid #D4680A;}
+.type-badge{background:#FFF5E8;border-left:4px solid #D4680A;border-top:1px solid #D4680A;border-bottom:1px solid #D4680A;padding:12px 16px;margin:10px 0;}
+.type-title{font-size:16px;font-weight:700;color:#D4680A;font-family:'Cormorant Garamond',serif;}
+.type-sub{font-size:11px;color:#555;margin-top:4px;}
+</style></head><body><div class="doc">
+${docHeader('Date Change Amendment',`DCH-${e['RES#']}`,'Produced by Pilab Productions','#D4680A')}
+<div class="type-badge">
+  <div class="type-title">DATE CHANGE REQUEST</div>
+  <div class="type-sub">This document confirms a change of event date. A non-refundable fee applies. All other contract terms remain in effect for the new date.</div>
+</div>
+<div class="sec">
+  <div class="sec-title">1. Contract Reference</div>
+  <div class="field-grid">
+    <div class="field-item"><div class="field-lbl">Client Name</div><div class="field-val">${e['Client Name']||'—'}</div></div>
+    <div class="field-item"><div class="field-lbl">Reservation #</div><div class="field-val">${e['RES#']||'—'}</div></div>
+    <div class="field-item"><div class="field-lbl">Event Type</div><div class="field-val">${etLabel()}</div></div>
+    <div class="field-item"><div class="field-lbl">Original Event Date</div><div class="field-val">${fmtDateDoc(e['Event Date'])}</div></div>
+    <div class="field-item"><div class="field-lbl">Change Requested</div><div class="field-val">${docToday()}</div></div>
+    <div class="field-item"><div class="field-lbl">Days Before Original Event</div><div class="field-val">${daysRemaining!==null?daysRemaining+' days':'—'}</div></div>
+  </div>
+</div>
+<div class="sec">
+  <div class="sec-title">2. New Event Date</div>
+  <div class="field-grid">
+    <div class="field-item"><div class="field-lbl">New Event Date</div><div class="field-val field-manual"></div></div>
+    <div class="field-item"><div class="field-lbl">New Day of Week</div><div class="field-val field-manual"></div></div>
+    <div class="field-item"><div class="field-lbl">Availability Confirmed</div><div class="field-val" style="font-size:11px">□ Yes &nbsp; □ Pending</div></div>
+    <div class="field-item"><div class="field-lbl">Confirmed by</div><div class="field-val">James Cardona</div></div>
+  </div>
+</div>
+<div class="sec">
+  <div class="sec-title">3. Date Change Fee</div>
+  ${fee===null?`<div class="warn-box">Date change is NOT permitted with less than 15 days before the original event. This request will be treated as a cancellation per Section 7 of the Service Agreement.</div>`:`
+  <table class="services-table">
+    <thead><tr><th>Concept</th><th style="text-align:right">Amount</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Total Contract Amount</td><td style="text-align:right">${fmtM(parseFloat(e['Final Total'])||0)}</td><td>Reference only</td></tr>
+      <tr><td>Days Before Original Event</td><td style="text-align:right">${daysRemaining} days</td><td>${feeNote}</td></tr>
+      <tr class="total-row"><td>Date Change Fee Applied</td><td style="text-align:right">${fmtM(fee)}</td><td>Non-refundable</td></tr>
+    </tbody>
+  </table>
+  <div class="info-box" style="margin-top:10px;font-size:10px">Fee is non-refundable under any circumstances, including force majeure. Only one date change permitted per contract. A second request will be treated as a cancellation.</div>`}
+</div>
+<div class="sec">
+  <div class="sec-title">4. Acknowledgment</div>
+  <p style="font-size:11px;color:#555;margin-bottom:14px">By signing below, both parties confirm the new event date and the date change fee. All original contract terms remain in effect for the new date. This document is an official amendment to the original Service Agreement.</p>
+  ${sigBlock('Authorized — James Cardona · Cardona Hall LLC / Pilab Productions LLC','James Cardona · Cardona Hall LLC / Pilab Productions LLC')}
+</div>
+${docFooter('Productions LLC')}
+</div>
+<script>window.onload=function(){setTimeout(function(){window.print();},800);};<\/script>
+</body></html>`;
+  docWrite(win,html);
+}
+
+// ── FORCE MAJEURE — EVENT FREEZE ──────────────────────────────────────────────
+function generateForceMajeure(){
+  const win=docOpen();if(!win)return;
+  const e=currentEvent;
+  const paid=currentPayments.reduce((s,p)=>s+(parseFloat(p['Amount'])||0),0);
+  const eventDate=e['Event Date']?new Date(e['Event Date'].split('T')[0]+'T00:00:00'):null;
+  const deadline=eventDate?new Date(eventDate.getTime()+(6*30*24*60*60*1000)):null;
+  const deadlineStr=deadline?deadline.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}):'[6 months from event date]';
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>Force Majeure — ${e['RES#']}</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>${baseStyles('#1A7A3C')}
+.hdr{background:#EDE8DC;border-bottom:3px solid #1A7A3C;}
+.ch-name{color:#0D4A22;}.ch-sub{color:#1A7A3C;}.doc-title{color:#0D4A22;}
+.sec-title{color:#0D4A22;border-bottom:2px solid #1A7A3C;}
+.info-box{background:#EBF7EF;border-left:4px solid #1A7A3C;border-top:1px solid #1A7A3C;border-bottom:1px solid #1A7A3C;}
+.services-table th{background:#071A0F;color:#6EC98A;}
+.footer-bar{border-top:2px solid #1A7A3C;}
+.type-badge{background:#EBF7EF;border-left:4px solid #1A7A3C;border-top:1px solid #1A7A3C;border-bottom:1px solid #1A7A3C;padding:12px 16px;margin:10px 0;}
+.type-title{font-size:16px;font-weight:700;color:#1A7A3C;font-family:'Cormorant Garamond',serif;}
+.type-sub{font-size:11px;color:#555;margin-top:4px;}
+.check-item{padding:5px 0 5px 20px;font-size:11px;color:#333;position:relative;border-bottom:0.5px solid #EEE;}
+.check-item:before{content:"□";position:absolute;left:0;color:#1A7A3C;font-weight:700;}
+</style></head><body><div class="doc">
+${docHeader('Force Majeure — Event Freeze',`FMJ-${e['RES#']}`,'Produced by Pilab Productions','#1A7A3C')}
+<div class="type-badge">
+  <div class="type-title">FORCE MAJEURE — EVENT FREEZE</div>
+  <div class="type-sub">This document confirms the temporary suspension of the event due to extraordinary circumstances beyond the client's control. Standard cancellation penalties are waived.</div>
+</div>
+<div class="sec">
+  <div class="sec-title">1. Contract Reference</div>
+  <div class="field-grid">
+    <div class="field-item"><div class="field-lbl">Client Name</div><div class="field-val">${e['Client Name']||'—'}</div></div>
+    <div class="field-item"><div class="field-lbl">Reservation #</div><div class="field-val">${e['RES#']||'—'}</div></div>
+    <div class="field-item"><div class="field-lbl">Event Type</div><div class="field-val">${etLabel()}</div></div>
+    <div class="field-item"><div class="field-lbl">Original Event Date</div><div class="field-val">${fmtDateDoc(e['Event Date'])}</div></div>
+    <div class="field-item"><div class="field-lbl">Total Paid to Date</div><div class="field-val">${fmtM(paid)}</div></div>
+    <div class="field-item"><div class="field-lbl">Freeze Date</div><div class="field-val">${docToday()}</div></div>
+  </div>
+</div>
+<div class="sec">
+  <div class="sec-title">2. Force Majeure Circumstance</div>
+  <div class="field-grid" style="margin-bottom:10px">
+    <div class="field-item"><div class="field-lbl">Nature of Circumstance</div><div class="field-val field-manual"></div></div>
+    <div class="field-item"><div class="field-lbl">Date of Occurrence</div><div class="field-val field-manual"></div></div>
+  </div>
+  <div class="field-item" style="margin-bottom:10px">
+    <div class="field-lbl">Documentation Provided</div>
+    <div class="field-val" style="font-size:11px">□ Medical certificate &nbsp; □ Death certificate &nbsp; □ Police report &nbsp; □ Other: ___________</div>
+  </div>
+  <div class="field-item">
+    <div class="field-lbl">Additional Details</div>
+    <div class="field-val field-manual" style="min-height:32px"></div>
+  </div>
+</div>
+<div class="sec">
+  <div class="sec-title">3. Event Freeze Terms</div>
+  <div class="info-box">
+    <p style="font-size:11px;color:#0D4A22;font-weight:700;margin-bottom:6px">FREEZE CONDITIONS — Standard cancellation penalties WAIVED</p>
+    <div class="check-item">All payments made to date (${fmtM(paid)}) are retained and credited toward the rescheduled event.</div>
+    <div class="check-item">The client has <strong>6 months</strong> from the original event date to reschedule (deadline: ${deadlineStr}).</div>
+    <div class="check-item">A <strong>$200 administrative fee</strong> applies at the time of rescheduling.</div>
+    <div class="check-item">If the client does not reschedule within 6 months, the standard cancellation policy applies from the original event date.</div>
+    <div class="check-item">Supporting documentation must be provided before this freeze takes effect.</div>
+  </div>
+</div>
+<div class="sec">
+  <div class="sec-title">4. Rescheduling Process</div>
+  <div class="field-grid">
+    <div class="field-item"><div class="field-lbl">Reschedule Deadline</div><div class="field-val" style="color:#1A7A3C;font-weight:700">${deadlineStr}</div></div>
+    <div class="field-item"><div class="field-lbl">Admin Fee at Reschedule</div><div class="field-val">$200.00 — Non-refundable</div></div>
+    <div class="field-item"><div class="field-lbl">Preferred New Date (if known)</div><div class="field-val field-manual"></div></div>
+    <div class="field-item"><div class="field-lbl">Contact Preference</div><div class="field-val" style="font-size:11px">□ Phone &nbsp; □ WhatsApp &nbsp; □ Email</div></div>
+  </div>
+</div>
+<div class="sec">
+  <div class="sec-title">5. Acknowledgment</div>
+  <p style="font-size:11px;color:#555;margin-bottom:14px">By signing below, both parties confirm the extraordinary circumstances described in this document and agree to the event freeze terms. This document is an official amendment to the original Service Agreement.</p>
   ${sigBlock('Authorized — James Cardona · Cardona Hall LLC / Pilab Productions LLC','James Cardona · Cardona Hall LLC / Pilab Productions LLC')}
 </div>
 ${docFooter('Productions LLC')}
