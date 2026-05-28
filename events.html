@@ -554,12 +554,12 @@ async function loadServices(){
 }
 
 function renderPayments(){
-  const total=getEventTotal();
+  const total=getEventTotal(); // includes additional services
   const received=getTotalReceived();
   const balance=total-received;
   document.getElementById('sumTotal').textContent=fmtMoney(total);
   document.getElementById('sumReceived').textContent=fmtMoney(received);
-  document.getElementById('sumBalance').textContent=fmtMoney(balance);
+  document.getElementById('sumBalance').textContent=fmtMoney(Math.max(0,balance));
   document.getElementById('sumCount').textContent=currentPayments.length;
   // Auto-select Deposit if first payment
   if(currentPayments.length===0){
@@ -595,6 +595,10 @@ function renderServices(){
   document.getElementById('servicesTotalVal').textContent=fmtMoney(total);
   document.getElementById('dTotal').textContent=fmtMoney(getEventTotal());
   document.getElementById('sumTotal').textContent=fmtMoney(getEventTotal());
+  // Recalculate balance with updated services total
+  const received=getTotalReceived();
+  const balance=getEventTotal()-received;
+  document.getElementById('sumBalance').textContent=fmtMoney(Math.max(0,balance));
   if(!currentServices.length){
     document.getElementById('servicesBody').innerHTML='<tr><td colspan="5" class="no-data">No additional services added</td></tr>';
     return;
@@ -614,10 +618,13 @@ async function savePayment(){
   const date=document.getElementById('payDate').value;
   if(!amount||amount<=0){showToast('Enter a valid amount','error');return;}
   if(!date){showToast('Select a date','error');return;}
-  // Validate no future date
+  // Warn if payment date is after today (sysdate)
   const today=new Date();today.setHours(0,0,0,0);
   const payD=new Date(date+'T00:00:00');
-  if(payD>today){showToast('Payment date cannot be in the future','error');return;}
+  if(payD>today){
+    const confirmed=confirm(`Payment date ${date} is after today. This may be a future or backdated entry.\n\nProceed anyway?`);
+    if(!confirmed)return;
+  }
   // Validate does not exceed balance
   const balance=getEventTotal()-getTotalReceived();
   if(amount>balance+0.01){showToast(`Amount exceeds balance due (${fmtMoney(balance)})','error`);return;}
@@ -1076,6 +1083,7 @@ function renderExpenses(){
     const statusColor=balance<=0&&!isOverpaid?'#6EC98A':balance<agreed?'#E8A030':'#E87070';
     const statusLabel=isOverpaid?'Overpaid':balance<=0?'Paid':balance<agreed?'Partial':'Pending';
     const canRemove=paid===0;
+    const canPay=balance>0&&!isOverpaid;
     return `<tr>
       <td style="font-weight:500">${e['Provider Name']||'—'}</td>
       <td style="font-size:11px;color:#888">${e['Role']||e['Category']||'—'}</td>
@@ -1084,7 +1092,7 @@ function renderExpenses(){
       <td style="font-weight:600;color:${isOverpaid?'#E8A030':balance>0?'#E87070':'#6EC98A'}">${fmtMoney(Math.abs(balance))}${isOverpaid?' (over)':''}</td>
       <td><span style="font-size:9px;font-weight:700;color:${statusColor};letter-spacing:1px;text-transform:uppercase">${statusLabel}</span></td>
       <td style="text-align:right;display:flex;gap:6px;justify-content:flex-end">
-        <button class="btn btn-outline btn-sm" onclick="openExpPayForm('${e['Expense ID']}','${e['Provider Name']}',${Math.max(0,balance)})">+ Pay</button>
+        <button class="btn btn-outline btn-sm" onclick="openExpPayForm('${e['Expense ID']}','${e['Provider Name']}',${Math.max(0,balance)})" ${canPay?'':'disabled style="opacity:0.35;cursor:not-allowed"'}>+ Pay</button>
         ${canRemove?`<button class="btn btn-red btn-sm" onclick="removeExpense('${e['Expense ID']}','${e['Provider Name']}')">✕</button>`:''}
       </td>
     </tr>`;
@@ -1271,22 +1279,32 @@ function renderDocuments(){
   DOC_DEFINITIONS.forEach(def=>{
     if(!def.condition())return;
     const status=getDocStatus(def.id);
-    const statusClass=status?`dst-${status.toLowerCase().replace(' ','-')}`:'dst-draft';
+    const isSigned=status==='Signed'||status==='Confirmed';
+    const isGenerated=status&&status!=='';
+    const statusClass=isSigned?'dst-signed':status?`dst-${status.toLowerCase().replace(' ','-')}`:'dst-draft';
     const statusLabel=status||'Not Generated';
 
-    const nextStatuses=def.statuses.filter(s=>s!==status);
-    const statusButtons=nextStatuses.map(s=>`<button class="btn btn-ghost btn-sm" onclick="updateDocStatus('${def.id}','${s}')">${s}</button>`).join('');
+    // Status buttons — disabled if signed
+    const nextStatuses=isSigned?[]:def.statuses.filter(s=>s!==status);
+    const statusButtons=isSigned?
+      `<span style="font-size:9px;color:#6EC98A;font-weight:700;letter-spacing:1px">✓ SIGNED</span>`:
+      nextStatuses.map(s=>`<button class="btn btn-ghost btn-sm" onclick="updateDocStatus('${def.id}','${s}')">${s}</button>`).join('');
 
-    const card=`<div class="doc-card">
+    // Generate button — always shown, COPY badge if already generated
+    const genBtn=def.canGenerate?
+      `<button class="btn btn-outline btn-sm" onclick="generateDoc('${def.id}')">⬇ ${isGenerated?'COPY':'Generate'}</button>`:
+      '';
+
+    const card=`<div class="doc-card" style="${isSigned?'border-left:3px solid #6EC98A;':''} ">
       <div class="doc-icon">${def.icon}</div>
       <div class="doc-info">
-        <div class="doc-name">${def.name}</div>
+        <div class="doc-name" style="${isSigned?'color:#1E5C2E;':''}">${def.name}</div>
         <div class="doc-sub">${def.sub}</div>
       </div>
       <div class="doc-status">
-        <span class="doc-status-badge ${statusClass}">${statusLabel}</span>
+        <span class="doc-status-badge ${statusClass}" style="${isSigned?'background:#EBF7EF;color:#1E5C2E;border-color:#6EC98A;':''}">${statusLabel}</span>
         ${statusButtons}
-        ${def.canGenerate?`<button class="btn btn-outline btn-sm" onclick="generateDoc('${def.id}')">⬇ Generate</button>`:''}
+        ${genBtn}
       </div>
     </div>`;
     groups[def.group].push(card);
@@ -1296,6 +1314,7 @@ function renderDocuments(){
   currentServices.forEach(s=>{
     const amdId=`amendment_${s['Detail ID']}`;
     const status=getDocStatus(amdId);
+    const isGenerated=status&&status!=='';
     const card=`<div class="doc-card">
       <div class="doc-icon">📎</div>
       <div class="doc-info">
@@ -1304,7 +1323,7 @@ function renderDocuments(){
       </div>
       <div class="doc-status">
         <span class="doc-status-badge ${status?`dst-${status.toLowerCase()}`:'dst-draft'}">${status||'Not Generated'}</span>
-        <button class="btn btn-outline btn-sm" onclick="generateAmendmentFromDoc(${currentServices.indexOf(s)})">⬇ Generate</button>
+        <button class="btn btn-outline btn-sm" onclick="generateAmendmentFromDoc(${currentServices.indexOf(s)})">⬇ ${isGenerated?'COPY':'Generate'}</button>
       </div>
     </div>`;
     groups.amendments.push(card);
@@ -1367,26 +1386,56 @@ function docOpen(){const win=window.open('','_blank','width=960,height=800');if(
 function docWrite(win,html){win.document.open();win.document.write(html);win.document.close();showToast('Document opening...','success');}
 function docToday(){return new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});}
 function fmtM(n){return '$'+(parseFloat(n)||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});}
+function fmtDateDoc(d){
+  if(!d)return '—';
+  const dt=new Date(d+'T00:00:00');
+  if(isNaN(dt))return d;
+  const mm=String(dt.getMonth()+1).padStart(2,'0');
+  const dd=String(dt.getDate()).padStart(2,'0');
+  const yyyy=dt.getFullYear();
+  const days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  return `${mm}/${dd}/${yyyy} · ${days[dt.getDay()]}`;
+}
 const ET_LABELS_DOC={wedding:'Wedding',quinceanera:'Quinceañera',sweet16:'Sweet 16',baby_shower:'Baby Shower',kids_party:'Kids Party',birthday:'Birthday Party',special_social:'Special Event — Social',special_corporate:'Special Event — Corporate',bautizo:'Bautizo',graduacion:'Graduation',primera_comunion:'Primera Comunión'};
 function etLabel(){return ET_LABELS_DOC[currentEvent['Event Type']]||currentEvent['Event Type']||'—';}
+function isWeekend(){const d=(currentEvent['Day of Week']||'').toLowerCase();return d==='saturday'||d==='sunday'||d==='friday';}
+
+function scheduleInfo(){
+  const e=currentEvent;
+  const hasDecor=e['Decor Plan']&&e['Decor Plan']!=='na';
+  const hasDJ=e['Entertainment Plan']&&e['Entertainment Plan']!=='na';
+  const start=e['Event Start Time']||'[Start Time]';
+  const end=e['Event End Time']||'[End Time]';
+  if(hasDecor&&hasDJ) return `Event: ${start} – ${end} (6-hour event with decoration setup)`;
+  if(hasDecor&&!hasDJ) return `Event: ${start} – ${end} (6-hour event · DJ may arrive 1 hour before start)`;
+  return `Event: ${start} – ${end} (8-hour continuous event)`;
+}
+
+function isCopy(docId){
+  return !!(currentDocuments&&currentDocuments.find(d=>d['Type']===docId));
+}
+
+function copyWatermark(){
+  return `<div style="position:fixed;top:40%;left:50%;transform:translate(-50%,-50%) rotate(-35deg);font-size:80px;font-weight:900;color:rgba(200,50,50,0.08);pointer-events:none;z-index:9999;letter-spacing:10px;font-family:Arial">COPY</div>`;
+}
 
 function baseStyles(accentColor='#C9A84C',bgColor='#F8F5EE'){
   return `
-@page{margin:15mm;size:A4;}
+@page{margin:12mm;size:A4;}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;}
 html,body{background:#fff;font-family:'Montserrat',sans-serif;font-size:12px;color:#2A2A2A;}
 .doc{width:100%;background:#fff;}
 .hdr{background:#EDE8DC;padding:20px 24px 14px;display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid ${accentColor};}
-.ch-name{font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:700;color:${accentColor === '#C9A84C' ? '#8B6914' : accentColor};letter-spacing:2px;text-transform:uppercase;}
+.ch-name{font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:700;color:${accentColor==='#C9A84C'?'#8B6914':accentColor};letter-spacing:2px;text-transform:uppercase;}
 .ch-addr{font-size:10px;color:#888;margin-top:3px;}
 .ch-sub{font-size:9px;color:${accentColor};font-weight:600;letter-spacing:1.5px;margin-top:3px;}
 .doc-ref{text-align:right;}
-.doc-title{font-size:13px;font-weight:700;color:${accentColor === '#C9A84C' ? '#8B6914' : accentColor};letter-spacing:1px;text-transform:uppercase;}
+.doc-title{font-size:13px;font-weight:700;color:${accentColor==='#C9A84C'?'#8B6914':accentColor};letter-spacing:1px;text-transform:uppercase;}
 .doc-num{font-size:11px;color:#888;margin-top:4px;}
 .doc-date{font-size:10px;color:#999;margin-top:2px;}
 .notice-bar{background:#1A1A1A;padding:8px 18px;font-size:10px;color:#CCC;font-style:italic;border-left:4px solid ${accentColor};}
 .sec{padding:14px 24px;border-bottom:0.5px solid #EEEEEE;}
-.sec-title{font-size:9px;font-weight:700;color:${accentColor === '#C9A84C' ? '#8B6914' : accentColor};letter-spacing:3px;text-transform:uppercase;margin-bottom:10px;padding-bottom:5px;border-bottom:2px solid ${accentColor};}
+.sec-title{font-size:9px;font-weight:700;color:${accentColor==='#C9A84C'?'#8B6914':accentColor};letter-spacing:3px;text-transform:uppercase;margin-bottom:10px;padding-bottom:5px;border-bottom:2px solid ${accentColor};}
 .field-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .field-item{display:flex;flex-direction:column;gap:2px;}
 .field-lbl{font-size:8px;font-weight:600;color:#888;letter-spacing:1.5px;text-transform:uppercase;}
@@ -1417,7 +1466,11 @@ html,body{background:#fff;font-family:'Montserrat',sans-serif;font-size:12px;col
 .pdot{width:6px;height:6px;border-radius:50%;display:inline-block;}
 .pilab-txt{font-size:10px;}
 .p-pi{color:#D4A853;}.p-la{color:#00B4D8;}.p-b{color:#E040A0;}.p-dot{color:#E8307A;}.p-rest{color:#888;}
-@media print{*{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;}}`;
+@media print{
+  *{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;}
+  @page{margin:12mm;size:A4;}
+  head title{display:none;}
+}`;
 }
 
 function docHeader(title, refNum, division='Produced by Pilab Productions', accentColor='#C9A84C'){
@@ -1497,9 +1550,13 @@ function depositHTML(){
 function generateClientContract(){
   const win=docOpen(); if(!win)return;
   const e=currentEvent;
+  const copy=isCopy('contract_client');
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>Service Agreement — ${e['RES#']}</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
-<style>${baseStyles('#C9A84C')}</style></head><body><div class="doc">
+<style>${baseStyles('#C9A84C')}</style></head><body>
+${copy?copyWatermark():''}
+<div class="doc">
 ${docHeader('Service Agreement',`${e['COT#']} / ${e['RES#']}`)}
 <div class="notice-bar">This contract must be signed and returned within 7 days of issuance. After this period, the reserved date will be released and any deposit paid will be forfeited.</div>
 
@@ -1507,7 +1564,7 @@ ${docHeader('Service Agreement',`${e['COT#']} / ${e['RES#']}`)}
   <div class="sec-title">1. Parties</div>
   <p style="font-size:11px;color:#555;margin-bottom:10px">This Service Agreement is entered into on ${docToday()}, between:</p>
   <div class="field-grid">
-    <div class="field-item"><div class="field-lbl">Service Provider</div><div class="field-val">Cardona Hall LLC / Pilab Productions — 72 Hoover Ave, Passaic, NJ 07055</div></div>
+    <div class="field-item"><div class="field-lbl">Service Provider</div><div class="field-val">Cardona Hall LLC / Pilab Productions LLC — 72 Hoover Ave, Passaic, NJ 07055</div></div>
     <div class="field-item"><div class="field-lbl">Client Name</div><div class="field-val">${e['Client Name']||'—'}</div></div>
     <div class="field-item"><div class="field-lbl">Client Phone</div><div class="field-val">${e['Phone']||'—'}</div></div>
     <div class="field-item"><div class="field-lbl">Client Email</div><div class="field-val">${e['Email']||'—'}</div></div>
@@ -1518,8 +1575,9 @@ ${docHeader('Service Agreement',`${e['COT#']} / ${e['RES#']}`)}
   <div class="sec-title">2. Event Details</div>
   <div class="field-grid">
     <div class="field-item"><div class="field-lbl">Event Type</div><div class="field-val">${etLabel()}</div></div>
-    <div class="field-item"><div class="field-lbl">Event Date</div><div class="field-val">${e['Event Date']||'—'} · ${e['Day of Week']||''}</div></div>
-    <div class="field-item"><div class="field-lbl">Guests</div><div class="field-val">${e['Guests']||'—'} adults</div></div>
+    <div class="field-item"><div class="field-lbl">Event Date</div><div class="field-val">${fmtDateDoc(e['Event Date'])}</div></div>
+    <div class="field-item"><div class="field-lbl">Event Schedule</div><div class="field-val">${scheduleInfo()}</div></div>
+    <div class="field-item"><div class="field-lbl">Guests</div><div class="field-val">${e['Guests']||'—'} adults · ${e['Tables']||'—'} tables</div></div>
     <div class="field-item"><div class="field-lbl">Venue</div><div class="field-val">72 Hoover Ave, Passaic, NJ 07055 — Cardona Hall</div></div>
   </div>
 </div>
@@ -1534,7 +1592,7 @@ ${docHeader('Service Agreement',`${e['COT#']} / ${e['RES#']}`)}
   <div class="sec-title">4. Guest Count & Final Confirmation</div>
   <ul class="bullet-list">
     <li>Final confirmed guest count must be submitted no later than <strong>14 days before the event</strong>.</li>
-    <li>If the final count is higher than stated, additional per-person charges apply and must be settled before the event.</li>
+    <li>If additional guests arrive on the day of the event beyond the confirmed count, a charge of <strong>$60 per additional person</strong> will be applied and registered as an additional service.</li>
     <li>Reductions after the final confirmation date are not permitted — the guaranteed count remains the billing basis.</li>
     <li>Children age 5 and over count as adults for guest count, catering, and venue capacity purposes.</li>
   </ul>
@@ -1546,16 +1604,17 @@ ${docHeader('Service Agreement',`${e['COT#']} / ${e['RES#']}`)}
     <thead><tr><th>Installment</th><th>Amount</th><th>Due Date</th><th>Method</th></tr></thead>
     <tbody>
       <tr><td style="font-weight:600">Deposit</td><td>${depositHTML()}</td><td>To confirm reservation</td><td>Cash / Zelle / Check / Card</td></tr>
-      <tr><td style="font-weight:600">Balance</td><td>${fmtM((parseFloat(e['Final Total'])||0)-(parseFloat(e['Final Total'])>5000?(parseFloat(e['Final Total'])||0)*0.2:1000))}</td><td>8 days before event</td><td>Cash / Zelle / Check / Card</td></tr>
+      <tr><td style="font-weight:600">Balance</td><td>[Balance amount]</td><td>8 days before event</td><td>Cash / Zelle / Check / Card</td></tr>
     </tbody>
   </table>
   <p style="font-size:10px;color:#777;margin-top:8px">A receipt will be issued for each payment. All discounts apply exclusively to events held at Cardona Hall.</p>
+  <p style="font-size:10px;color:#CC2200;margin-top:6px;font-weight:600">Late Payment Penalty: Payments not received by the agreed due date will accrue interest at 1.5% per month on the outstanding balance, with a minimum charge of $50 per month.</p>
 </div>
 
 <div class="sec">
   <div class="sec-title">6. Security Deposit</div>
-  <div class="info-box">A refundable security deposit of $500.00 USD is required no later than 8 days before the event.</div>
-  <p style="font-size:11px;color:#555;margin:8px 0 6px">Refunded within 7 business days after the event if no damage, no penalty fees, and all terms met. If damage or penalties exceed $500, the client is responsible for the balance within 7 days.</p>
+  <div class="info-box">A refundable security deposit is required no later than 8 days before the event.</div>
+  <p style="font-size:11px;color:#555;margin:8px 0 6px">Refunded within 7 business days after the event if no damage, no penalty fees, and all terms met. If damage or penalties exceed the deposit amount, the client is responsible for the balance within 7 days.</p>
 </div>
 
 <div class="sec">
@@ -1564,7 +1623,7 @@ ${docHeader('Service Agreement',`${e['COT#']} / ${e['RES#']}`)}
     <thead><tr><th style="text-align:left">Timeframe</th><th style="text-align:left">Penalty</th><th style="text-align:left">Notes</th></tr></thead>
     <tbody>
       <tr><td>Within 72 hours of signing</td><td style="font-weight:600">$200 admin fee only</td><td>Cooling-off period</td></tr>
-      <tr><td>> 90 days before event</td><td style="font-weight:600">25% of total</td><td>Early cancellation</td></tr>
+      <tr><td>> 90 days before event</td><td style="font-weight:600">25% of total</td><td></td></tr>
       <tr><td>60 – 90 days before event</td><td style="font-weight:600">50% of total</td><td></td></tr>
       <tr><td>30 – 59 days before event</td><td style="font-weight:600">75% of total</td><td></td></tr>
       <tr><td>15 – 29 days before event</td><td style="font-weight:600">90% of total</td><td></td></tr>
@@ -1576,7 +1635,7 @@ ${docHeader('Service Agreement',`${e['COT#']} / ${e['RES#']}`)}
 
 <div class="sec">
   <div class="sec-title">8. Date Change Policy</div>
-  <div class="info-box">A date change is permitted only once per contract, subject to availability, and carries a non-refundable fee regardless of reason.</div>
+  <div class="info-box">A date change is permitted only once per contract, subject to availability, and carries a non-refundable fee. Date changes due to verified force majeure circumstances (medical emergency, death in family, natural disaster) may be granted with waived fee upon written documentation.</div>
   <table class="cancel-table">
     <thead><tr><th style="text-align:left">Anticipation</th><th style="text-align:left">Fee</th></tr></thead>
     <tbody>
@@ -1587,7 +1646,7 @@ ${docHeader('Service Agreement',`${e['COT#']} / ${e['RES#']}`)}
       <tr><td>< 15 days</td><td style="font-weight:600">Not permitted — treated as cancellation</td></tr>
     </tbody>
   </table>
-  <p style="font-size:10px;color:#777;margin-top:8px">New date must be available within 12 months of the original event date. Only one change permitted per contract.</p>
+  <p style="font-size:10px;color:#777;margin-top:8px">New date must be available within 12 months of original event date. Only one change permitted per contract.</p>
 </div>
 
 <div class="sec">
@@ -1605,7 +1664,8 @@ ${docHeader('Service Agreement',`${e['COT#']} / ${e['RES#']}`)}
   <ul class="bullet-list">
     <li>All alcohol must be handed to Cardona Hall staff upon arrival. Staff manages all service from the bar.</li>
     <li>No bottles or cans on guest tables at any time. All beverages must be served in glassware provided by Cardona Hall.</li>
-    <li>The bar closes 1 hour before the agreed event end time. All remaining alcohol is returned to the client at venue handover.</li>
+    <li>The bar closes 1 hour before the agreed event end time. If the event runs into overtime, the bar remains closed — no exceptions.</li>
+    <li>All remaining alcohol is returned to the client at venue handover after the event.</li>
     <li>The client is responsible for ensuring no person under 21 consumes alcohol. Violations are governed by the Venue Rules & Policies document.</li>
   </ul>
 </div>
@@ -1613,9 +1673,10 @@ ${docHeader('Service Agreement',`${e['COT#']} / ${e['RES#']}`)}
 <div class="sec">
   <div class="sec-title">11. External Vendor Policy</div>
   <ul class="bullet-list">
-    <li>External vendors must be approved in writing by Pilab Productions at least 14 days before the event.</li>
-    <li>Every external vendor must submit a valid Certificate of Insurance (COI) — minimum $500,000 General Liability — naming Pilab Productions / Cardona Hall LLC as Additional Insured.</li>
+    <li>External vendors must be approved in writing by Pilab Productions LLC at least 14 days before the event.</li>
+    <li>Every external vendor must submit a valid Certificate of Insurance (COI) — minimum $500,000 General Liability — naming Pilab Productions LLC / Cardona Hall LLC as Additional Insured.</li>
     <li>Vendors without a valid COI will not be permitted to enter the premises on the event date.</li>
+    <li>Pilab Productions LLC is not responsible for the performance, conduct, or failure of external vendors.</li>
   </ul>
 </div>
 
@@ -1623,7 +1684,7 @@ ${docHeader('Service Agreement',`${e['COT#']} / ${e['RES#']}`)}
   <div class="sec-title">12. Conduct & Liability</div>
   <ul class="bullet-list">
     <li>The Client is responsible for the conduct of all guests. Cardona Hall may terminate the event for aggressive behavior or policy violations — no refund will be issued.</li>
-    <li>The Client shall indemnify, defend, and hold harmless Cardona Hall LLC, Pilab Productions, and their staff from any claims, damages, or expenses arising from the event.</li>
+    <li>The Client shall indemnify, defend, and hold harmless Cardona Hall LLC, Pilab Productions LLC, and their staff from any claims, damages, or expenses arising from the event.</li>
     <li>Cardona Hall's liability to the Client shall not exceed the total amount paid under this Agreement.</li>
   </ul>
 </div>
@@ -1631,28 +1692,28 @@ ${docHeader('Service Agreement',`${e['COT#']} / ${e['RES#']}`)}
 <div class="sec">
   <div class="sec-title">13. Media, Privacy & Intellectual Property</div>
   <ul class="bullet-list">
-    <li><strong>Marketing Consent:</strong> Cardona Hall / Pilab Productions may use event photos and video for marketing purposes. To opt out, notify in writing at signing.</li>
+    <li><strong>Marketing Consent:</strong> Cardona Hall / Pilab Productions LLC may use event photos and video for marketing purposes. To opt out, notify in writing at signing.</li>
     <li><strong>Client Recording:</strong> The client and guests may photograph/record for personal use. Commercial streaming requires prior written approval.</li>
-    <li><strong>Delivered Media:</strong> Photos and video delivered by Pilab Productions are for personal, non-commercial use only.</li>
-    <li><strong>IP — Decor:</strong> All decoration designs created by Pilab Productions are their intellectual property and may not be replicated without written authorization.</li>
+    <li><strong>Delivered Media:</strong> Photos and video delivered by Pilab Productions LLC are for personal, non-commercial use only.</li>
+    <li><strong>IP — Decor:</strong> All decoration designs created by Pilab Productions LLC are their intellectual property and may not be replicated without written authorization.</li>
   </ul>
 </div>
 
 <div class="sec">
   <div class="sec-title">14. Force Majeure</div>
-  <p style="font-size:11px;color:#555">Neither party shall be liable for failure to perform due to circumstances beyond their reasonable control (natural disasters, government restrictions, public health emergencies, building damage). If Cardona Hall cancels due to force majeure, all payments will be refunded within 14 business days.</p>
+  <p style="font-size:11px;color:#555">Neither party shall be liable for failure to perform due to circumstances beyond their reasonable control (natural disasters, government restrictions, public health emergencies, building damage). If Cardona Hall cancels due to force majeure, all payments will be refunded within 14 business days. Force majeure claims by the client must be supported by written documentation (medical certificate, death certificate, official report).</p>
 </div>
 
 <div class="sec">
   <div class="sec-title">15. Governing Law & Entire Agreement</div>
-  <p style="font-size:11px;color:#555">This Agreement is governed by the laws of the State of New Jersey. Any dispute shall be submitted to mediation or arbitration in New Jersey. This Agreement, together with the Venue Rules & Policies and any signed Amendments, constitutes the entire agreement between the parties.</p>
+  <p style="font-size:11px;color:#555">This Agreement is governed by the laws of the State of New Jersey. Any dispute shall be submitted to mediation or arbitration in New Jersey before any legal action. This Agreement, together with the Venue Rules & Policies and any signed Amendments, constitutes the entire agreement between the parties. Cardona Hall LLC and Pilab Productions LLC are related entities operating as a single event management platform.</p>
 </div>
 
 <div class="sec">
   <div class="sec-title">Signatures</div>
-  ${sigBlock('Authorized — James Cardona / Cardona Hall','James Cardona · Cardona Hall LLC')}
+  ${sigBlock('Authorized — James Cardona · Cardona Hall LLC / Pilab Productions LLC','James Cardona · Cardona Hall LLC / Pilab Productions LLC')}
 </div>
-${docFooter('Productions')}
+${docFooter('Productions LLC')}
 </div>
 <script>window.onload=function(){setTimeout(function(){window.print();},800);};<\/script>
 </body></html>`;
@@ -1663,144 +1724,131 @@ ${docFooter('Productions')}
 function generateVenueRules(){
   const win=docOpen(); if(!win)return;
   const e=currentEvent;
+  const copy=isCopy('venue_rules');
+  const wknd=isWeekend();
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>Venue Rules & Policies — ${e['RES#']}</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
-<style>${baseStyles('#C9A84C')}</style></head><body><div class="doc">
-${docHeader('Venue Rules & Policies',`REF: ${e['RES#']}`)}
+<style>${baseStyles('#C9A84C')}</style></head><body>
+${copy?copyWatermark():''}
+<div class="doc">
+${docHeader('Venue Rules & Policies',`REF: ${e['RES#']}`,'Venue & Host Services — Cardona Hall LLC')}
 <div class="notice-bar">Please read this document carefully. By signing, you confirm that you and all your guests agree to abide by these rules.</div>
-
 <div class="sec">
   <div class="field-grid">
     <div class="field-item"><div class="field-lbl">Client Name</div><div class="field-val">${e['Client Name']||'—'}</div></div>
-    <div class="field-item"><div class="field-lbl">Event Date</div><div class="field-val">${e['Event Date']||'—'} · ${e['Day of Week']||''}</div></div>
+    <div class="field-item"><div class="field-lbl">Event Date</div><div class="field-val">${fmtDateDoc(e['Event Date'])}</div></div>
     <div class="field-item"><div class="field-lbl">Reservation #</div><div class="field-val">${e['RES#']||'—'}</div></div>
-    <div class="field-item"><div class="field-lbl">Event Type</div><div class="field-val">${etLabel()}</div></div>
+    <div class="field-item"><div class="field-lbl">Event Schedule</div><div class="field-val">${scheduleInfo()}</div></div>
   </div>
 </div>
-
 <div class="sec">
   <div class="sec-title">1. Alcohol Policy</div>
   <div class="warn-box">STRICT POLICY: No person under the age of 21 may consume or be served alcoholic beverages. NO exceptions.</div>
   <ul class="bullet-list">
     <li>It is the Client's sole responsibility to ensure no minors consume alcohol at any time.</li>
     <li>Cardona Hall reserves the right to request identification from any guest at any time.</li>
-    <li>If alcohol is consumed by a minor, a <strong>$1,000 penalty</strong> will be charged and the event may be terminated without refund.</li>
+    <li>If alcohol is consumed by a minor, a <strong>$1,000 penalty</strong> will be charged immediately and the event may be terminated without refund.</li>
     <li>The bar closes <strong>1 hour before</strong> the agreed event end time, without exception.</li>
+    <li>If the event runs into overtime, the bar remains closed — no exceptions.</li>
     <li>Law enforcement may be called if alcohol policies are violated.</li>
   </ul>
 </div>
-
 <div class="sec">
   <div class="sec-title">2. Anti-Violence & Conduct Policy</div>
   <div class="warn-box">Zero-tolerance: any aggressive conduct, harassment, or physical altercation results in immediate event termination.</div>
   <ul class="bullet-list">
-    <li>Any physical altercation or aggressive behavior by any guest will result in immediate event termination.</li>
+    <li>Any physical altercation or aggressive behavior results in immediate event termination.</li>
     <li>A penalty of <strong>40% of the total contracted amount</strong> will be charged.</li>
     <li>Law enforcement will be called if venue staff cannot control the situation.</li>
     <li>No refund will be issued if the event is terminated due to a conduct violation.</li>
   </ul>
 </div>
-
 <div class="sec">
   <div class="sec-title">3. Event Timing & Overtime</div>
   <ul class="bullet-list">
     <li>Events must begin and end at the agreed times stated in the Service Agreement.</li>
     <li>Music and entertainment must conclude <strong>30 minutes before</strong> the event end time.</li>
     <li>Overtime is charged at <strong>$650 per hour</strong> (or any portion thereof) — deducted from the security deposit.</li>
+    <li>The bar does not reopen during overtime under any circumstances.</li>
     <li>The absolute maximum event end time is <strong>1:00 AM</strong>. No exceptions.</li>
   </ul>
 </div>
-
 <div class="sec">
   <div class="sec-title">4. Decorations & Setup</div>
   <ul class="bullet-list">
     <li>All decorations must be approved in advance by Cardona Hall management.</li>
     <li>No staples, nails, screws, tacks, or adhesive tape on walls, ceilings, columns, or light fixtures.</li>
-    <li>Client-provided decorations must be removed within <strong>90 minutes</strong> of the event's conclusion. Items not removed will be discarded.</li>
-    <li>Violations may result in partial or full forfeiture of the $500 security deposit.</li>
+    <li>Client-provided decorations must be removed within <strong>90 minutes</strong> of the event conclusion. Items not removed will be discarded.</li>
+    <li>Violations may result in partial or full forfeiture of the security deposit.</li>
   </ul>
 </div>
-
 <div class="sec">
   <div class="sec-title">5. Security</div>
   <ul class="bullet-list">
-    <li>Cardona Hall staff includes security personnel assigned to every event.</li>
-    <li>External security may not be brought without prior written approval.</li>
-    <li>For Quinceañera and Sweet 16 events, enhanced security protocols apply.</li>
+    ${wknd?'<li>Cardona Hall staff includes security personnel assigned to every weekend event.</li>':'<li>Security coverage for weekday events is provided upon request or as required by event type.</li>'}
+    <li>External security personnel may not be brought without prior written approval.</li>
+    <li>For Quinceañera and Sweet 16 events, enhanced security protocols apply regardless of day.</li>
   </ul>
 </div>
-
 <div class="sec">
-  <div class="sec-title">6. Venue Access & Vendor Policy</div>
+  <div class="sec-title">6. Vendor Policy</div>
   <ul class="bullet-list">
-    <li>Venue access for setup is granted <strong>3 hours before</strong> the event start time.</li>
-    <li>All vendors must coordinate arrival and access times with management in advance.</li>
-    <li>Vendors may not use Cardona Hall waste containers. All waste must be removed at the event's conclusion.</li>
+    <li>All vendors must coordinate arrival and access times with Cardona Hall management in advance.</li>
+    <li>Vendors may not use Cardona Hall waste containers. All waste must be removed at the event conclusion.</li>
     <li>No furniture may be moved without prior written approval.</li>
     <li>Emergency exits and passageways must remain unobstructed at all times.</li>
   </ul>
 </div>
-
 <div class="sec">
   <div class="sec-title">7. Damage Policy</div>
   <ul class="bullet-list">
     <li>The Client assumes full financial responsibility for any damage caused by guests or vendors.</li>
-    <li>Damage costs will be deducted from the $500 security deposit. If costs exceed the deposit, the Client is responsible for the difference within 7 days of written notification.</li>
-    <li>The premises will be inspected before and after the event. The Client will be notified within 24 hours of any damage identified.</li>
+    <li>Damage costs will be deducted from the security deposit. If costs exceed the deposit amount, the Client is responsible for the difference within 7 days.</li>
+    <li>The premises will be inspected before and after the event. The Client will be notified within 24 hours of any identified damage.</li>
   </ul>
 </div>
-
 <div class="sec">
   <div class="sec-title">8. Smoke-Free Premises</div>
   <ul class="bullet-list">
-    <li>Cardona Hall is a 100% smoke-free facility. Smoking, vaping, and e-cigarettes are strictly prohibited inside and within 25 feet of any entrance.</li>
+    <li>Cardona Hall is a 100% smoke-free facility. Smoking, vaping, and e-cigarettes are prohibited inside and within 25 feet of any entrance.</li>
     <li>Violation may result in event termination and full forfeiture of the security deposit.</li>
   </ul>
 </div>
-
 <div class="sec">
   <div class="sec-title">9. General Restrictions</div>
   <ul class="bullet-list">
-    <li>No cans or bottles on guest tables. All beverages must be served in glassware provided by Cardona Hall.</li>
+    <li>No cans or bottles on guest tables. Beverages must be served in glassware provided by Cardona Hall.</li>
     <li>Outside food or beverages are not permitted without prior written approval.</li>
-    <li>Firearms, weapons, and illegal substances are strictly prohibited on the premises.</li>
+    <li>Firearms, weapons, and illegal substances are strictly prohibited.</li>
     <li>Children age 5 and over count as adults for guest count, catering, and capacity purposes.</li>
-    <li>Cardona Hall is not responsible for personal belongings, gifts, or items left at the venue.</li>
+    <li>Cardona Hall LLC / Pilab Productions LLC is not responsible for personal belongings left at the venue.</li>
   </ul>
 </div>
-
 <div class="sec">
-  <div class="sec-title">10. Pricing & Charges</div>
-  <p style="font-size:11px;color:#555;margin-bottom:8px">All amounts in the Service Agreement are final and all-inclusive. The only additional charges that may apply:</p>
-  <ul class="bullet-list">
-    <li>Security deposit ($500) — refundable</li>
-    <li>Overtime charges ($650/hr) — only if the event runs past the agreed end time</li>
-    <li>Penalty fees — only if a violation described in this document occurs</li>
-    <li>Additional services added post-contract — governed by signed Amendment documents</li>
-  </ul>
-</div>
-
-<div class="sec">
-  <div class="sec-title">11. Penalty Summary</div>
+  <div class="sec-title">10. Penalty Summary</div>
   <table class="cancel-table">
     <thead><tr><th style="text-align:left">Violation</th><th style="text-align:left">Penalty</th></tr></thead>
     <tbody>
       <tr><td>Alcohol consumed by person under age 21</td><td style="font-weight:600;color:#8B2020">$1,000 — Event may be terminated</td></tr>
       <tr><td>Physical altercation or aggressive behavior</td><td style="font-weight:600;color:#8B2020">40% of total contracted amount</td></tr>
-      <tr><td>Damage to premises, equipment, or furniture</td><td style="font-weight:600">Cost of repair — deducted from deposit</td></tr>
+      <tr><td>Damage to premises or equipment</td><td style="font-weight:600">Cost of repair — deducted from deposit</td></tr>
       <tr><td>Overtime beyond agreed end time</td><td style="font-weight:600">$650 per hour</td></tr>
-      <tr><td>Unauthorized decorations / wall damage</td><td style="font-weight:600">Partial or full forfeiture of $500 deposit</td></tr>
+      <tr><td>Unauthorized decorations / wall damage</td><td style="font-weight:600">Partial or full forfeiture of security deposit</td></tr>
       <tr><td>Smoking inside the premises</td><td style="font-weight:600;color:#8B2020">Forfeiture of deposit + event termination</td></tr>
     </tbody>
   </table>
 </div>
-
 <div class="sec">
-  <div class="sec-title">12. Acknowledgment</div>
-  <p style="font-size:11px;color:#555;margin-bottom:14px">By signing below, the Client confirms they have read, understood, and agreed to all rules and policies in this document, and will communicate them to all guests and vendors attending the event.</p>
-  ${sigBlock('Authorized — James Cardona / Cardona Hall','James Cardona · Cardona Hall LLC')}
+  <div class="sec-title">11. Acknowledgment</div>
+  <p style="font-size:11px;color:#555;margin-bottom:14px">By signing below, the Client confirms they have read, understood, and agreed to all rules and policies in this document, and will communicate them to all guests and vendors.</p>
+  <div class="field-grid" style="margin-bottom:16px">
+    <div class="field-item"><div class="field-lbl">Client Name</div><div class="field-val">${e['Client Name']||'—'}</div></div>
+    <div class="field-item"><div class="field-lbl">Event Date</div><div class="field-val">${fmtDateDoc(e['Event Date'])}</div></div>
+  </div>
+  ${sigBlock('Authorized — James Cardona · Cardona Hall LLC / Pilab Productions LLC','James Cardona · Cardona Hall LLC / Pilab Productions LLC')}
 </div>
-${docFooter('Productions')}
+${docFooter('Productions LLC')}
 </div>
 <script>window.onload=function(){setTimeout(function(){window.print();},800);};<\/script>
 </body></html>`;
