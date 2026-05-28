@@ -1251,12 +1251,12 @@ const DOC_DEFINITIONS=[
   {id:'contract_decor',name:'Decor Contract',sub:'Decoration service agreement',group:'provider',condition:()=>currentEvent&&currentEvent['Decor Plan']&&currentEvent['Decor Plan']!=='na',statuses:['Draft','Sent','Signed'],icon:'🎨',canGenerate:true},
   {id:'contract_photo',name:'Photo & Video Contract',sub:'Photography / videography agreement',group:'provider',condition:()=>currentEvent&&currentEvent['Photo Plan']&&currentEvent['Photo Plan']!=='na',statuses:['Draft','Sent','Signed'],icon:'📷',canGenerate:true},
   // Operational
-  {id:'catering_beo',name:'Catering Order (BEO)',sub:'Food & beverage order for Noches de Colombia',group:'operational',condition:()=>currentEvent&&['collection','luxury'].includes(currentEvent['Catering Line']),statuses:['Draft','Sent','Delivered'],icon:'🍽️',canGenerate:false},
-  {id:'venue_staff',name:'Venue Staff Sheet',sub:'Staff assignments, roles, arrival times',group:'operational',condition:()=>currentEvent&&currentEvent['Venue Tier']!=='EXTERNAL',statuses:['Draft','Printed'],icon:'👥',canGenerate:false},
-  {id:'decor_requirements',name:'Decor Requirements',sub:'Decoration specifications by plan',group:'operational',condition:()=>currentEvent&&currentEvent['Decor Plan']&&currentEvent['Decor Plan']!=='na',statuses:['Draft','Sent','Confirmed'],icon:'🎀',canGenerate:false},
-  {id:'music_program',name:'Music & Program Request',sub:'Music genres, event timeline, special moments',group:'operational',condition:()=>currentEvent&&currentEvent['Entertainment Plan']&&currentEvent['Entertainment Plan']!=='na',statuses:['Draft','Sent','Confirmed'],icon:'🎶',canGenerate:false},
-  {id:'photo_session',name:'Photo Session Details',sub:'Session locations, dates, times, directions',group:'operational',condition:()=>currentEvent&&currentEvent['Photo Plan']&&currentEvent['Photo Plan']!=='na',statuses:['Draft','Sent','Confirmed'],icon:'📸',canGenerate:false},
-  {id:'sitting_chart',name:'Sitting Chart',sub:'Table assignments for guests',group:'operational',condition:()=>currentEvent&&currentEvent['Decor Plan']&&currentEvent['Decor Plan']!=='na',statuses:['Draft','Printed'],icon:'🪑',canGenerate:false},
+  {id:'catering_beo',name:'Catering Order (BEO)',sub:'Food & beverage order for Noches de Colombia',group:'operational',condition:()=>currentEvent&&['collection','luxury'].includes(currentEvent['Catering Line']),statuses:['Draft','Sent','Delivered'],icon:'🍽️',canGenerate:true},
+  {id:'venue_staff',name:'Venue Staff Sheet',sub:'Staff assignments, roles, arrival times',group:'operational',condition:()=>currentEvent&&currentEvent['Venue Tier']!=='EXTERNAL',statuses:['Draft','Printed'],icon:'👥',canGenerate:true},
+  {id:'decor_requirements',name:'Decor Requirements',sub:'Decoration specifications by plan',group:'operational',condition:()=>currentEvent&&currentEvent['Decor Plan']&&currentEvent['Decor Plan']!=='na',statuses:['Draft','Sent','Confirmed'],icon:'🎀',canGenerate:true},
+  {id:'music_program',name:'Music & Program Request',sub:'Music genres, event timeline, special moments',group:'operational',condition:()=>currentEvent&&currentEvent['Entertainment Plan']&&currentEvent['Entertainment Plan']!=='na',statuses:['Draft','Sent','Confirmed'],icon:'🎶',canGenerate:true},
+  {id:'photo_session',name:'Photo Session Details',sub:'Session locations, dates, times, directions',group:'operational',condition:()=>currentEvent&&currentEvent['Photo Plan']&&currentEvent['Photo Plan']!=='na',statuses:['Draft','Sent','Confirmed'],icon:'📸',canGenerate:true},
+  {id:'sitting_chart',name:'Sitting Chart',sub:'Table assignments for guests',group:'operational',condition:()=>currentEvent&&currentEvent['Decor Plan']&&currentEvent['Decor Plan']!=='na',statuses:['Draft','Printed'],icon:'🪑',canGenerate:true},
 ];
 
 async function loadDocuments(){
@@ -1378,6 +1378,12 @@ function generateDoc(docId){
   if(docId==='contract_entertainment'){generateEntertainmentContract();return;}
   if(docId==='contract_decor'){generateDecorContract();return;}
   if(docId==='contract_photo'){generatePhotoContract();return;}
+  if(docId==='catering_beo'){generateCateringBEO();return;}
+  if(docId==='venue_staff'){generateVenueStaff();return;}
+  if(docId==='decor_requirements'){generateDecorRequirements();return;}
+  if(docId==='music_program'){generateMusicProgram();return;}
+  if(docId==='photo_session'){generatePhotoSession();return;}
+  if(docId==='sitting_chart'){generateSittingChart();return;}
   showToast('Document template coming soon','warn');
 }
 
@@ -2282,6 +2288,635 @@ ${docFooter('Productions · Photo & Video')}
 </body></html>`;
   docWrite(win,html);
 }
+
+// ── 6. CATERING BEO ──────────────────────────────────────────────────────────
+function generateCateringBEO(){
+  const win=docOpen();if(!win)return;
+  const e=currentEvent;
+  const copy=isCopy('catering_beo');
+  const tier=e['Catering Plan']||e['Catering Line']||'—';
+  const guests=parseInt(e['Guests'])||0;
+  const range=e['Guest Range']||'—';
+  // Tray estimates by tier and range
+  const trays={
+    'Essential':{mc:[2,2,3,3],sal:[1,1,2,2],side:[1,2,2,3]},
+    'Elegant':  {mc:[2,3,4,4],sal:[1,2,2,3],side:[2,2,3,3]},
+    'Prestige': {mc:[2,3,4,5],sal:[1,2,3,3],side:[2,3,3,3]},
+  };
+  const ri=['Small','Medium','Large','XL'].indexOf(range.replace('Extra Small','Small').replace('Extra Large','XL'));
+  const t=trays[tier]||trays['Elegant'];
+  const mc=ri>=0?t.mc[Math.min(ri,3)]:t.mc[1];
+  const sal=ri>=0?t.sal[Math.min(ri,3)]:t.sal[1];
+  const side=ri>=0?t.side[Math.min(ri,3)]:t.side[1];
+  const isLuxury=e['Catering Line']==='luxury';
+  const isPrestige=tier==='Prestige'||isLuxury;
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>BEO — ${e['RES#']}</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>${baseStyles('#C9A84C')}
+.internal-bar{background:#1A0000;border-left:4px solid #CC0000;border-top:1px solid #CC0000;border-bottom:1px solid #CC0000;padding:8px 14px;margin:10px 0;font-size:11px;font-weight:700;color:#FF6666;letter-spacing:1px;}
+.tray-table{width:100%;border-collapse:collapse;margin-top:8px;}
+.tray-table th{background:#1A1A1A;color:#C9A84C;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:8px 10px;text-align:left;}
+.tray-table td{padding:8px 10px;border-bottom:1px solid #F0F0F0;font-size:11px;}
+.tray-table tr:nth-child(even) td{background:#FAFAFA;}
+.tray-num{font-size:18px;font-weight:700;color:#C9A84C;text-align:center;}
+</style></head><body>
+${copy?copyWatermark():''}
+<div class="doc">
+${docHeader('Banquet Event Order',`BEO-${e['RES#']}`,'Catering & Hospitality — Noches de Colombia')}
+<div class="internal-bar">⚠ INTERNAL DOCUMENT — NOT FOR CLIENT DISTRIBUTION · Kitchen Order for Noches de Colombia</div>
+<div class="sec">
+  <div class="sec-title">Event Details</div>
+  <div class="field-grid">
+    <div class="field-item"><div class="field-lbl">Client Name</div><div class="field-val">${e['Client Name']||'—'}</div></div>
+    <div class="field-item"><div class="field-lbl">Event Date</div><div class="field-val">${fmtDateDoc(e['Event Date'])}</div></div>
+    <div class="field-item"><div class="field-lbl">Event Type</div><div class="field-val">${etLabel()}</div></div>
+    <div class="field-item"><div class="field-lbl">Guests / Tables</div><div class="field-val">${guests} guests · ${e['Tables']||'—'} tables</div></div>
+    <div class="field-item"><div class="field-lbl">Catering Plan</div><div class="field-val">${tier} · ${range}</div></div>
+    <div class="field-item"><div class="field-lbl">Event Schedule</div><div class="field-val">${scheduleInfo()}</div></div>
+  </div>
+</div>
+<div class="sec">
+  <div class="sec-title">Kitchen Schedule — INTERNAL</div>
+  <table class="tray-table">
+    <thead><tr><th>Milestone</th><th>Time</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td style="font-weight:600">Food Pickup — Noches de Colombia</td><td style="color:#C9A84C;font-weight:700">___________</td><td>Coordinate with kitchen</td></tr>
+      <tr><td style="font-weight:600">Delivery to Cardona Hall</td><td style="color:#C9A84C;font-weight:700">___________</td><td></td></tr>
+      <tr><td style="font-weight:600">Buffet Opens</td><td style="color:#C9A84C;font-weight:700">___________</td><td>Client-defined — confirm before event</td></tr>
+      <tr><td style="font-weight:600">Bar Opens</td><td style="color:#C9A84C;font-weight:700">___________</td><td></td></tr>
+      <tr><td style="font-weight:600">Bar Closes</td><td style="color:#C9A84C;font-weight:700">___________</td><td>1 hour before event end — mandatory</td></tr>
+    </tbody>
+  </table>
+</div>
+<div class="sec">
+  <div class="sec-title">Tray Order Summary</div>
+  <table class="tray-table">
+    <thead><tr><th>Category</th><th style="text-align:center">Trays</th><th style="text-align:center">Est. Portions</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td style="font-weight:600">Main Course (Plato Fuerte)</td><td class="tray-num">${mc}</td><td style="text-align:center">${mc*40}</td><td>~40 portions/tray</td></tr>
+      <tr><td style="font-weight:600">Salads (Ensaladas)</td><td class="tray-num">${sal}</td><td style="text-align:center">${sal*40}</td><td>~40 portions/tray</td></tr>
+      <tr><td style="font-weight:600">Sides / Accompaniments</td><td class="tray-num">${side}</td><td style="text-align:center">${side*40}</td><td>~40 portions/tray</td></tr>
+      ${isPrestige||isLuxury?`<tr><td style="font-weight:600">Dessert (individual)</td><td class="tray-num">—</td><td style="text-align:center">${guests}</td><td>1 per guest</td></tr>`:''}
+      ${isLuxury?`<tr><td style="font-weight:600">Appetizers (table service)</td><td class="tray-num">—</td><td style="text-align:center">3 options</td><td>Legacy — served at tables</td></tr>`:''}
+      <tr><td style="font-weight:600">Softdrinks</td><td class="tray-num">—</td><td style="text-align:center">${guests}</td><td>${tier==='Essential'?'Not included':'Included — $1/person'}</td></tr>
+      ${isPrestige||isLuxury?`<tr><td style="font-weight:600">Jugo Natural</td><td class="tray-num">—</td><td style="text-align:center">${guests}</td><td>1 flavor — $1/person</td></tr>`:''}
+      ${isPrestige||isLuxury?`<tr><td style="font-weight:600">Café</td><td class="tray-num">—</td><td style="text-align:center">${guests}</td><td>~$0.50/person</td></tr>`:''}
+    </tbody>
+  </table>
+</div>
+<div class="sec">
+  <div class="sec-title">Client Menu Selections — From Selection Form</div>
+  <table class="tray-table">
+    <thead><tr><th>#</th><th>Category</th><th>Dish Selected</th><th>Notes</th></tr></thead>
+    <tbody>
+      ${Array.from({length:mc+sal+side},(_,i)=>`<tr><td style="color:#AAA;font-size:10px">${i+1}</td><td>${i<mc?'Main Course':i<mc+sal?'Salad':'Side'}</td><td>___________________________________</td><td></td></tr>`).join('')}
+      ${isPrestige||isLuxury?'<tr><td style="color:#AAA;font-size:10px">★</td><td>Dessert</td><td>___________________________________</td><td>Individual per guest</td></tr>':''}
+      ${isPrestige||isLuxury?'<tr><td style="color:#AAA;font-size:10px">★</td><td>Jugo Natural</td><td>___________________________________</td><td>1 flavor</td></tr>':''}
+      ${isLuxury?'<tr><td style="color:#AAA;font-size:10px">★</td><td>Special Dish</td><td>___________________________________</td><td>Honor table only</td></tr>':''}
+    </tbody>
+  </table>
+</div>
+<div class="sec">
+  <div class="sec-title">Special Instructions</div>
+  <div class="field-grid">
+    <div class="field-item"><div class="field-lbl">Cake (if contracted)</div><div class="field-val">___________________________________</div></div>
+    <div class="field-item"><div class="field-lbl">Special requests</div><div class="field-val">___________________________________</div></div>
+  </div>
+</div>
+<div class="sec">
+  <div class="sec-title">Confirmation</div>
+  <p style="font-size:11px;color:#555;margin-bottom:14px">This BEO has been reviewed and confirmed. Changes must be submitted in writing no later than 7 days before the event.</p>
+  ${sigBlock('Authorized — James Cardona / Cardona Hall','James Cardona · Cardona Hall LLC','Noches de Colombia — Kitchen')}
+</div>
+${docFooter('Productions LLC · Catering by Noches de Colombia')}
+</div>
+<script>window.onload=function(){setTimeout(function(){window.print();},800);};<\/script>
+</body></html>`;
+  docWrite(win,html);
+}
+
+// ── 7. VENUE STAFF SHEET ──────────────────────────────────────────────────────
+function generateVenueStaff(){
+  const win=docOpen();if(!win)return;
+  const e=currentEvent;
+  const copy=isCopy('venue_staff');
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>Staff Sheet — ${e['RES#']}</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>${baseStyles('#C9A84C')}
+.internal-bar{background:#1A0000;border-left:4px solid #CC0000;border-top:1px solid #CC0000;border-bottom:1px solid #CC0000;padding:8px 14px;margin:10px 0;font-size:11px;font-weight:700;color:#FF6666;letter-spacing:1px;}
+.staff-table{width:100%;border-collapse:collapse;margin-top:8px;}
+.staff-table th{background:#1A1A1A;color:#C9A84C;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:8px 10px;text-align:left;}
+.staff-table td{padding:9px 10px;border-bottom:1px solid #F0F0F0;font-size:11px;}
+.staff-table tr:nth-child(even) td{background:#FAFAFA;}
+.check-box{display:inline-block;width:14px;height:14px;border:1.5px solid #CCCCCC;margin-right:6px;vertical-align:middle;}
+</style></head><body>
+${copy?copyWatermark():''}
+<div class="doc">
+${docHeader('Venue Staff Sheet',`${e['RES#']}`,'INTERNAL — Manager Copy')}
+<div class="internal-bar">INTERNAL DOCUMENT — NOT FOR CLIENT DISTRIBUTION · Manager briefing — print and bring to event</div>
+<div class="sec">
+  <div class="sec-title">1. Event Overview</div>
+  <div class="field-grid">
+    <div class="field-item"><div class="field-lbl">Client Name</div><div class="field-val">${e['Client Name']||'—'}</div></div>
+    <div class="field-item"><div class="field-lbl">Event Date</div><div class="field-val">${fmtDateDoc(e['Event Date'])}</div></div>
+    <div class="field-item"><div class="field-lbl">Event Type</div><div class="field-val">${etLabel()}</div></div>
+    <div class="field-item"><div class="field-lbl">Guests / Tables</div><div class="field-val">${e['Guests']||'—'} guests · ${e['Tables']||'—'} tables</div></div>
+    <div class="field-item"><div class="field-lbl">Venue Plan</div><div class="field-val">${e['Venue Tier']||'—'} · ${e['Full Package']&&e['Full Package']!=='na'?'Full Package':'A la carte'}</div></div>
+    <div class="field-item"><div class="field-lbl">Schedule</div><div class="field-val">${scheduleInfo()}</div></div>
+    <div class="field-item"><div class="field-lbl">Special Conditions</div><div class="field-val">${e['Special Conditions']||'None'}</div></div>
+    <div class="field-item"><div class="field-lbl">Reservation #</div><div class="field-val">${e['RES#']||'—'}</div></div>
+  </div>
+</div>
+<div class="sec">
+  <div class="sec-title">2. Staff Assignment</div>
+  <table class="staff-table">
+    <thead><tr><th>Role</th><th>Name</th><th>Phone</th><th>Arrival</th><th>Departure</th></tr></thead>
+    <tbody>
+      ${['Manager','Bartender','Server 1','Server 2','Security','Setup','Cleaning'].map((r,i)=>`<tr><td style="font-weight:600;color:#333">${r}</td><td>___________________</td><td>___________________</td><td>_______</td><td>_______</td></tr>`).join('')}
+    </tbody>
+  </table>
+</div>
+<div class="sec">
+  <div class="sec-title">3. Event Timeline</div>
+  <table class="staff-table">
+    <thead><tr><th>Milestone</th><th>Time</th><th>Notes</th></tr></thead>
+    <tbody>
+      ${[
+        ['Setup Crew Access','___________','Tables, chairs, linens'],
+        ['Decorator Access','___________','Coordinate with decor provider'],
+        ['Catering Delivery','___________','Verify vs BEO on arrival'],
+        ['Sound Check','___________','DJ / entertainment ready'],
+        ['Staff Ready Check','___________','Manager confirms all positions'],
+        ['Doors Open','___________',''],
+        ['Buffet Opens','___________','Client-defined'],
+        ['Bar Opens','___________',''],
+        ['Bar Closes','___________','1 hour before event end — mandatory'],
+        ['Music / Entertainment Ends','___________','30 min before event end'],
+        ['Event End','___________',''],
+        ['Venue Handover to Client','___________','Return alcohol + personal items'],
+        ['Cleanup Complete','___________','90 min after event end'],
+      ].map(([m,t,n],i)=>`<tr><td style="font-weight:${i===5||i===10?'700':'500'}">${m}</td><td style="color:#C9A84C;font-weight:700">${t}</td><td style="font-size:10px;color:#888">${n}</td></tr>`).join('')}
+    </tbody>
+  </table>
+</div>
+<div class="sec">
+  <div class="sec-title">4. Setup Checklist</div>
+  <table class="staff-table">
+    <thead><tr><th>Item</th><th>Qty / Status</th><th>Spec</th><th>Notes</th><th style="text-align:center">✓</th></tr></thead>
+    <tbody>
+      ${[
+        ['Tables',e['Tables']||'—','Round','See sitting chart'],
+        ['Chairs','—','Gray / White / Chiavari',''],
+        ['Chair Covers','—','White',''],
+        ['Table Linens','—','White',''],
+        ['Table Runner','—','Gold',''],
+        ['Centerpieces','—','Per decor plan','Decor provider installs'],
+        ['Napkins','—','White cloth',''],
+        ['Plates & Utensils','—','Porcelain set',''],
+        ['Glassware','—','Bar + water glasses',''],
+        ['Buffet Station','—','8 trays + warmers','Coordinate catering'],
+        ['Bar Setup','—','Ice, cups, mixers',''],
+        ['Dry Ice Machine','—','~$50 cost','If contracted'],
+        ['Sound System','—','Full CH system',''],
+        ['Lighting','—','',''],
+      ].map(([item,qty,spec,notes],i)=>`<tr><td style="font-weight:500">${item}</td><td>${qty}</td><td style="font-size:10px;color:#777">${spec}</td><td style="font-size:10px;color:#888">${notes}</td><td style="text-align:center">□</td></tr>`).join('')}
+    </tbody>
+  </table>
+</div>
+<div class="sec">
+  <div class="sec-title">5. Services Contracted</div>
+  <table class="staff-table">
+    <thead><tr><th>Division</th><th>Plan</th><th>Provider</th><th>Schedule</th></tr></thead>
+    <tbody>
+      <tr><td style="font-weight:600">Venue & Host</td><td>${e['Venue Tier']||'—'}</td><td>James Cardona</td><td>${e['Event Start Time']||'—'} – ${e['Event End Time']||'—'}</td></tr>
+      <tr><td style="font-weight:600">Catering</td><td>${e['Catering Plan']||e['Catering Line']||'—'}</td><td>Noches de Colombia</td><td>Per BEO</td></tr>
+      <tr><td style="font-weight:600">Design & Decor</td><td>${e['Decor Plan']||'N/A'}</td><td>___________________</td><td>___________</td></tr>
+      <tr><td style="font-weight:600">Entertainment</td><td>${e['Entertainment Plan']||'N/A'}</td><td>___________________</td><td>___________</td></tr>
+      <tr><td style="font-weight:600">Photo & Video</td><td>${e['Photo Plan']||'N/A'}</td><td>___________________</td><td>___________</td></tr>
+    </tbody>
+  </table>
+</div>
+<div class="sec">
+  <div class="sec-title">6. Manager Notes</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    ${['Pre-event notes','During event','Post-event','Incidents / Overtime'].map(l=>`<div><div style="font-size:9px;font-weight:700;color:#888;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px">${l}</div><div style="border-bottom:1px solid #DDD;height:32px;margin-bottom:8px"></div><div style="border-bottom:1px solid #DDD;height:32px"></div></div>`).join('')}
+  </div>
+</div>
+${docFooter('Productions LLC')}
+</div>
+<script>window.onload=function(){setTimeout(function(){window.print();},800);};<\/script>
+</body></html>`;
+  docWrite(win,html);
+}
+
+// ── 8. DECOR REQUIREMENTS ─────────────────────────────────────────────────────
+function generateDecorRequirements(){
+  const win=docOpen();if(!win)return;
+  const e=currentEvent;
+  const copy=isCopy('decor_requirements');
+  const DECOR='#D4A853';
+  const tier=e['Decor Plan']||'Essential';
+  const isEssential=tier.toLowerCase().includes('essential');
+  const isPrestige=tier.toLowerCase().includes('prestige');
+  const isLegacy=tier.toLowerCase().includes('legacy')||tier.toLowerCase().includes('event design');
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>Decor Requirements — ${e['RES#']}</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>${baseStyles(DECOR)}
+.hdr{background:#EDE8DC;border-bottom:3px solid ${DECOR};}
+.ch-name{color:#7A5C10;}.ch-sub{color:${DECOR};}.doc-title{color:#7A5C10;}
+.sec-title{color:#7A5C10;border-bottom:2px solid ${DECOR};}
+.info-box{background:#FBF5E6;border-left:4px solid ${DECOR};border-top:1px solid ${DECOR};border-bottom:1px solid ${DECOR};}
+.fixed-box{background:#FBF5E6;border-left:4px solid #CC8800;padding:8px 14px;font-size:11px;font-weight:700;color:#7A5C10;}
+.tier-badge{padding:8px 14px;border-left:4px solid ${DECOR};border-top:1px solid ${DECOR};border-bottom:1px solid ${DECOR};margin:10px 0;}
+.decor-table{width:100%;border-collapse:collapse;margin-top:8px;}
+.decor-table th{background:#1A1200;color:${DECOR};font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:8px 10px;text-align:left;}
+.decor-table td{padding:8px 10px;border-bottom:1px solid #F0F0F0;font-size:11px;}
+.decor-table tr:nth-child(even) td{background:#FAFAFA;}
+.write-field{border-bottom:1px solid #CCCCCC;padding-bottom:3px;min-height:20px;font-size:12px;color:#2A2A2A;}
+</style></head><body>
+${copy?copyWatermark():''}
+<div class="doc">
+${docHeader('Decor Requirements',e['RES#'],'Design & Decor — Pilab Productions',DECOR)}
+<div class="sec">
+  <div class="field-grid">
+    <div class="field-item"><div class="field-lbl">Client Name</div><div class="field-val">${e['Client Name']||'—'}</div></div>
+    <div class="field-item"><div class="field-lbl">Event Date</div><div class="field-val">${fmtDateDoc(e['Event Date'])}</div></div>
+    <div class="field-item"><div class="field-lbl">Guests / Tables</div><div class="field-val">${e['Guests']||'—'} guests · ${e['Tables']||'—'} tables</div></div>
+    <div class="field-item"><div class="field-lbl">Decor Plan</div><div class="field-val">${tier}</div></div>
+    <div class="field-item"><div class="field-lbl">Primary Color</div><div class="field-val write-field"></div></div>
+    <div class="field-item"><div class="field-lbl">Secondary / Accent</div><div class="field-val write-field"></div></div>
+  </div>
+</div>
+<div class="sec">
+  <div class="sec-title">2. Honor Table</div>
+  ${isEssential?`<div class="fixed-box">Essential — Fixed package. Honor table assigned by Pilab Productions. No client modifications permitted.</div>
+  <table class="decor-table"><thead><tr><th>Element</th><th>Specification</th><th>Notes</th></tr></thead><tbody>
+    <tr><td>Type</td><td>${e['Decor Honor Type']||'Assigned by Pilab'}</td><td>Fixed</td></tr>
+    <tr><td>Color Palette</td><td>White + Gold (standard)</td><td>Fixed</td></tr>
+  </tbody></table>`:`<div class="tier-badge" style="background:${isPrestige?'#F0EAF8':isLegacy?'#1A1A2E':'#E8F4F4'}"><strong style="color:${isPrestige?'#7B4F9E':isLegacy?'#C9A84C':'#5B9EA0'}">${tier}</strong> — ${isLegacy?'Custom event design — specifications below':'Client selects from portfolio'}</div>
+  <table class="decor-table"><thead><tr><th>Element</th><th>Specification / Selection</th><th>Notes</th></tr></thead><tbody>
+    <tr><td>Type</td><td>${e['Decor Honor Type']||'___________________'}</td><td>Flowers / Balloons / Mixed</td></tr>
+    <tr><td>Color Palette</td><td class="write-field"></td><td></td></tr>
+    <tr><td>Style Reference</td><td class="write-field"></td><td>Portfolio ref #</td></tr>
+    <tr><td>Special Elements</td><td class="write-field"></td><td></td></tr>
+    ${isPrestige?`<tr><td>Client Modifications</td><td class="write-field"></td><td>Prestige only</td></tr>`:''}
+  </tbody></table>
+  <p style="font-size:10px;color:#777;margin-top:6px;font-style:italic">Decorator Notes (internal): _______________________________________________</p>`}
+</div>
+<div class="sec">
+  <div class="sec-title">3. Centerpieces — ${e['Tables']||'—'} Tables</div>
+  ${isEssential?`<div class="fixed-box">Essential — Fixed. 1 standard centerpiece per table, assigned by Pilab Productions.</div>
+  <table class="decor-table"><thead><tr><th>Element</th><th>Specification</th></tr></thead><tbody>
+    <tr><td>Type</td><td>${e['Decor CP Type']||'Assigned'} · ${e['Decor CP Tier']||''}</td></tr>
+    <tr><td>Color / Height</td><td>Standard White + Gold</td></tr>
+  </tbody></table>`:`<table class="decor-table"><thead><tr><th>Element</th><th>Specification</th><th>Notes</th></tr></thead><tbody>
+    <tr><td>Type</td><td>${e['Decor CP Type']||'___________________'}</td><td>${e['Decor CP Tier']||'Flowers / Balloons / Otros'}</td></tr>
+    <tr><td>Color Palette</td><td class="write-field"></td><td></td></tr>
+    <tr><td>Style Reference</td><td class="write-field"></td><td>Portfolio ref #</td></tr>
+    <tr><td>Height</td><td class="write-field"></td><td>Low / Medium / Tall</td></tr>
+    ${isPrestige?`<tr><td>Modifications</td><td class="write-field"></td><td>Prestige only</td></tr>`:''}
+  </tbody></table>`}
+</div>
+<div class="sec">
+  <div class="sec-title">4. Dining Setup</div>
+  <table class="decor-table">
+    <thead><tr><th>Item</th><th>Color / Spec</th><th>Source</th><th style="text-align:center">✓</th></tr></thead>
+    <tbody>
+      ${[['Table Linens','White / Other: ________'],['Chair Covers','White / Other: ________'],['Table Runner','Gold / Other: ________'],['Napkins','White cloth / Other: ________'],['Chair Type','Gray / White / Chiavari'],['Place Cards','Yes / No'],['Table Numbers','Yes / No']].map(([item,spec],i)=>`<tr><td style="font-weight:500">${item}</td><td class="write-field">${spec}</td><td>□ Cardona Hall &nbsp;&nbsp; □ Provider</td><td style="text-align:center">□</td></tr>`).join('')}
+    </tbody>
+  </table>
+</div>
+${!isEssential?`<div class="sec">
+  <div class="sec-title">5. Extras & Add-Ons</div>
+  <table class="decor-table">
+    <thead><tr><th>#</th><th>Add-On / Element</th><th>Description / Color</th><th>Location / Notes</th><th style="text-align:center">✓</th></tr></thead>
+    <tbody>
+      ${Array.from({length:isPrestige||isLegacy?6:4},(_,i)=>`<tr><td style="color:#AAA;font-size:10px">${i+1}</td><td class="write-field"></td><td class="write-field"></td><td class="write-field"></td><td style="text-align:center">□</td></tr>`).join('')}
+    </tbody>
+  </table>
+</div>`:''}
+<div class="sec">
+  <div class="sec-title">6. Decorator Specifications</div>
+  <div class="field-grid">
+    <div class="field-item"><div class="field-lbl">Setup Window</div><div class="field-val write-field">From _______ to _______</div></div>
+    <div class="field-item"><div class="field-lbl">Provider</div><div class="field-val write-field"></div></div>
+    <div class="field-item"><div class="field-lbl">Priority Areas</div><div class="field-val" style="font-size:11px;color:#555">Honor table first · dining tables · extras</div></div>
+    <div class="field-item"><div class="field-lbl">Restrictions</div><div class="field-val" style="font-size:11px;color:#555">No adhesives on walls · no ladder use without approval</div></div>
+  </div>
+  <div style="margin-top:10px"><div style="font-size:9px;font-weight:700;color:#888;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px">Additional Notes</div><div style="border-bottom:1px solid #DDD;height:32px;margin-bottom:8px"></div><div style="border-bottom:1px solid #DDD;height:32px"></div></div>
+</div>
+<div class="sec">
+  <div class="sec-title">7. Acknowledgment</div>
+  <p style="font-size:11px;color:#555;margin-bottom:14px">Both parties confirm that the specifications above are complete and agreed upon. Changes after signing require a written Amendment.</p>
+  ${sigBlock('Authorized — James Cardona · Cardona Hall LLC / Pilab Productions LLC','James Cardona · Cardona Hall LLC / Pilab Productions LLC')}
+</div>
+${docFooter('Productions LLC · Design & Decor')}
+</div>
+<script>window.onload=function(){setTimeout(function(){window.print();},800);};<\/script>
+</body></html>`;
+  docWrite(win,html);
+}
+
+// ── 9. MUSIC & PROGRAM REQUEST ────────────────────────────────────────────────
+function generateMusicProgram(){
+  const win=docOpen();if(!win)return;
+  const e=currentEvent;
+  const copy=isCopy('music_program');
+  const MAGENTA='#E040A0';
+  const et=(e['Event Type']||'').toLowerCase();
+  const isQuince=et.includes('quinceanera')||et.includes('sweet16')||et.includes('sweet_16');
+  const isWedding=et.includes('wedding');
+  const isBirthday=et.includes('birthday');
+  const isBaby=et.includes('baby');
+  const isKids=et.includes('kids');
+  const programRows=isQuince?[
+    ['Guest Arrival / Pre-show',''],['Entrance — Court / Chambelanes',''],['Entrance — Quinceañera',''],
+    ['Ceremony — Crowning',''],['Ceremony — Last Doll',''],['Ceremony — Shoe Change',''],
+    ['Toast / Brindis',''],['Vals — First Waltz',''],['Father / Daughter Dance',''],
+    ['Buffet Opens / Dinner',''],['Party Hour / Hora Loca',''],['Main Dance Floor',''],
+    ['Surprise Dance',''],['Cake Cutting',''],['Last Song / Closing','']
+  ]:isWedding?[
+    ['Guest Arrival',''],['Bridal Party Entrance',''],['Bride & Groom Entrance',''],
+    ['First Dance',''],['Father / Daughter Dance',''],['Mother / Son Dance',''],
+    ['Toast / Brindis',''],['Buffet Opens / Dinner',''],['Party Hour / Hora Loca',''],
+    ['Main Dance Floor',''],['Cake Cutting',''],['Last Dance / Closing','']
+  ]:isBirthday?[
+    ['Guest Arrival',''],['Birthday Person Entrance',''],['Toast / Brindis',''],
+    ['Buffet Opens / Dinner',''],['Party Hour / Hora Loca',''],['Main Dance Floor',''],
+    ['Surprise Dance / Performance',''],['Cake / Happy Birthday',''],['Last Song / Closing','']
+  ]:isBaby||isKids?[
+    ['Guest Arrival / Welcome',''],['Special Person Entrance',''],['Games — Round 1',''],
+    ['Food Service',''],['Games — Round 2',''],
+    ...(isBaby?[['Gender Reveal',''],['Gift Opening','']]:[]),
+    ['Cake / Closing','']
+  ]:[
+    ['Guest Arrival',''],['Opening / Entrance',''],['Main Program',''],
+    ['Buffet Opens',''],['Party Hour',''],['Dance Floor',''],['Closing','']
+  ];
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>Music & Program — ${e['RES#']}</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>${baseStyles(MAGENTA)}
+.hdr{background:#EDE8DC;border-bottom:3px solid ${MAGENTA};}
+.ch-name{color:#9C1060;}.ch-sub{color:${MAGENTA};}.doc-title{color:#9C1060;}
+.sec-title{color:#9C1060;border-bottom:2px solid ${MAGENTA};}
+.info-box{background:#FDE8F4;border-left:4px solid ${MAGENTA};border-top:1px solid ${MAGENTA};border-bottom:1px solid ${MAGENTA};}
+.prog-table{width:100%;border-collapse:collapse;margin-top:8px;}
+.prog-table th{background:#2A1020;color:${MAGENTA};font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:8px 10px;text-align:left;}
+.prog-table td{padding:8px 10px;border-bottom:1px solid #F0F0F0;font-size:11px;}
+.prog-table tr:nth-child(even) td{background:#FDE8F4;}
+.genre-table{width:100%;border-collapse:collapse;margin-top:8px;}
+.genre-table th{background:#2A1020;color:${MAGENTA};font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:8px 10px;}
+.genre-table td{padding:9px 10px;border-bottom:1px solid #F0F0F0;font-size:11px;}
+.dnp-table{width:100%;border-collapse:collapse;margin-top:8px;}
+.dnp-table th{background:#4A0A0A;color:#FF6666;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:8px 10px;}
+.dnp-table td{padding:8px 10px;border-bottom:1px solid #FFF0F0;font-size:11px;}
+</style></head><body>
+${copy?copyWatermark():''}
+<div class="doc">
+${docHeader('Music & Program Request',e['RES#'],'Entertainment & Production — Pilab Productions',MAGENTA)}
+<div class="notice-bar" style="border-left-color:${MAGENTA}">Complete this form and return it at least 14 days before your event. It will be shared with your DJ / MC.</div>
+<div class="sec">
+  <div class="field-grid">
+    <div class="field-item"><div class="field-lbl">Client Name</div><div class="field-val">${e['Client Name']||'—'}</div></div>
+    <div class="field-item"><div class="field-lbl">Event Date</div><div class="field-val">${fmtDateDoc(e['Event Date'])}</div></div>
+    <div class="field-item"><div class="field-lbl">Event Type</div><div class="field-val">${etLabel()}</div></div>
+    <div class="field-item"><div class="field-lbl">Entertainment Plan</div><div class="field-val">${e['Entertainment Plan']||'—'} · ${e['Sound Plan']||''}</div></div>
+  </div>
+</div>
+<div class="sec">
+  <div class="sec-title">2. DJ Selection</div>
+  <div class="field-grid">
+    <div class="field-item"><div class="field-lbl">Preferred DJ Nationality</div><div class="field-val" style="border-bottom:1px solid #CCC;padding-bottom:3px">___________________________________</div></div>
+    <div class="field-item"><div class="field-lbl">DJ Style Preference</div><div class="field-val" style="border-bottom:1px solid #CCC;padding-bottom:3px">___________________________________</div></div>
+    <div class="field-item"><div class="field-lbl">DJ Interaction Level</div><div class="field-val" style="font-size:11px">□ Low — music only &nbsp; □ Medium &nbsp; □ High — full MC style</div></div>
+  </div>
+</div>
+<div class="sec">
+  <div class="sec-title">3. Music Preferences by Moment</div>
+  <table class="genre-table">
+    <thead><tr><th>Moment</th><th>Preferred Genres</th><th>Artist / Song Examples</th></tr></thead>
+    <tbody>
+      ${['Cocktail / Guest Arrival','Dinner / Buffet','Party Hour / Hora Loca','Main Dance Floor','Closing / Last Songs'].map((m,i)=>`<tr><td style="font-weight:500">${m}</td><td style="border-bottom:1px solid #EEE"></td><td style="border-bottom:1px solid #EEE"></td></tr>`).join('')}
+    </tbody>
+  </table>
+</div>
+<div class="sec">
+  <div class="sec-title">3b. Special Songs</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    ${['Entrance song','First Dance / Vals','Father / Daughter Dance','Mother / Son Dance','Cake / Happy Birthday','Last song of the night','Other special song','Other special song'].map(l=>`<div class="field-item"><div class="field-lbl">${l}</div><div class="field-val" style="border-bottom:1px solid #CCC;padding-bottom:3px;min-height:18px"></div></div>`).join('')}
+  </div>
+</div>
+<div class="sec">
+  <div class="sec-title">3c. Do Not Play List</div>
+  <table class="dnp-table">
+    <thead><tr><th>Song / Artist — DO NOT PLAY</th><th>Reason (optional)</th></tr></thead>
+    <tbody>${Array.from({length:5},(_,i)=>`<tr><td style="border-bottom:1px solid #FFF0F0"></td><td style="border-bottom:1px solid #FFF0F0"></td></tr>`).join('')}</tbody>
+  </table>
+</div>
+<div class="sec">
+  <div class="sec-title">4. Event Program — ${etLabel()}</div>
+  <table class="prog-table">
+    <thead><tr><th>Time</th><th>Activity / Moment</th><th>Song / Artist</th><th>Notes</th></tr></thead>
+    <tbody>${programRows.map(([act,note])=>`<tr><td style="color:#C9A84C;font-weight:700;font-size:11px">______</td><td style="font-weight:500">${act}</td><td style="border-bottom:1px solid #EEE"></td><td style="font-size:10px;color:#888">${note}</td></tr>`).join('')}</tbody>
+  </table>
+  ${isQuince?`<p style="font-size:10px;color:#777;margin-top:8px">Entrance order (court): 1._________ 2._________ 3._________ 4._________ 5._________</p>`:''}
+</div>
+<div class="sec">
+  <div class="sec-title">5. Party Hour / Hora Loca</div>
+  <div class="field-grid">
+    <div class="field-item"><div class="field-lbl">Preferred Time</div><div class="field-val" style="border-bottom:1px solid #CCC;padding-bottom:3px">___________</div></div>
+    <div class="field-item"><div class="field-lbl">Special Requests</div><div class="field-val" style="border-bottom:1px solid #CCC;padding-bottom:3px">___________________________________</div></div>
+  </div>
+</div>
+<div class="sec">
+  <div class="sec-title">6. Live Show Add-On (if contracted)</div>
+  <div class="field-grid">
+    <div class="field-item"><div class="field-lbl">Show Type</div><div class="field-val" style="border-bottom:1px solid #CCC;padding-bottom:3px">Mariachi / Clown / LED Robot / Singer / Other</div></div>
+    <div class="field-item"><div class="field-lbl">Performance Time</div><div class="field-val" style="border-bottom:1px solid #CCC;padding-bottom:3px">___________</div></div>
+    <div class="field-item"><div class="field-lbl">Duration</div><div class="field-val" style="border-bottom:1px solid #CCC;padding-bottom:3px">___________</div></div>
+    <div class="field-item"><div class="field-lbl">Special Requirements</div><div class="field-val" style="border-bottom:1px solid #CCC;padding-bottom:3px">___________________________________</div></div>
+  </div>
+</div>
+<div class="sec">
+  <div class="sec-title">7. Acknowledgment</div>
+  <p style="font-size:11px;color:#555;margin-bottom:14px">By signing, I confirm the music preferences and program above. Changes must be requested in writing at least 7 days before the event.</p>
+  ${sigBlock('Authorized — James Cardona · Cardona Hall LLC / Pilab Productions LLC','James Cardona · Cardona Hall LLC / Pilab Productions LLC')}
+</div>
+${docFooter('Productions LLC · Entertainment & Production')}
+</div>
+<script>window.onload=function(){setTimeout(function(){window.print();},800);};<\/script>
+</body></html>`;
+  docWrite(win,html);
+}
+
+// ── 10. PHOTO SESSION DETAILS ─────────────────────────────────────────────────
+function generatePhotoSession(){
+  const win=docOpen();if(!win)return;
+  const e=currentEvent;
+  const copy=isCopy('photo_session');
+  const CYAN='#00B4D8';
+  const hasShoot=e['Photo Shoot']&&e['Photo Shoot']!=='na';
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>Photo & Video Details — ${e['RES#']}</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>${baseStyles(CYAN)}
+.hdr{background:#EDE8DC;border-bottom:3px solid ${CYAN};}
+.ch-name{color:#006B82;}.ch-sub{color:${CYAN};}.doc-title{color:#006B82;}
+.sec-title{color:#006B82;border-bottom:2px solid ${CYAN};}
+.info-box{background:#E8F7FB;border-left:4px solid ${CYAN};border-top:1px solid ${CYAN};border-bottom:1px solid ${CYAN};}
+.del-table{width:100%;border-collapse:collapse;margin-top:8px;}
+.del-table th{background:#001A20;color:${CYAN};font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:8px 10px;text-align:left;}
+.del-table td{padding:8px 10px;border-bottom:1px solid #F0F0F0;font-size:11px;}
+.del-table tr:nth-child(even) td{background:#E8F7FB;}
+.consent-table{width:100%;border-collapse:collapse;margin-top:8px;}
+.consent-table th{background:#001A20;color:${CYAN};font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:8px 10px;}
+.consent-table td{padding:8px 10px;border-bottom:1px solid #F0F0F0;font-size:11px;}
+</style></head><body>
+${copy?copyWatermark():''}
+<div class="doc">
+${docHeader('Photo & Video Details',e['RES#'],'Photo & Video — Pilab Productions',CYAN)}
+<div class="notice-bar" style="border-left-color:${CYAN}">Complete and return this form at least 14 days before your event. It will be shared with your photographer and videographer.</div>
+<div class="sec">
+  <div class="field-grid">
+    <div class="field-item"><div class="field-lbl">Client Name</div><div class="field-val">${e['Client Name']||'—'}</div></div>
+    <div class="field-item"><div class="field-lbl">Event Date</div><div class="field-val">${fmtDateDoc(e['Event Date'])}</div></div>
+    <div class="field-item"><div class="field-lbl">Photo Plan</div><div class="field-val">${e['Photo Plan']||'—'} · ${e['Photo Tier']||''}</div></div>
+    <div class="field-item"><div class="field-lbl">Photo Shoot</div><div class="field-val">${hasShoot?e['Photo Shoot']:'Not included'}</div></div>
+  </div>
+</div>
+<div class="sec">
+  <div class="sec-title">2. Event Coverage</div>
+  <div class="info-box">${e['Photo Tier']||'Elegant'} plan · Full event coverage · Photographer arrives 30 min before start</div>
+  <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    <div class="field-item"><div class="field-lbl">Priority Moments for Photography</div><div class="field-val" style="border-bottom:1px solid #CCC;padding-bottom:3px;min-height:18px"></div></div>
+    <div class="field-item"><div class="field-lbl">Priority Moments for Video</div><div class="field-val" style="border-bottom:1px solid #CCC;padding-bottom:3px;min-height:18px"></div></div>
+    <div class="field-item"><div class="field-lbl">Twitch Stream Channel (if applicable)</div><div class="field-val" style="border-bottom:1px solid #CCC;padding-bottom:3px;min-height:18px"></div></div>
+    <div class="field-item"><div class="field-lbl">Special Requests</div><div class="field-val" style="border-bottom:1px solid #CCC;padding-bottom:3px;min-height:18px"></div></div>
+  </div>
+  ${(e['Photo Tier']||'').toLowerCase().includes('legacy')?`<div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    <div class="field-item"><div class="field-lbl">Pre-event Location (home / church)</div><div class="field-val" style="border-bottom:1px solid #CCC;padding-bottom:3px;min-height:18px"></div></div>
+    <div class="field-item"><div class="field-lbl">Photographer Arrival Time</div><div class="field-val" style="border-bottom:1px solid #CCC;padding-bottom:3px;min-height:18px"></div></div>
+    <div class="field-item"><div class="field-lbl">Reel Style Preference</div><div class="field-val" style="border-bottom:1px solid #CCC;padding-bottom:3px;min-height:18px">Cinematic / Upbeat / Emotional / Mixed</div></div>
+  </div>`:''}
+</div>
+${hasShoot?`<div class="sec">
+  <div class="sec-title">3. Photo Shoot Session</div>
+  <div class="info-box">Photo Shoot Catalog: 5 iconic NJ locations available. Ask your coordinator for the current catalog.</div>
+  <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    <div class="field-item"><div class="field-lbl">Shoot Date</div><div class="field-val" style="border-bottom:1px solid #CCC;padding-bottom:3px;min-height:18px"></div></div>
+    <div class="field-item"><div class="field-lbl">Preferred Time</div><div class="field-val" style="font-size:11px">□ Morning &nbsp; □ Afternoon</div></div>
+    <div class="field-item"><div class="field-lbl">Location Preference (1st choice)</div><div class="field-val" style="border-bottom:1px solid #CCC;padding-bottom:3px;min-height:18px"></div></div>
+    <div class="field-item"><div class="field-lbl">Location Preference (2nd choice)</div><div class="field-val" style="border-bottom:1px solid #CCC;padding-bottom:3px;min-height:18px"></div></div>
+    <div class="field-item"><div class="field-lbl">Number of Outfits</div><div class="field-val" style="border-bottom:1px solid #CCC;padding-bottom:3px;min-height:18px">Changing cabina available on location</div></div>
+    <div class="field-item"><div class="field-lbl">Theme / Mood</div><div class="field-val" style="border-bottom:1px solid #CCC;padding-bottom:3px;min-height:18px">Romantic / Fun / Formal / Nature / Urban</div></div>
+    <div class="field-item"><div class="field-lbl">Special Props</div><div class="field-val" style="border-bottom:1px solid #CCC;padding-bottom:3px;min-height:18px"></div></div>
+  </div>
+</div>`:''}
+<div class="sec">
+  <div class="sec-title">4. Deliverables & Timelines</div>
+  <table class="del-table">
+    <thead><tr><th>Deliverable</th><th>Included In</th><th>Timeline</th><th>Format</th></tr></thead>
+    <tbody>
+      <tr><td style="font-weight:600">Edited Photos — Online Gallery</td><td>All plans</td><td style="border-bottom:1px solid #CCC">___ weeks</td><td>Private gallery link</td></tr>
+      <tr><td style="font-weight:600">Photo Gallery (6 enlarged)</td><td>Prestige / Legacy</td><td style="border-bottom:1px solid #CCC">Event day</td><td>Branded case · mounted at venue</td></tr>
+      <tr><td style="font-weight:600">Frame Pequeños per table</td><td>${e['Photo Prints']&&e['Photo Prints']!=='na'?'Contracted':'Add-on'}</td><td style="border-bottom:1px solid #CCC">Event day</td><td>${e['Tables']||'—'} tables</td></tr>
+      <tr><td style="font-weight:600">Video Final Cut</td><td>Prestige / Legacy</td><td style="border-bottom:1px solid #CCC">___ weeks</td><td>Digital link</td></tr>
+      <tr><td style="font-weight:600">Video Reels (social media)</td><td>Legacy only</td><td style="border-bottom:1px solid #CCC">___ weeks</td><td>Instagram / TikTok format</td></tr>
+    </tbody>
+  </table>
+  <div class="info-box" style="margin-top:10px;font-size:10px">Photos delivered via private online gallery — NOT via USB unless specifically contracted as add-on. Photo Gallery prints delivered in a branded Pilab Productions case, not loose.</div>
+</div>
+<div class="sec">
+  <div class="sec-title">5. Media Usage & Streaming Authorization</div>
+  <table class="consent-table">
+    <thead><tr><th>Usage</th><th>Client Decision</th></tr></thead>
+    <tbody>
+      ${['Use event photos for Pilab Productions marketing (social media, portfolio)','Use event video clips for Pilab Productions marketing','Photographer may include images in their personal portfolio','Live streaming of the event on Twitch / social platforms','Pilab Productions may tag client on social media posts'].map((u,i)=>`<tr><td style="font-size:11px">${u}</td><td style="text-align:center;font-size:10px">□ Authorize &nbsp;&nbsp; □ Do NOT authorize</td></tr>`).join('')}
+    </tbody>
+  </table>
+</div>
+${e['Photo Prints']&&e['Photo Prints']!=='na'?`<div class="sec">
+  <div class="sec-title">6. Photo Gallery — Select Moments to Enlarge</div>
+  <p style="font-size:11px;color:#555;margin-bottom:10px">If your plan includes the Photo Gallery (6 enlarged prints), select which moments you want enlarged:</p>
+  ${Array.from({length:6},(_,i)=>`<div class="field-item" style="margin-bottom:8px"><div class="field-lbl">Photo ${i+1} — Moment</div><div class="field-val" style="border-bottom:1px solid #CCC;padding-bottom:3px;min-height:18px"></div></div>`).join('')}
+</div>`:''}
+<div class="sec">
+  <div class="sec-title">7. Acknowledgment</div>
+  <p style="font-size:11px;color:#555;margin-bottom:14px">By signing, I confirm that I have reviewed all deliverables, timelines, and usage authorizations. Changes require a written Amendment at least 7 days before the event.</p>
+  ${sigBlock('Authorized — James Cardona · Cardona Hall LLC / Pilab Productions LLC','James Cardona · Cardona Hall LLC / Pilab Productions LLC')}
+</div>
+${docFooter('Productions LLC · Photo & Video')}
+</div>
+<script>window.onload=function(){setTimeout(function(){window.print();},800);};<\/script>
+</body></html>`;
+  docWrite(win,html);
+}
+
+// ── 11. SITTING CHART ─────────────────────────────────────────────────────────
+function generateSittingChart(){
+  const win=docOpen();if(!win)return;
+  const e=currentEvent;
+  const copy=isCopy('sitting_chart');
+  const numTables=parseInt(e['Tables'])||8;
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>Sitting Chart — ${e['RES#']}</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>${baseStyles('#C9A84C')}
+.table-block{break-inside:avoid;margin-bottom:16px;}
+.table-header{background:#FBF5E6;border-left:3px solid #C9A84C;border-top:1px solid #C9A84C;padding:6px 12px;display:flex;justify-content:space-between;align-items:center;}
+.table-num{font-size:16px;font-weight:700;color:#8B6914;font-family:'Cormorant Garamond',serif;}
+.table-seats{font-size:10px;color:#888;}
+.seat-table{width:100%;border-collapse:collapse;}
+.seat-table th{background:#1A1A1A;color:#C9A84C;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:6px 10px;text-align:left;}
+.seat-table td{padding:7px 10px;border-bottom:1px solid #F0F0F0;font-size:11px;}
+.seat-table tr:nth-child(even) td{background:#FAFAFA;}
+.tables-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+</style></head><body>
+${copy?copyWatermark():''}
+<div class="doc">
+${docHeader('Sitting Chart',e['RES#'],'Venue & Host Services — Cardona Hall LLC')}
+<div class="notice-bar">Complete and return at least 15 days before your event. Write each guest name in their assigned seat. Honor Table is not included in this chart.</div>
+<div class="sec">
+  <div class="field-grid">
+    <div class="field-item"><div class="field-lbl">Client Name</div><div class="field-val">${e['Client Name']||'—'}</div></div>
+    <div class="field-item"><div class="field-lbl">Event Date</div><div class="field-val">${fmtDateDoc(e['Event Date'])}</div></div>
+    <div class="field-item"><div class="field-lbl">Total Guests</div><div class="field-val">${e['Guests']||'—'}</div></div>
+    <div class="field-item"><div class="field-lbl">Total Tables</div><div class="field-val">${numTables} round tables · 10 seats each</div></div>
+  </div>
+</div>
+<div class="sec">
+  <div class="sec-title">Guest Seat Assignment</div>
+  <p style="font-size:10px;color:#777;margin-bottom:12px">Assign each guest to a table and seat. Use Notes for dietary needs, family group, or special considerations.</p>
+  <div class="tables-grid">
+    ${Array.from({length:numTables},(_,t)=>`
+    <div class="table-block">
+      <div class="table-header">
+        <div class="table-num">TABLE ${t+1}</div>
+        <div class="table-seats">10 seats · Round</div>
+      </div>
+      <table class="seat-table">
+        <thead><tr><th>#</th><th>Guest Name</th><th>Notes</th></tr></thead>
+        <tbody>${Array.from({length:10},(_,s)=>`<tr><td style="color:#AAA;font-size:10px;width:24px">${s+1}</td><td style="border-bottom:1px solid #EEE"></td><td style="border-bottom:1px solid #EEE;font-size:10px"></td></tr>`).join('')}</tbody>
+      </table>
+    </div>`).join('')}
+  </div>
+</div>
+<div class="sec">
+  <div class="sec-title">Acknowledgment</div>
+  <p style="font-size:11px;color:#555;margin-bottom:14px">By signing, I confirm that seating assignments above are final. Changes must be requested in writing at least 7 days before the event.</p>
+  ${sigBlock('Authorized — James Cardona · Cardona Hall LLC / Pilab Productions LLC','James Cardona · Cardona Hall LLC / Pilab Productions LLC')}
+</div>
+${docFooter('Productions LLC')}
+</div>
+<script>window.onload=function(){setTimeout(function(){window.print();},800);};<\/script>
+</body></html>`;
+  docWrite(win,html);
+}
+
 
 function generateAmendmentFromDoc(idx){
   generateAmendment(idx);
