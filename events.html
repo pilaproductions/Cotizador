@@ -735,7 +735,9 @@ async function openEvent(resNum){
   dv.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===0));
   dv.querySelectorAll('.tab-content').forEach((t,i)=>t.classList.toggle('active',i===0));
   showLoading();
-  await Promise.all([loadPayments(),loadServices(),loadExpenses(),loadDirectoryProviders(),loadDocuments(),loadOperations()]);
+  await Promise.all([loadPayments(),loadServices(),loadExpenses(),loadDocuments()]);
+  await loadDirectoryProviders();
+  await loadOperations();
   hideLoading();
 }
 
@@ -3396,14 +3398,14 @@ function filterOpsProviders(){
   const q=(document.getElementById('opsProvSearch').value||'').toLowerCase();
   const cat=(document.getElementById('opsProvCatFilter').value||'').toLowerCase();
   const sel=document.getElementById('opsProviderSelect');
-  // Save current value
   const curVal=sel.value;
   sel.innerHTML='<option value="">— Select —</option>';
-  if(!currentDirectoryProviders||!currentDirectoryProviders.length){
+  const providers=allDirectoryProviders||[];
+  if(!providers.length){
     sel.innerHTML='<option value="">No providers in directory</option>';
     return;
   }
-  const filtered=currentDirectoryProviders.filter(p=>{
+  const filtered=providers.filter(p=>{
     const name=(p['Name']||'').toLowerCase();
     const pcat=(p['Category']||'').toLowerCase();
     const role=(p['Role']||'').toLowerCase();
@@ -3420,7 +3422,6 @@ function filterOpsProviders(){
     opt.textContent=`${p['Name']} — ${p['Category']}${p['Role']?' ('+p['Role']+')':''}`;
     sel.appendChild(opt);
   });
-  // Restore selection if still available
   if(curVal) sel.value=curVal;
 }
 
