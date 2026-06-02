@@ -371,39 +371,22 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
         <div style="display:flex;gap:8px">
           <button class="btn btn-outline btn-sm" onclick="generateVenueStaffFromOps()">⬇ Staff Sheet</button>
           <button class="btn btn-outline btn-sm" onclick="generateStaffSummary()">⬇ Staff Summary</button>
-          <button class="btn btn-gold btn-sm" id="opsAddBtn" onclick="showOpsForm()">+ Add Provider</button>
         </div>
       </div>
 
       <!-- ── OPERATIONS VIEW ── -->
       <div id="opsViewOperations">
 
-        <!-- SEARCH & FILTER BAR (Expenses style) -->
-        <div style="display:grid;grid-template-columns:1fr auto;gap:10px;margin-bottom:14px">
-          <input class="form-input" type="text" id="opsSearchInput" placeholder="Search provider, role, task..." oninput="filterOpsList()">
-          <select class="form-select" id="opsCatFilter" onchange="filterOpsList()" style="width:160px">
-            <option value="">All categories</option>
-            <option value="Staff">Staff</option>
-            <option value="Entertainment">Entertainment</option>
-            <option value="Decor">Decor</option>
-            <option value="Photo">Photo</option>
-            <option value="Catering">Catering</option>
-            <option value="Other">Other</option>
-          </select>
-        </div>
+        <!-- ASSIGN PROVIDER FORM -->
+        <div style="background:#F8F5EE;border:1px solid #E8E0CC;border-radius:6px;padding:16px;margin-bottom:16px">
+          <div style="font-size:10px;font-weight:700;color:#8B6914;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px">+ Assign Provider</div>
 
-        <!-- ADD/EDIT FORM -->
-        <div id="opsForm" style="display:none;background:#F8F8F8;border:1px solid #E0E0E0;border-radius:6px;padding:16px;margin-bottom:14px">
-          <div style="font-size:12px;font-weight:700;color:#333;margin-bottom:12px;letter-spacing:0.5px" id="opsFormTitle">Add Provider / Task</div>
-          <input type="hidden" id="opsEditId">
-
-          <!-- PROVIDER SEARCH (Expenses style) -->
-          <div style="margin-bottom:12px">
-            <div class="form-lbl" style="margin-bottom:4px">Provider</div>
-            <div style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:6px">
-              <input class="form-input" type="text" id="opsProvSearch" placeholder="Search by name..." oninput="filterOpsProviders()">
-              <select class="form-select" id="opsProvCatFilter" onchange="filterOpsProviders()" style="width:140px">
-                <option value="">All categories</option>
+          <!-- Row 1: Filter + Search -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+            <div class="form-field">
+              <div class="form-lbl">Filter by Category</div>
+              <select class="form-select" id="opsProvCatFilter" onchange="filterOpsProviders()">
+                <option value="">All Categories</option>
                 <option value="Staff">Staff</option>
                 <option value="Entertainment">Entertainment</option>
                 <option value="Decor">Decor</option>
@@ -412,21 +395,24 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
                 <option value="Other">Other</option>
               </select>
             </div>
-            <select class="form-select" id="opsProviderSelect" onchange="onOpsProviderSelect()" size="4" style="width:100%;height:90px">
-              <option value="">— Type to search providers —</option>
-            </select>
-            <div id="opsSelectedProvider" style="display:none;margin-top:6px;padding:6px 10px;background:#F0EFE8;border:1px solid #D4A853;border-radius:4px;font-size:12px;font-weight:600;color:#333"></div>
+            <div class="form-field">
+              <div class="form-lbl">Search Provider</div>
+              <input class="form-input" type="text" id="opsProvSearch" placeholder="Type to search..." oninput="filterOpsProviders()">
+            </div>
           </div>
 
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px">
+          <!-- Row 2: Provider dropdown + Role + Arrival + Departure -->
+          <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:10px;margin-bottom:10px">
             <div class="form-field">
-              <div class="form-lbl">Category</div>
-              <input class="form-input" type="text" id="opsCategory" readonly style="background:#F0F0F0;color:#777">
+              <div class="form-lbl">Provider</div>
+              <select class="form-select" id="opsProviderSelect" onchange="onOpsProviderSelect()">
+                <option value="">— Select —</option>
+              </select>
             </div>
             <div class="form-field">
-              <div class="form-lbl">Role (for this event)</div>
+              <div class="form-lbl">Role (this event)</div>
               <select class="form-select" id="opsRole" onchange="onOpsRoleChange()">
-                <option value="">— Select role —</option>
+                <option value="">— Select —</option>
                 <option value="Manager">Manager</option>
                 <option value="Bartender">Bartender</option>
                 <option value="Server">Server</option>
@@ -452,65 +438,71 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
               </select>
             </div>
             <div class="form-field">
-              <div class="form-lbl">Description / Specialty</div>
-              <input class="form-input" type="text" id="opsDescription" placeholder="e.g. Clown, Violinist...">
-            </div>
-          </div>
-
-          <!-- Other category field - shown when role=Other -->
-          <div id="opsOtherCatRow" style="display:none;margin-bottom:10px">
-            <div class="form-lbl" style="margin-bottom:4px">Category (for Other role)</div>
-            <select class="form-select" id="opsOtherCat" style="width:200px">
-              <option value="Staff">Staff</option>
-              <option value="Entertainment">Entertainment</option>
-              <option value="Decor">Decor</option>
-              <option value="Photo">Photo</option>
-              <option value="Catering">Catering</option>
-              <option value="Other">Other</option>
-            </select>
-          </div>
-
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-            <div class="form-field">
-              <div class="form-lbl">Arrival Time</div>
+              <div class="form-lbl">Arrival</div>
               <input class="form-input" type="time" id="opsArrival">
             </div>
             <div class="form-field">
-              <div class="form-lbl">Departure Time</div>
+              <div class="form-lbl">Departure</div>
               <input class="form-input" type="time" id="opsDeparture">
             </div>
           </div>
 
-          <!-- TASKS SECTION -->
-          <div style="border-top:1px solid #E0E0E0;margin:12px 0 10px;padding-top:12px">
-            <div style="font-size:11px;font-weight:700;color:#888;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px">Tasks for this provider</div>
+          <!-- Row 3: Description + Category (auto) + Other cat (if Other) + Notes -->
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px">
+            <div class="form-field">
+              <div class="form-lbl">Description / Specialty</div>
+              <input class="form-input" type="text" id="opsDescription" placeholder="e.g. Clown, Violinist...">
+            </div>
+            <div class="form-field">
+              <div class="form-lbl">Category</div>
+              <input class="form-input" type="text" id="opsCategory" readonly style="background:#F0F0F0;color:#777">
+            </div>
+            <div class="form-field" id="opsOtherCatRow" style="display:none">
+              <div class="form-lbl">Category (Other)</div>
+              <select class="form-select" id="opsOtherCat" onchange="renderOpsTaskCheckboxes(this.value)">
+                <option value="Staff">Staff</option>
+                <option value="Entertainment">Entertainment</option>
+                <option value="Decor">Decor</option>
+                <option value="Photo">Photo</option>
+                <option value="Catering">Catering</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <div class="form-lbl">Notes</div>
+              <input class="form-input" type="text" id="opsNotes" placeholder="Additional notes...">
+            </div>
+          </div>
 
-            <!-- Predefined tasks from templates -->
-            <div id="opsTaskCheckboxes" style="margin-bottom:10px"></div>
+          <!-- TASKS SECTION — appears after provider selected -->
+          <div id="opsTaskSection" style="display:none;border-top:1px solid #DDD;margin:12px 0 10px;padding-top:12px">
+            <div style="font-size:10px;font-weight:700;color:#8B6914;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px" id="opsTaskSectionTitle">Tasks</div>
 
-            <!-- Custom task input -->
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;align-items:end;margin-bottom:6px">
-              <div class="form-field" style="grid-column:span 1">
+            <!-- Template checkboxes -->
+            <div id="opsTaskCheckboxes" style="margin-bottom:10px;max-height:200px;overflow-y:auto"></div>
+
+            <!-- Custom task -->
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;align-items:end;margin-top:8px">
+              <div class="form-field">
                 <div class="form-lbl">Custom Task</div>
-                <input class="form-input" type="text" id="opsCustomTask" placeholder="Add new task...">
+                <input class="form-input" type="text" id="opsCustomTask" placeholder="New task name...">
               </div>
               <div class="form-field">
-                <div class="form-lbl">Start Time</div>
+                <div class="form-lbl">Start</div>
                 <input class="form-input" type="time" id="opsTaskStart">
               </div>
               <div class="form-field">
-                <div class="form-lbl">End Time</div>
+                <div class="form-lbl">End</div>
                 <input class="form-input" type="time" id="opsTaskEnd">
               </div>
-              <button class="btn btn-outline btn-sm" onclick="addCustomTask()" style="margin-bottom:1px">+ Add</button>
+              <button class="btn btn-outline btn-sm" onclick="addCustomTask()">+ Add</button>
             </div>
-
-            <!-- Added tasks list -->
             <div id="opsTasksList" style="margin-top:8px"></div>
           </div>
 
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-            <div class="form-field">
+          <!-- Action row -->
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding-top:10px;border-top:1px solid #DDD">
+            <div class="form-field" style="width:160px">
               <div class="form-lbl">Status</div>
               <select class="form-select" id="opsStatus">
                 <option value="Pending">Pending</option>
@@ -520,15 +512,25 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
                 <option value="Cancelled">Cancelled</option>
               </select>
             </div>
-            <div class="form-field">
-              <div class="form-lbl">Notes</div>
-              <input class="form-input" type="text" id="opsNotes" placeholder="Additional notes...">
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-outline" onclick="clearOpsForm()">Clear</button>
+              <button class="btn btn-gold" onclick="saveOperation()">Assign</button>
             </div>
           </div>
-          <div style="display:flex;gap:8px">
-            <button class="btn btn-gold" onclick="saveOperation()">Save</button>
-            <button class="btn btn-outline" onclick="hideOpsForm()">Cancel</button>
-          </div>
+        </div>
+
+        <!-- FILTER LIST -->
+        <div style="display:grid;grid-template-columns:1fr auto;gap:10px;margin-bottom:12px">
+          <input class="form-input" type="text" id="opsSearchInput" placeholder="Search operations..." oninput="filterOpsList()">
+          <select class="form-select" id="opsCatFilter" onchange="filterOpsList()" style="width:160px">
+            <option value="">All categories</option>
+            <option value="Staff">Staff</option>
+            <option value="Entertainment">Entertainment</option>
+            <option value="Decor">Decor</option>
+            <option value="Photo">Photo</option>
+            <option value="Catering">Catering</option>
+            <option value="Other">Other</option>
+          </select>
         </div>
 
         <!-- OPERATIONS LIST -->
@@ -538,11 +540,11 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
       <!-- ── TASK TEMPLATES VIEW ── -->
       <div id="opsViewTemplates" style="display:none">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-          <div style="font-size:12px;color:#777">Manage predefined tasks loaded when assigning providers. Changes apply immediately to new assignments.</div>
+          <div style="font-size:12px;color:#777">Manage predefined tasks loaded when assigning providers.</div>
           <button class="btn btn-gold btn-sm" onclick="showTemplateForm()">+ Add Template</button>
         </div>
 
-        <!-- Template add/edit form -->
+        <!-- Template form -->
         <div id="tmplForm" style="display:none;background:#F8F8F8;border:1px solid #E0E0E0;border-radius:6px;padding:14px;margin-bottom:14px">
           <input type="hidden" id="tmplEditId">
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:end">
@@ -3375,6 +3377,7 @@ async function loadOperations(){
     if(!Array.isArray(currentTaskTemplates)) currentTaskTemplates=[];
     renderOperations();
     renderTaskTemplates();
+    filterOpsProviders();
   }catch(e){currentOperations=[];currentTaskTemplates=[];renderOperations();}
 }
 
@@ -3386,8 +3389,6 @@ function switchOpsView(view){
   document.getElementById('opsViewOps').style.fontWeight = isOps?'700':'400';
   document.getElementById('opsViewTmpl').className = isOps?'btn btn-ghost btn-sm':'btn btn-outline btn-sm';
   document.getElementById('opsViewTmpl').style.fontWeight = isOps?'400':'700';
-  document.getElementById('opsAddBtn').textContent = isOps?'+ Add Provider':'+ Add Template';
-  document.getElementById('opsAddBtn').onclick = isOps?showOpsForm:showTemplateForm;
 }
 
 // ── PROVIDER SEARCH (Expenses style) ─────────────────────────────────────────
@@ -3395,9 +3396,11 @@ function filterOpsProviders(){
   const q=(document.getElementById('opsProvSearch').value||'').toLowerCase();
   const cat=(document.getElementById('opsProvCatFilter').value||'').toLowerCase();
   const sel=document.getElementById('opsProviderSelect');
-  sel.innerHTML='';
+  // Save current value
+  const curVal=sel.value;
+  sel.innerHTML='<option value="">— Select —</option>';
   if(!currentDirectoryProviders||!currentDirectoryProviders.length){
-    sel.innerHTML='<option value="">No providers loaded</option>';
+    sel.innerHTML='<option value="">No providers in directory</option>';
     return;
   }
   const filtered=currentDirectoryProviders.filter(p=>{
@@ -3408,35 +3411,30 @@ function filterOpsProviders(){
     const matchCat=!cat||pcat===cat;
     return matchQ&&matchCat&&p['Status']!=='Blacklisted';
   });
-  if(!filtered.length){
-    sel.innerHTML='<option value="">No results</option>';
-    return;
-  }
   filtered.forEach(p=>{
     const opt=document.createElement('option');
     opt.value=p['Provider ID'];
     opt.dataset.name=p['Name']||'';
     opt.dataset.category=p['Category']||'';
     opt.dataset.role=p['Role']||'';
-    opt.textContent=`${p['Name']} — ${p['Category']} (${p['Role']||'—'})`;
+    opt.textContent=`${p['Name']} — ${p['Category']}${p['Role']?' ('+p['Role']+')':''}`;
     sel.appendChild(opt);
   });
+  // Restore selection if still available
+  if(curVal) sel.value=curVal;
 }
 
 function onOpsProviderSelect(){
   const sel=document.getElementById('opsProviderSelect');
   const opt=sel.options[sel.selectedIndex];
-  if(!opt||!opt.value)return;
-  // Show selected provider
-  const display=document.getElementById('opsSelectedProvider');
-  display.style.display='block';
-  display.textContent=`✓ ${opt.dataset.name} — ${opt.dataset.category}`;
-  display.dataset.id=opt.value;
-  display.dataset.name=opt.dataset.name;
-  display.dataset.category=opt.dataset.category;
-  display.dataset.role=opt.dataset.role;
+  if(!opt||!opt.value){
+    document.getElementById('opsTaskSection').style.display='none';
+    document.getElementById('opsCategory').value='';
+    return;
+  }
   // Auto-fill category
-  document.getElementById('opsCategory').value=opt.dataset.category||'';
+  const cat=opt.dataset.category||'';
+  document.getElementById('opsCategory').value=cat;
   // Auto-fill role if matches list
   const roleEl=document.getElementById('opsRole');
   const provRole=opt.dataset.role||'';
@@ -3445,8 +3443,13 @@ function onOpsProviderSelect(){
     if(roleEl.options[i].value===provRole){roleEl.selectedIndex=i;found=true;break;}
   }
   if(!found) roleEl.selectedIndex=0;
-  // Load task templates for this category
-  renderOpsTaskCheckboxes(opt.dataset.category);
+  // Show tasks section
+  const taskSection=document.getElementById('opsTaskSection');
+  taskSection.style.display='block';
+  document.getElementById('opsTaskSectionTitle').textContent=`Tasks for ${opt.dataset.name}`;
+  opsPendingTasks=[];
+  renderOpsPendingTasks();
+  renderOpsTaskCheckboxes(cat);
 }
 
 function onOpsRoleChange(){
@@ -3541,16 +3544,35 @@ function showOpsForm(opId=null){
   filterOpsProviders();
 }
 
-function hideOpsForm(){
-  document.getElementById('opsForm').style.display='none';
+function hideOpsForm(){}
+
+function clearOpsForm(){
+  document.getElementById('opsProviderSelect').value='';
+  document.getElementById('opsProvSearch').value='';
+  document.getElementById('opsProvCatFilter').value='';
+  document.getElementById('opsRole').selectedIndex=0;
+  document.getElementById('opsCategory').value='';
+  document.getElementById('opsDescription').value='';
+  document.getElementById('opsArrival').value='';
+  document.getElementById('opsDeparture').value='';
+  document.getElementById('opsNotes').value='';
+  document.getElementById('opsStatus').value='Pending';
+  document.getElementById('opsOtherCatRow').style.display='none';
+  document.getElementById('opsTaskSection').style.display='none';
+  document.getElementById('opsTaskCheckboxes').innerHTML='';
+  document.getElementById('opsTasksList').innerHTML='';
+  document.getElementById('opsCustomTask').value='';
+  document.getElementById('opsTaskStart').value='';
+  document.getElementById('opsTaskEnd').value='';
   opsPendingTasks=[];
 }
 
 async function saveOperation(){
-  const editId=document.getElementById('opsEditId').value;
-  const display=document.getElementById('opsSelectedProvider');
-  const provId=display.dataset.id||'';
-  const provName=display.dataset.name||'';
+  const editId='';
+  const sel=document.getElementById('opsProviderSelect');
+  const opt=sel.options[sel.selectedIndex];
+  const provId=opt&&opt.value?opt.value:'';
+  const provName=opt&&opt.value?(opt.dataset.name||''):'';
   let category=document.getElementById('opsCategory').value;
   const role=document.getElementById('opsRole').value;
   if(role==='Other')category=document.getElementById('opsOtherCat').value;
