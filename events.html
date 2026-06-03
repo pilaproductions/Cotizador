@@ -258,7 +258,17 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
       <div class="add-form">
         <div class="add-form-title">+ Add Service</div>
         <div class="form-row form-row-3">
-          <div class="form-field"><div class="form-lbl">Service Name</div><input class="form-input" type="text" id="svcName" placeholder="e.g. Mariachi, CO2 Jets, Hour Loca..."></div>
+          <div class="form-field"><div class="form-lbl">Service Name</div><input class="form-input" type="text" id="svcName" placeholder="e.g. Mariachi, CO2 Jets, Hora Loca..."></div>
+          <div class="form-field"><div class="form-lbl">Category</div>
+            <select class="form-select" id="svcCategory">
+              <option value="Entertainment">Entertainment</option>
+              <option value="Decor">Decor</option>
+              <option value="Photo">Photo & Video</option>
+              <option value="Catering">Catering</option>
+              <option value="Venue">Venue</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
           <div class="form-field"><div class="form-lbl">Price</div><input class="form-input" type="number" id="svcPrice" placeholder="0.00" min="0"></div>
           <button class="btn btn-gold" onclick="saveService()">Add</button>
         </div>
@@ -269,7 +279,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
 
       <div class="section-title">Additional Services</div>
       <table class="data-table">
-        <thead><tr><th>Detail ID</th><th>Service</th><th>Price</th><th>Notes</th><th style="text-align:right">Amendment</th></tr></thead>
+        <thead><tr><th>Detail ID</th><th>Service</th><th>Category</th><th>Price</th><th>Notes</th><th style="text-align:right">Actions</th></tr></thead>
         <tbody id="servicesBody"><tr><td colspan="5" class="no-data">No additional services</td></tr></tbody>
       </table>
     </div>
@@ -637,7 +647,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
 
 <script>
 const SCRIPT_URL='https://script.google.com/macros/s/AKfycbyUAKZyuX8xcdSTXNkJoagPlaW4fumRWnrDuuARiMntpS76sx_6I-6TYxUpjkhjVIADAQ/exec';
-const ET_LABELS={wedding:'Wedding',quinceanera:'Quinceañera',baby_shower:'Baby Shower',kids_party:'Kids Party',birthday:'Birthday Party',special_social:'Special Event',special_corporate:'Corporate'};
+const ET_LABELS={wedding:'Wedding',quinceanera:'Quinceañera',sweet16:'Sweet 16',baby_shower:'Baby Shower',kids_party:'Kids Party',birthday:'Birthday Party',special_social:'Special Event',special_corporate:'Corporate',bautizo:'Bautizo',graduacion:'Graduation',primera_comunion:'Primera Comunión'};
 let allEvents=[],currentEvent=null,currentPayments=[],currentServices=[];
 
 function fmtMoney(n){return '$'+(parseFloat(n)||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});}
@@ -819,15 +829,18 @@ function renderServices(){
   const balance=getEventTotal()-received;
   document.getElementById('sumBalance').textContent=fmtMoney(Math.max(0,balance));
   if(!currentServices.length){
-    document.getElementById('servicesBody').innerHTML='<tr><td colspan="5" class="no-data">No additional services added</td></tr>';
+    document.getElementById('servicesBody').innerHTML='<tr><td colspan="6" class="no-data">No additional services added</td></tr>';
     return;
   }
   const rows=currentServices.map((s,idx)=>`<tr>
     <td style="font-size:10px;color:#AAA">${s['Detail ID']||'—'}</td>
     <td style="font-weight:500">${s['Item']||'—'}</td>
+    <td style="font-size:11px"><span style="padding:2px 6px;background:#F0F0F0;border-radius:3px;font-size:10px">${s['Division']||'Other'}</span></td>
     <td class="amount-col">${fmtMoney(s['Price'])}</td>
     <td style="font-size:11px;color:#888">${s['Notes']||'—'}</td>
-    <td style="text-align:right"><button class="btn btn-outline btn-sm" onclick="generateAmendment(${idx})">⬇ Amendment</button></td>
+    <td style="text-align:right;display:flex;gap:6px;justify-content:flex-end">
+      <button class="btn btn-outline btn-sm" onclick="generateAmendment(${idx})">⬇ Amendment</button>
+    </td>
   </tr>`).join('');
   document.getElementById('servicesBody').innerHTML=rows;
 }
@@ -880,13 +893,14 @@ async function saveService(){
   const price=parseFloat(document.getElementById('svcPrice').value);
   if(!name){showToast('Enter a service name','error');return;}
   if(!price||price<=0){showToast('Enter a valid price','error');return;}
+  const category=document.getElementById('svcCategory').value||'Other';
   const payload={
     action:'saveServiceDetail',
     'Detail ID':genID('SVC'),
     'RES#':currentEvent['RES#'],
     'COT#':currentEvent['COT#'],
     'Event Date':currentEvent['Event Date'],
-    'Division':'Additional',
+    'Division':category,
     'Type':'Add-on',
     'Item':name,
     'Description':name,
@@ -899,9 +913,24 @@ async function saveService(){
     document.getElementById('svcName').value='';
     document.getElementById('svcPrice').value='';
     document.getElementById('svcNotes').value='';
+    document.getElementById('svcCategory').value='Entertainment';
     showToast('Service added','success');
     await loadServices();
     renderPayments();// recalc balance
+    // Fix #6: If contract already exists, prompt what document to generate
+    const contractStatus=getDocStatus('contract_client');
+    if(contractStatus&&contractStatus!==''){
+      const docChoice=confirm(
+        `Service "${name}" added.\n\n`+
+        `The Client Contract has already been generated.\n\n`+
+        `Generate an Amendment for this new service?\n`+
+        `(Click OK for Amendment, Cancel to skip)`
+      );
+      if(docChoice){
+        const idx=currentServices.length-1;
+        if(idx>=0)generateAmendment(idx);
+      }
+    }
   }catch(e){showToast('Error saving service','error');}
   hideLoading();
 }
@@ -912,7 +941,7 @@ async function updateStatus(newStatus){
     if(balance>0.01){showToast('Cannot complete — balance due: '+fmtMoney(balance),'error');return;}
   }
   if(!confirm('Mark this event as '+newStatus+'?'))return;
-  const payload={action:'updateQuotationStatus','COT#':currentEvent['COT#'],'RES#':currentEvent['RES#'],'Status':newStatus.toLowerCase()};
+  const payload={action:'updateQuotationStatus','COT#':currentEvent['COT#'],'RES#':currentEvent['RES#'],'Status':newStatus.toLowerCase(),'Event Status':newStatus.toLowerCase()};
   showLoading();
   try{
     await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(payload),headers:{'Content-Type':'text/plain'}});
@@ -944,7 +973,7 @@ function generateReceipt(){
     <tr><td style="padding:5px 0;font-size:11px;color:#555">${fmtDate(p['Payment Date'])} — ${p['Type']} (${p['Method']})</td><td style="padding:5px 0;text-align:right;font-size:11px;font-weight:600;color:#1E5C2E">${fmtM(p['Amount'])}</td></tr>
   `).join('');
 
-  const ET_LABELS={wedding:'Wedding',quinceanera:'Quinceañera',baby_shower:'Baby Shower',kids_party:'Kids Party',birthday:'Birthday Party',special_social:'Special Event',special_corporate:'Corporate'};
+  const ET_LABELS={wedding:'Wedding',quinceanera:'Quinceañera',sweet16:'Sweet 16',baby_shower:'Baby Shower',kids_party:'Kids Party',birthday:'Birthday Party',special_social:'Special Event',special_corporate:'Corporate',bautizo:'Bautizo',graduacion:'Graduation',primera_comunion:'Primera Comunión'};
   const etLabel=ET_LABELS[currentEvent['Event Type']]||currentEvent['Event Type']||'—';
 
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
@@ -1082,7 +1111,7 @@ async function generateAmendment(idx){
   const amdNum=`AMD-${currentEvent['RES#']}-${String(amdCount+1).padStart(3,'0')}`;
   const today=new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
   const fmtM=n=>'$'+(parseFloat(n)||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});
-  const ET_LABELS={wedding:'Wedding',quinceanera:'Quinceañera',baby_shower:'Baby Shower',kids_party:'Kids Party',birthday:'Birthday Party',special_social:'Special Event',special_corporate:'Corporate'};
+  const ET_LABELS={wedding:'Wedding',quinceanera:'Quinceañera',sweet16:'Sweet 16',baby_shower:'Baby Shower',kids_party:'Kids Party',birthday:'Birthday Party',special_social:'Special Event',special_corporate:'Corporate',bautizo:'Bautizo',graduacion:'Graduation',primera_comunion:'Primera Comunión'};
   const etLabel=ET_LABELS[currentEvent['Event Type']]||currentEvent['Event Type']||'—';
 
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
@@ -1469,16 +1498,17 @@ const DOC_DEFINITIONS=[
   {id:'venue_rules',name:'Venue Rules & Policies',sub:'Alcohol policy, anti-violence, overtime fees, restrictions',group:'client',condition:()=>true,statuses:['Draft','Sent','Signed'],icon:'📋',canGenerate:true},
   {id:'receipt',name:'Payment Receipt',sub:'Generated from Payments tab',group:'client',condition:()=>true,statuses:['Generated'],icon:'🧾',canGenerate:true},
   // Provider contracts
-  {id:'contract_entertainment',name:'Entertainment Contract',sub:'DJ / Performer service agreement',group:'provider',condition:()=>currentEvent&&currentEvent['Entertainment Plan']&&currentEvent['Entertainment Plan']!=='na',statuses:['Draft','Sent','Signed'],icon:'🎵',canGenerate:true},
-  {id:'contract_decor',name:'Decor Contract',sub:'Decoration service agreement',group:'provider',condition:()=>currentEvent&&currentEvent['Decor Plan']&&currentEvent['Decor Plan']!=='na',statuses:['Draft','Sent','Signed'],icon:'🎨',canGenerate:true},
-  {id:'contract_photo',name:'Photo & Video Contract',sub:'Photography / videography agreement',group:'provider',condition:()=>currentEvent&&currentEvent['Photo Plan']&&currentEvent['Photo Plan']!=='na',statuses:['Draft','Sent','Signed'],icon:'📷',canGenerate:true},
+  {id:'contract_entertainment',name:'Entertainment Contract',sub:'DJ / Performer service agreement',group:'provider',condition:()=>currentEvent&&currentEvent['Entertainment Plan']&&String(currentEvent['Entertainment Plan']).trim()!==''&&String(currentEvent['Entertainment Plan']).toLowerCase()!=='na',statuses:['Draft','Sent','Signed'],icon:'🎵',canGenerate:true},
+  {id:'contract_decor',name:'Decor Contract',sub:'Decoration service agreement',group:'provider',condition:()=>currentEvent&&currentEvent['Decor Plan']&&String(currentEvent['Decor Plan']).trim()!==''&&String(currentEvent['Decor Plan']).toLowerCase()!=='na',statuses:['Draft','Sent','Signed'],icon:'🎨',canGenerate:true},
+  {id:'contract_photo',name:'Photo & Video Contract',sub:'Photography / videography agreement',group:'provider',condition:()=>currentEvent&&currentEvent['Photo Plan']&&String(currentEvent['Photo Plan']).trim()!==''&&String(currentEvent['Photo Plan']).toLowerCase()!=='na',statuses:['Draft','Sent','Signed'],icon:'📷',canGenerate:true},
   // Operational
   {id:'catering_beo',name:'Catering Order (BEO)',sub:'Food & beverage order for Noches de Colombia',group:'operational',condition:()=>currentEvent&&['collection','luxury'].includes(currentEvent['Catering Line']),statuses:['Draft','Sent','Delivered'],icon:'🍽️',canGenerate:true},
   {id:'menu_selection',name:'Menu Selection Form',sub:'Client selects dishes based on their catering plan',group:'operational',condition:()=>currentEvent&&['collection','luxury'].includes(currentEvent['Catering Line']),statuses:['Draft','Sent','Confirmed'],icon:'📋',canGenerate:true},
   {id:'venue_staff',name:'Venue Staff Sheet',sub:'Staff assignments, roles, arrival times',group:'operational',condition:()=>currentEvent&&currentEvent['Venue Tier']!=='EXTERNAL',statuses:['Draft','Printed'],icon:'👥',canGenerate:true},
   {id:'decor_requirements',name:'Decor Requirements',sub:'Decoration specifications by plan',group:'operational',condition:()=>currentEvent&&currentEvent['Decor Plan']&&currentEvent['Decor Plan']!=='na',statuses:['Draft','Sent','Confirmed'],icon:'🎀',canGenerate:true},
-  {id:'music_program',name:'Music & Program Request',sub:'Music genres, event timeline, special moments',group:'operational',condition:()=>currentEvent&&currentEvent['Entertainment Plan']&&currentEvent['Entertainment Plan']!=='na',statuses:['Draft','Sent','Confirmed'],icon:'🎶',canGenerate:true},
-  {id:'photo_session',name:'Photo Session Details',sub:'Session locations, dates, times, directions',group:'operational',condition:()=>currentEvent&&currentEvent['Photo Plan']&&currentEvent['Photo Plan']!=='na',statuses:['Draft','Sent','Confirmed'],icon:'📸',canGenerate:true},
+  {id:'music_program',name:'Music & Program Request',sub:'Music genres, event timeline, special moments',group:'operational',condition:()=>currentEvent&&currentEvent['Entertainment Plan']&&String(currentEvent['Entertainment Plan']).trim()!==''&&String(currentEvent['Entertainment Plan']).toLowerCase()!=='na',statuses:['Draft','Sent','Confirmed'],icon:'🎶',canGenerate:true},
+  {id:'photo_session',name:'Photo Session Details',sub:'Session locations, dates, times, directions',group:'operational',condition:()=>currentEvent&&currentEvent['Photo Plan']&&String(currentEvent['Photo Plan']).trim()!==''&&String(currentEvent['Photo Plan']).toLowerCase()!=='na',statuses:['Draft','Sent','Confirmed'],icon:'📸',canGenerate:true},
+  {id:'balance_doc',name:'Balance Statement',sub:'Final balance document — generated after event',group:'client',condition:()=>currentEvent&&(currentEvent['Event Status']||'').toLowerCase()==='completed',statuses:['Generated'],icon:'💰',canGenerate:true},
   {id:'cancellation',name:'Cancellation Notice',sub:'Event cancellation with penalty calculation',group:'operational',condition:()=>true,statuses:['Generated'],icon:'🚫',canGenerate:true},
   {id:'date_change',name:'Date Change Amendment',sub:'Event date change with applicable fee',group:'operational',condition:()=>true,statuses:['Generated','Signed'],icon:'📅',canGenerate:true},
   {id:'force_majeure',name:'Force Majeure — Event Freeze',sub:'Event suspension due to extraordinary circumstances',group:'operational',condition:()=>true,statuses:['Generated','Signed'],icon:'❄️',canGenerate:true},
@@ -1610,6 +1640,7 @@ function generateDoc(docId){
   if(docId==='music_program'){generateMusicProgram();return;}
   if(docId==='photo_session'){generatePhotoSession();return;}
   if(docId==='sitting_chart'){generateSittingChart();return;}
+  if(docId==='balance_doc'){generateBalanceDoc();return;}
   if(docId==='cancellation'){generateCancellationNotice();return;}
   if(docId==='date_change'){generateDateChange();return;}
   if(docId==='force_majeure'){generateForceMajeure();return;}
@@ -3894,6 +3925,52 @@ async function deleteTemplate(taskId){
     await loadOperations();
   }catch(e){showToast('Error','error');}
   hideLoading();
+}
+
+// ── BALANCE STATEMENT ────────────────────────────────────────────────────────
+function generateBalanceDoc(){
+  const win=docOpen();if(!win)return;
+  const e=currentEvent;
+  const total=getEventTotal();
+  const received=getTotalReceived();
+  const balance=total-received;
+  const baseTotal=parseFloat(e['Final Total'])||0;
+  const extrasTotal=currentServices.reduce((s,sv)=>s+(parseFloat(sv['Price'])||0),0);
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title> </title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>${baseStyles('#C9A84C')}</style></head><body><div class="doc">
+${docHeader('Balance Statement',e['RES#'],'Cardona Hall LLC / Pilab Productions LLC')}
+<div class="notice-bar">This document reflects the final financial summary for the event referenced below. Issued: ${docToday()}</div>
+<div class="sec">
+  <div class="field-grid">
+    <div class="field-item"><div class="field-lbl">Client Name</div><div class="field-val">${e['Client Name']||'—'}</div></div>
+    <div class="field-item"><div class="field-lbl">Event Date</div><div class="field-val">${fmtDateDoc(e['Event Date'])}</div></div>
+    <div class="field-item"><div class="field-lbl">Event Type</div><div class="field-val">${etLabel()}</div></div>
+    <div class="field-item"><div class="field-lbl">Reservation #</div><div class="field-val">${e['RES#']||'—'}</div></div>
+  </div>
+</div>
+<div class="sec">
+  <div class="sec-title">Financial Summary</div>
+  <table class="services-table">
+    <thead><tr><th>Concept</th><th style="text-align:right">Amount</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td style="font-weight:600">Base Contract Amount</td><td style="text-align:right">${fmtM(baseTotal)}</td><td>Original contract</td></tr>
+      ${extrasTotal>0?`<tr><td style="font-weight:600">Additional Services</td><td style="text-align:right">${fmtM(extrasTotal)}</td><td>Added post-contract</td></tr>`:''}
+      ${currentPayments.map(p=>`<tr><td>${p['Type']||'Payment'} — ${fmtDateDoc(p['Payment Date'])}</td><td style="text-align:right;color:#1E5C2E;font-weight:600">-${fmtM(parseFloat(p['Amount'])||0)}</td><td>${p['Method']||'—'}</td></tr>`).join('')}
+      <tr class="total-row"><td>${balance<=0?'✓ PAID IN FULL':'BALANCE DUE'}</td><td style="text-align:right">${fmtM(Math.abs(balance))}</td><td>${balance<=0?'Settled':'Pending payment'}</td></tr>
+    </tbody>
+  </table>
+</div>
+<div class="sec">
+  <div class="sec-title">Acknowledgment</div>
+  <p style="font-size:11px;color:#555;margin-bottom:14px">This balance statement confirms the financial standing of the above event as of ${docToday()}.</p>
+  ${sigBlock('Authorized — James Cardona · Cardona Hall LLC / Pilab Productions LLC','James Cardona · Cardona Hall LLC / Pilab Productions LLC')}
+</div>
+${docFooter('Productions LLC')}
+</div>
+<script>window.onload=function(){document.title=' ';try{history.replaceState(null,'',' ');}catch(e){}setTimeout(function(){window.print();},1000);};<\/script>
+</body></html>`;
+  docWrite(win,html);
 }
 
 function generateCancellationNotice(){
