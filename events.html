@@ -52,6 +52,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
 .status-reserved{background:#EAF4ED;color:var(--green);border-color:#A8D5B5;}
 .status-completed{background:#EEF3FF;color:var(--blue);border-color:#BFD0F0;}
 .status-cancelled{background:var(--red-light);color:var(--red);border-color:#D4A0A0;}
+.status-date-pending{background:#FFF1E0;color:#B5560A;border-color:#E8B584;}
 .empty-state{padding:60px 28px;text-align:center;}
 .empty-title{font-family:'Cormorant Garamond',serif;font-size:20px;color:#888;margin-bottom:8px;}
 .empty-sub{font-size:11px;color:#AAA;}
@@ -667,26 +668,40 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
           <div id="dcDaysRemaining" style="font-size:13px;font-weight:600;color:#333;">—</div>
         </div>
       </div>
-      <div style="margin-bottom:14px;">
+      <div style="margin-bottom:14px;padding:10px 12px;background:#F7F4EE;border-radius:5px;">
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#333;cursor:pointer;font-weight:600;">
+          <input type="checkbox" id="dcTBD" onchange="toggleTBD()" style="accent-color:#D4680A;width:15px;height:15px;">
+          Client does not have a new date yet (set as "To Be Defined")
+        </label>
+        <div style="font-size:10px;color:#999;margin-top:5px;padding-left:23px;">The original date is released and the event moves to "Date Pending". You can set the new date later.</div>
+      </div>
+      <div id="dcDateRow" style="margin-bottom:14px;">
         <label style="font-size:11px;color:#555;font-weight:600;display:block;margin-bottom:5px;">New Event Date *</label>
         <input type="date" id="dcNewDate" onchange="onDateChangePick()" style="width:100%;padding:9px;border:1px solid #CCC;border-radius:4px;font-size:13px;">
         <div id="dcNewDay" style="font-size:11px;color:#888;margin-top:5px;"></div>
       </div>
       <div style="margin-bottom:14px;">
-        <label style="font-size:11px;color:#555;font-weight:600;display:block;margin-bottom:5px;">Date Change Fee</label>
+        <label style="font-size:11px;color:#555;font-weight:600;display:block;margin-bottom:5px;">Date Change Fee (paid now)</label>
         <div style="display:flex;align-items:center;gap:10px;">
           <span style="font-size:14px;color:#555;">$</span>
           <input type="number" id="dcFee" min="0" step="50" style="flex:1;padding:9px;border:1px solid #CCC;border-radius:4px;font-size:13px;">
-          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#8B4500;cursor:pointer;white-space:nowrap;">
-            <input type="checkbox" id="dcWaive" onchange="toggleWaiveFee()" style="accent-color:#D4680A;width:15px;height:15px;">
-            Waive fee
-          </label>
         </div>
         <div id="dcFeeNote" style="font-size:10px;color:#999;margin-top:4px;"></div>
       </div>
-      <div id="dcReasonRow" style="margin-bottom:14px;display:none;">
-        <label style="font-size:11px;color:#555;font-weight:600;display:block;margin-bottom:5px;">Waive Reason</label>
-        <input type="text" id="dcReason" placeholder="e.g. Medical circumstance" style="width:100%;padding:9px;border:1px solid #CCC;border-radius:4px;font-size:13px;">
+      <div style="margin-bottom:14px;">
+        <label style="font-size:11px;color:#555;font-weight:600;display:block;margin-bottom:5px;">Fee Payment Method</label>
+        <select id="dcMethod" style="width:100%;padding:9px;border:1px solid #CCC;border-radius:4px;font-size:13px;">
+          <option value="Cash">Cash</option>
+          <option value="Zelle">Zelle</option>
+          <option value="Transfer">Transfer</option>
+          <option value="Card">Card</option>
+          <option value="Check">Check</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div style="margin-bottom:14px;">
+        <label style="font-size:11px;color:#555;font-weight:600;display:block;margin-bottom:5px;">Reason / Notes</label>
+        <input type="text" id="dcReason" placeholder="e.g. Force majeure — medical circumstance" style="width:100%;padding:9px;border:1px solid #CCC;border-radius:4px;font-size:13px;">
       </div>
       <div style="margin-bottom:18px;">
         <label style="font-size:11px;color:#555;font-weight:600;display:block;margin-bottom:5px;">Availability for New Date</label>
@@ -759,8 +774,8 @@ function renderList(){
   }
   const rows=filtered.map(e=>{
     const status=(e['Event Status']||'reserved').toLowerCase();
-    const sc={reserved:'status-reserved',completed:'status-completed',cancelled:'status-cancelled'}[status]||'status-reserved';
-    const sl={reserved:'Reserved',completed:'Completed',cancelled:'Cancelled'}[status]||'Reserved';
+    const sc={reserved:'status-reserved',completed:'status-completed',cancelled:'status-cancelled',date_pending:'status-date-pending'}[status]||'status-reserved';
+    const sl={reserved:'Reserved',completed:'Completed',cancelled:'Cancelled',date_pending:'Date Pending'}[status]||'Reserved';
     const etLabel=ET_LABELS[e['Event Type']]||e['Event Type']||'—';
     return `<tr onclick="openEvent('${e['RES#']}')">
       <td><div class="res-num">${e['RES#']}</div><div style="font-size:10px;color:#AAA;margin-top:2px">${e['COT#']||''}</div></td>
@@ -781,8 +796,8 @@ async function openEvent(resNum){
   document.getElementById('detailRes').textContent=currentEvent['RES#'];
   document.getElementById('detailClient').textContent=currentEvent['Client Name']||'—';
   const status=(currentEvent['Event Status']||'reserved').toLowerCase();
-  const sc={reserved:'status-reserved',completed:'status-completed',cancelled:'status-cancelled'}[status]||'status-reserved';
-  const sl={reserved:'Reserved',completed:'Completed',cancelled:'Cancelled'}[status]||'Reserved';
+  const sc={reserved:'status-reserved',completed:'status-completed',cancelled:'status-cancelled',date_pending:'status-date-pending'}[status]||'status-reserved';
+  const sl={reserved:'Reserved',completed:'Completed',cancelled:'Cancelled',date_pending:'Date Pending'}[status]||'Reserved';
   document.getElementById('detailStatusBadge').innerHTML=`<span class="status-badge ${sc}">${sl}</span>`;
   document.getElementById('dEventType').textContent=ET_LABELS[currentEvent['Event Type']]||currentEvent['Event Type']||'—';
   document.getElementById('dEventDate').textContent=fmtDate(currentEvent['Event Date']);
@@ -1035,14 +1050,14 @@ function openDateChangeForm(){
   const days=dcDaysRemaining();
   document.getElementById('dcDaysRemaining').textContent=days!==null?days+' days':'—';
   const f=dcComputeFee(days);
-  document.getElementById('dcFee').value=f.fee!==null?f.fee:0;
+  document.getElementById('dcFee').value=f.fee!==null?f.fee:200;
   document.getElementById('dcFeeNote').textContent=f.note;
   document.getElementById('dcNewDate').value='';
   document.getElementById('dcNewDay').textContent='';
-  document.getElementById('dcWaive').checked=false;
+  document.getElementById('dcTBD').checked=false;
+  document.getElementById('dcDateRow').style.display='block';
   document.getElementById('dcReason').value='';
-  document.getElementById('dcReasonRow').style.display='none';
-  document.getElementById('dcFee').disabled=false;
+  document.getElementById('dcMethod').value='Cash';
   document.getElementById('dcAvailability').value='Confirmed';
   document.getElementById('dateChangeOverlay').style.display='flex';
 }
@@ -1056,56 +1071,80 @@ function onDateChangePick(){
   const days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   document.getElementById('dcNewDay').textContent='New day: '+days[d.getDay()];
 }
-function toggleWaiveFee(){
-  const waived=document.getElementById('dcWaive').checked;
-  const feeEl=document.getElementById('dcFee');
-  document.getElementById('dcReasonRow').style.display=waived?'block':'none';
-  if(waived){feeEl.dataset.prev=feeEl.value;feeEl.value=0;feeEl.disabled=true;}
-  else{feeEl.disabled=false;if(feeEl.dataset.prev!==undefined)feeEl.value=feeEl.dataset.prev;}
+function toggleTBD(){
+  const tbd=document.getElementById('dcTBD').checked;
+  document.getElementById('dcDateRow').style.display=tbd?'none':'block';
+  if(tbd){document.getElementById('dcNewDate').value='';document.getElementById('dcNewDay').textContent='';}
 }
 async function saveDateChange(){
+  const tbd=document.getElementById('dcTBD').checked;
   const newDate=document.getElementById('dcNewDate').value;
-  if(!newDate){showToast('Select the new event date','error');return;}
-  const d=new Date(newDate+'T00:00:00');
+  if(!tbd&&!newDate){showToast('Select the new date or mark "To Be Defined"','error');return;}
   const days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-  const newDay=days[d.getDay()];
-  const waived=document.getElementById('dcWaive').checked;
-  const fee=waived?0:(parseFloat(document.getElementById('dcFee').value)||0);
+  const newDay=tbd?'':days[new Date(newDate+'T00:00:00').getDay()];
+  const fee=parseFloat(document.getElementById('dcFee').value)||0;
+  const method=document.getElementById('dcMethod').value;
   const reason=document.getElementById('dcReason').value.trim();
   const availability=document.getElementById('dcAvailability').value;
   const oldDate=fmtDate(currentEvent['Event Date']);
-  const feeLabel=waived?('Waived'+(reason?' ('+reason+')':'')):fmtMoney(fee);
+  const newStatus=tbd?'date_pending':'reserved';
+  const newDateStored=tbd?'TBD':newDate;
+  const newDateLabel=tbd?'TBD (to be defined)':fmtDate(newDate);
   const stamp=new Date().toLocaleDateString('en-US');
-  const logEntry=`${oldDate} → ${fmtDate(newDate)} | Fee: ${feeLabel} | Avail: ${availability} | by James | ${stamp}`;
+  const logEntry=`${oldDate} → ${newDateLabel} | Fee: ${fmtMoney(fee)} (${method}) | Avail: ${availability}${reason?' | '+reason:''} | by James | ${stamp}`;
 
-  const payload={
+  const datePayload={
     action:'updateEventDate',
     'COT#':currentEvent['COT#'],
     'RES#':currentEvent['RES#'],
-    'Event Date':newDate,
+    'Event Date':newDateStored,
     'Day of Week':newDay,
+    'Event Status':newStatus,
     'Date Change Log':logEntry
   };
   showLoading();
   try{
-    await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(payload),headers:{'Content-Type':'text/plain'}});
-    // Update in-memory event so all docs/PDFs reflect the new date immediately
-    currentEvent['Event Date']=newDate;
+    await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(datePayload),headers:{'Content-Type':'text/plain'}});
+    // Register the fee as a normal Payment (counts toward event total)
+    if(fee>0){
+      const payPayload={
+        action:'savePayment',
+        'Payment ID':'PAY-'+Date.now(),
+        'RES#':currentEvent['RES#'],
+        'COT#':currentEvent['COT#'],
+        'Client Name':currentEvent['Client Name'],
+        'Event Date':newDateStored,
+        'Payment Date':new Date().toISOString().split('T')[0],
+        'Amount':fee,
+        'Method':method,
+        'Type':'Date Change Fee',
+        'Reference':reason||'',
+        'Notes':'Date change: '+oldDate+' → '+newDateLabel,
+        'Recorded Date':stamp
+      };
+      await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(payPayload),headers:{'Content-Type':'text/plain'}});
+    }
+    // Update in-memory event
+    currentEvent['Event Date']=newDateStored;
     currentEvent['Day of Week']=newDay;
+    currentEvent['Event Status']=newStatus;
     currentEvent['Date Change Log']=currentEvent['Date Change Log']?(currentEvent['Date Change Log']+' || '+logEntry):logEntry;
-    // Stash details for the Amendment document
-    currentEvent['_dcNewDate']=newDate;
+    currentEvent['_dcNewDate']=newDateStored;
     currentEvent['_dcNewDay']=newDay;
     currentEvent['_dcFee']=fee;
-    currentEvent['_dcWaived']=waived;
+    currentEvent['_dcMethod']=method;
     currentEvent['_dcReason']=reason;
     currentEvent['_dcAvailability']=availability;
-    document.getElementById('dEventDate').textContent=fmtDate(newDate);
-    document.getElementById('dEventDay').textContent=newDay;
+    currentEvent['_dcTBD']=tbd;
+    document.getElementById('dEventDate').textContent=tbd?'TBD':fmtDate(newDate);
+    document.getElementById('dEventDay').textContent=newDay||'—';
+    const sc={reserved:'status-reserved',completed:'status-completed',cancelled:'status-cancelled',date_pending:'status-cancelled'}[newStatus]||'status-reserved';
+    const sl={reserved:'Reserved',date_pending:'Date Pending'}[newStatus]||'Reserved';
+    document.getElementById('detailStatusBadge').innerHTML=`<span class="status-badge ${sc}">${sl}</span>`;
     closeDateChangeForm();
-    showToast('Date changed to '+fmtDate(newDate),'success');
-    await loadEvents();
-    if(confirm('Date updated. Generate the Date Change Amendment now?')) generateDateChange();
+    showToast(tbd?'Event set to Date Pending':'Date changed to '+fmtDate(newDate),'success');
+    await Promise.all([loadPayments(),loadEvents()]);
+    if(confirm('Saved. Generate the Date Change Amendment now?')) generateDateChange();
   }catch(e){showToast('Error changing date','error');}
   hideLoading();
 }
@@ -4500,15 +4539,16 @@ function generateDateChange(){
     else{fee=null;feeNote='< 15 days — not permitted';}
   }
   // Override fee/note with the exact value chosen in the Change Date flow
-  let waived=false,waiveReason='';
+  let dcMethod='',dcReason='',isTBD=false;
   if(fromFlow){
-    waived=!!e['_dcWaived'];
-    waiveReason=e['_dcReason']||'';
-    fee=waived?0:(parseFloat(e['_dcFee'])||0);
-    if(waived)feeNote='Waived'+(waiveReason?' · '+waiveReason:'');
+    fee=parseFloat(e['_dcFee'])||0;
+    dcMethod=e['_dcMethod']||'';
+    dcReason=e['_dcReason']||'';
+    isTBD=!!e['_dcTBD'];
+    feeNote=dcReason||'Paid';
   }
-  const newDateDisp=fromFlow?fmtDateDoc(e['_dcNewDate']):'';
-  const newDayDisp=fromFlow?(e['_dcNewDay']||''):'';
+  const newDateDisp=fromFlow?(isTBD?'To be confirmed':fmtDateDoc(e['_dcNewDate'])):'';
+  const newDayDisp=fromFlow?(isTBD?'TBD':(e['_dcNewDay']||'')):'';
   const availDisp=fromFlow?(e['_dcAvailability']||''):'';
   const origDateDisp=fromFlow?(origDateStr||'—'):fmtDateDoc(e['Event Date']);
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
@@ -4557,10 +4597,10 @@ ${docHeader('Date Change Amendment',`DCH-${e['RES#']}`,'Produced by Pilab Produc
     <tbody>
       <tr><td>Total Contract Amount</td><td style="text-align:right">${fmtM(parseFloat(e['Final Total'])||0)}</td><td>Reference only</td></tr>
       <tr><td>Days Before Original Event</td><td style="text-align:right">${daysRemaining!==null?daysRemaining+' days':'—'}</td><td>${feeNote}</td></tr>
-      <tr class="total-row"><td>Date Change Fee Applied</td><td style="text-align:right">${waived?'WAIVED':fmtM(fee||0)}</td><td>${waived?(waiveReason||'Courtesy'):'Non-refundable'}</td></tr>
+      <tr class="total-row"><td>Date Change Fee${fromFlow?' — PAID':''}</td><td style="text-align:right">${fmtM(fee||0)}</td><td>${fromFlow?(dcMethod||'Paid'):'Non-refundable'}</td></tr>
     </tbody>
   </table>
-  <div class="info-box" style="margin-top:10px;font-size:10px">${waived?'Fee waived as a courtesy for this change. ':'Fee is non-refundable under any circumstances, including force majeure. '}Only one date change permitted per contract. A second request will be treated as a cancellation.</div>`}
+  <div class="info-box" style="margin-top:10px;font-size:10px">${fromFlow?'Fee paid at the time of the date change'+(dcMethod?' via '+dcMethod:'')+'. ':'Fee is non-refundable under any circumstances, including force majeure. '}Only one date change permitted per contract. A second request will be treated as a cancellation.</div>`}
 </div>
 <div class="sec">
   <div class="sec-title">4. Acknowledgment</div>
