@@ -1060,7 +1060,7 @@ ${balance<=0?'<div class="balance-bar"><span class="balance-lbl">Payment Status<
   </div>
 </div>
 </div>
-<script>window.onload=function(){document.title='';setTimeout(function(){window.print();},800);};<\/script>
+<script>window.onload=function(){document.title=' ';try{history.replaceState(null,'',' ');}catch(e){}setTimeout(function(){window.print();},1000);};<\/script>
 </body></html>`;
 
   const win=window.open('','_blank','width=900,height=750');
@@ -1198,7 +1198,7 @@ html,body{background:#fff;width:210mm;font-family:'Montserrat',sans-serif;font-s
   </div>
 </div>
 </div>
-<script>window.onload=function(){document.title='';setTimeout(function(){window.print();},800);};<\/script>
+<script>window.onload=function(){document.title=' ';try{history.replaceState(null,'',' ');}catch(e){}setTimeout(function(){window.print();},1000);};<\/script>
 </body></html>`;
 
   // Save document record
@@ -1619,12 +1619,15 @@ function generateDoc(docId){
 // ── SHARED HELPERS ────────────────────────────────────────────────────────────
 function docOpen(){const win=window.open('','_blank','width=960,height=800');if(!win){showToast('Allow popups to generate document','error');return null;}return win;}
 function docWrite(win,html){
-  const cleanHtml=html.replace(/<title>[^<]*<\/title>/,'<title></title>');
+  const cleanHtml=html.replace(/<title>[^<]*<\/title>/,'<title> </title>');
   win.document.open();
   win.document.write(cleanHtml);
   win.document.close();
-  // Force empty title to suppress browser print header/footer
-  try{win.document.title='';}catch(e){}
+  try{
+    win.document.title=' ';
+    // Replace URL to suppress about:blank in print footer
+    win.history.replaceState(null,'',' ');
+  }catch(e){}
   showToast('Document opening...','success');
 }
 function docToday(){return new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});}
@@ -1768,9 +1771,8 @@ html,body{background:#fff;font-family:'Montserrat',sans-serif;font-size:12px;col
 .p-pi{color:#D4A853;}.p-la{color:#00B4D8;}.p-b{color:#E040A0;}.p-dot{color:#E8307A;}.p-rest{color:#888;}
 @media print{
   *{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;}
-  @page{margin:12mm;size:A4;marks:none;}
+  @page{margin:12mm;size:A4;}
   html{-webkit-print-color-adjust:exact;}
-  body > *:not(.doc){display:none !important;}
 }`;
 }
 
@@ -2016,7 +2018,7 @@ ${docHeader('Service Agreement',`${e['COT#']} / ${e['RES#']}`)}
 </div>
 ${docFooter('Productions LLC')}
 </div>
-<script>window.onload=function(){document.title='';setTimeout(function(){window.print();},800);};<\/script>
+<script>window.onload=function(){document.title=' ';try{history.replaceState(null,'',' ');}catch(e){}setTimeout(function(){window.print();},1000);};<\/script>
 </body></html>`;
   docWrite(win,html);
 }
@@ -2153,7 +2155,7 @@ ${docHeader('Venue Rules & Policies',`REF: ${e['RES#']}`,'Venue & Host Services 
 </div>
 ${docFooter('Productions LLC')}
 </div>
-<script>window.onload=function(){document.title='';setTimeout(function(){window.print();},800);};<\/script>
+<script>window.onload=function(){document.title=' ';try{history.replaceState(null,'',' ');}catch(e){}setTimeout(function(){window.print();},1000);};<\/script>
 </body></html>`;
   docWrite(win,html);
 }
@@ -2315,7 +2317,7 @@ ${docHeader('Entertainment Contract',`${e['RES#']}-ENT`,'Entertainment & Product
 </div>
 ${docFooter('Productions · Entertainment & Production')}
 </div>
-<script>window.onload=function(){document.title='';setTimeout(function(){window.print();},800);};<\/script>
+<script>window.onload=function(){document.title=' ';try{history.replaceState(null,'',' ');}catch(e){}setTimeout(function(){window.print();},1000);};<\/script>
 </body></html>`;
   docWrite(win,html);
 }
@@ -2447,7 +2449,7 @@ ${docHeader('Decor Service Contract',`${e['RES#']}-DEC`,'Design & Decor — Pila
 </div>
 ${docFooter('Productions · Design & Decor')}
 </div>
-<script>window.onload=function(){document.title='';setTimeout(function(){window.print();},800);};<\/script>
+<script>window.onload=function(){document.title=' ';try{history.replaceState(null,'',' ');}catch(e){}setTimeout(function(){window.print();},1000);};<\/script>
 </body></html>`;
   docWrite(win,html);
 }
@@ -2581,7 +2583,7 @@ ${docHeader('Photo & Video Contract',`${e['RES#']}-PHO`,'Photo & Video — Pilab
 </div>
 ${docFooter('Productions · Photo & Video')}
 </div>
-<script>window.onload=function(){document.title='';setTimeout(function(){window.print();},800);};<\/script>
+<script>window.onload=function(){document.title=' ';try{history.replaceState(null,'',' ');}catch(e){}setTimeout(function(){window.print();},1000);};<\/script>
 </body></html>`;
   docWrite(win,html);
 }
@@ -2744,7 +2746,7 @@ ${isLuxury?`<div class="sec">
 </div>
 ${docFooter('Productions LLC · Catering by Noches de Colombia')}
 </div>
-<script>window.onload=function(){document.title='';setTimeout(function(){window.print();},800);};<\/script>
+<script>window.onload=function(){document.title=' ';try{history.replaceState(null,'',' ');}catch(e){}setTimeout(function(){window.print();},1000);};<\/script>
 </body></html>`;
   docWrite(win,html);
 }
@@ -2851,7 +2853,7 @@ ${docHeader('Banquet Event Order',`BEO-${e['RES#']}`,'Catering & Hospitality —
 </div>
 ${docFooter('Productions LLC · Catering by Noches de Colombia')}
 </div>
-<script>window.onload=function(){document.title='';setTimeout(function(){window.print();},800);};<\/script>
+<script>window.onload=function(){document.title=' ';try{history.replaceState(null,'',' ');}catch(e){}setTimeout(function(){window.print();},1000);};<\/script>
 </body></html>`;
   docWrite(win,html);
 }
@@ -2936,43 +2938,35 @@ ${docHeader('Venue Staff Sheet',`${e['RES#']}`,'INTERNAL — Manager Copy')}
 </div>
 <div class="sec">
   <div class="sec-title">3. Event Timeline & Tasks</div>
-  <table class="staff-table">
-    <thead><tr><th>Task / Milestone</th><th>Assigned To</th><th>Duration</th><th>Notes</th></tr></thead>
-    <tbody>
-      ${(()=>{
-        // Get all tasks from Operations for this event
-        const taskOps=currentOperations.filter(op=>op['Task Name']&&String(op['Task Name']).trim());
-        if(taskOps.length){
-          return taskOps.map((op,i)=>`<tr>
-            <td style="font-weight:${op['Task Name']?'500':'700'}">${op['Task Name']||'—'}</td>
-            <td style="font-size:11px">${op['Provider Name']||'—'}${op['Role']?' · '+op['Role']:''}</td>
-            <td style="font-size:11px;color:#777">${op['Task Start Time']||'—'}</td>
-            <td style="font-size:10px;color:#888">${op['Notes']||''}</td>
-          </tr>`).join('');
-        }
-        // Fallback: default milestones if no Operations data
-        return [
-          ['Setup Crew Access','Setup','Tables, chairs, linens'],
-          ['Decorator Access','Decor provider','Coordinate with decor'],
-          ['Catering Delivery','Catering','Verify vs BEO'],
-          ['Sound Check','DJ / Entertainment',''],
-          ['Staff Ready Check','Manager','All positions confirmed'],
-          ['Doors Open','All staff',''],
-          ['Buffet Opens','Server / Catering','Client-defined'],
-          ['Bar Opens','Bartender',''],
-          ['Bar Closes','Bartender','1 hour before event end'],
-          ['Music Ends','DJ','30 min before event end'],
-          ['Event End','Manager',''],
-          ['Cleanup Complete','Cleaning',''],
-        ].map(([task,who,notes])=>`<tr>
-          <td style="font-weight:500">${task}</td>
-          <td style="font-size:11px;color:#777">${who}</td>
-          <td style="border-bottom:2px dashed #BBB;background:#FAFAFA;font-size:10px;color:#BBB;padding:4px 8px">__:__</td>
-          <td style="font-size:10px;color:#888">${notes}</td>
-        </tr>`).join('');
-      })()}
-    </tbody>
-  </table>
+  ${(()=>{
+    const taskOps=currentOperations.filter(op=>op['Task Name']&&String(op['Task Name']).trim());
+    if(!taskOps.length) return `<p style="font-size:11px;color:#AAA;font-style:italic;padding:8px 0">No tasks assigned in Operations tab.</p>`;
+    // Group by category
+    const cats={};
+    taskOps.forEach(op=>{
+      const cat=op['Category']||'Other';
+      if(!cats[cat])cats[cat]=[];
+      cats[cat].push(op);
+    });
+    const catColors={Staff:'#8B6914',Entertainment:'#9C1060',Decor:'#7A5C10',Photo:'#006B82',Catering:'#1A5C2E',Other:'#555'};
+    return Object.entries(cats).map(([cat,tasks])=>{
+      const color=catColors[cat]||'#555';
+      return `<div style="margin-bottom:14px">
+        <div style="font-size:9px;font-weight:700;color:${color};letter-spacing:2px;text-transform:uppercase;padding:4px 0;border-bottom:2px solid ${color};margin-bottom:6px">${cat}</div>
+        <table class="staff-table" style="margin-top:0">
+          <thead><tr><th>Task</th><th>Assigned To</th><th>Role</th><th>Duration</th></tr></thead>
+          <tbody>
+            ${tasks.map(op=>`<tr>
+              <td style="font-weight:500">${op['Task Name']||'—'}</td>
+              <td>${op['Provider Name']||'—'}</td>
+              <td style="font-size:10px;color:#777">${op['Role']||'—'}</td>
+              <td style="font-size:11px;color:#777">${op['Task Start Time']||'—'}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+    }).join('');
+  })()}
 </div>
 <div class="sec">
   <div class="sec-title">4. Setup Checklist</div>
@@ -3003,7 +2997,7 @@ ${docHeader('Venue Staff Sheet',`${e['RES#']}`,'INTERNAL — Manager Copy')}
   <table class="staff-table">
     <thead><tr><th>Division</th><th>Plan</th><th>Provider</th><th>Schedule</th></tr></thead>
     <tbody>
-      <tr><td style="font-weight:600">Venue & Host</td><td>${e['Venue Tier']||'—'}</td><td>James Cardona</td><td>${e['Event Start Time']||'—'} – ${e['Event End Time']||'—'}</td></tr>
+      <tr><td style="font-weight:600">Venue & Host</td><td>${e['Venue Tier']||'—'}</td><td>James Cardona</td><td>${fmtTime(e['Event Start Time'])||'—'} – ${fmtTime(e['Event End Time'])||'—'}</td></tr>
       <tr><td style="font-weight:600">Catering</td><td>${e['Catering Plan']||e['Catering Line']||'—'}</td><td>Noches de Colombia</td><td>Per BEO</td></tr>
       <tr><td style="font-weight:600">Design & Decor</td><td>${e['Decor Plan']||'N/A'}</td><td>___________________</td><td>___________</td></tr>
       <tr><td style="font-weight:600">Entertainment</td><td>${e['Entertainment Plan']||'N/A'}</td><td>___________________</td><td>___________</td></tr>
@@ -3019,7 +3013,7 @@ ${docHeader('Venue Staff Sheet',`${e['RES#']}`,'INTERNAL — Manager Copy')}
 </div>
 ${docFooter('Productions LLC')}
 </div>
-<script>window.onload=function(){document.title='';setTimeout(function(){window.print();},800);};<\/script>
+<script>window.onload=function(){document.title=' ';try{history.replaceState(null,'',' ');}catch(e){}setTimeout(function(){window.print();},1000);};<\/script>
 </body></html>`;
   docWrite(win,html);
 }
@@ -3128,7 +3122,7 @@ ${!isEssential?`<div class="sec">
 </div>
 ${docFooter('Productions LLC · Design & Decor')}
 </div>
-<script>window.onload=function(){document.title='';setTimeout(function(){window.print();},800);};<\/script>
+<script>window.onload=function(){document.title=' ';try{history.replaceState(null,'',' ');}catch(e){}setTimeout(function(){window.print();},1000);};<\/script>
 </body></html>`;
   docWrite(win,html);
 }
@@ -3261,7 +3255,7 @@ ${docHeader('Music & Program Request',e['RES#'],'Entertainment & Production — 
 </div>
 ${docFooter('Productions LLC · Entertainment & Production')}
 </div>
-<script>window.onload=function(){document.title='';setTimeout(function(){window.print();},800);};<\/script>
+<script>window.onload=function(){document.title=' ';try{history.replaceState(null,'',' ');}catch(e){}setTimeout(function(){window.print();},1000);};<\/script>
 </body></html>`;
   docWrite(win,html);
 }
@@ -3364,7 +3358,7 @@ ${e['Photo Prints']&&e['Photo Prints']!=='na'?`<div class="sec">
 </div>
 ${docFooter('Productions LLC · Photo & Video')}
 </div>
-<script>window.onload=function(){document.title='';setTimeout(function(){window.print();},800);};<\/script>
+<script>window.onload=function(){document.title=' ';try{history.replaceState(null,'',' ');}catch(e){}setTimeout(function(){window.print();},1000);};<\/script>
 </body></html>`;
   docWrite(win,html);
 }
@@ -3425,7 +3419,7 @@ ${docHeader('Sitting Chart',e['RES#'],'Venue & Host Services — Cardona Hall LL
 </div>
 ${docFooter('Productions LLC')}
 </div>
-<script>window.onload=function(){document.title='';setTimeout(function(){window.print();},800);};<\/script>
+<script>window.onload=function(){document.title=' ';try{history.replaceState(null,'',' ');}catch(e){}setTimeout(function(){window.print();},1000);};<\/script>
 </body></html>`;
   docWrite(win,html);
 }
@@ -3547,13 +3541,25 @@ function renderOpsTaskCheckboxes(category){
     container.innerHTML=`<div style="font-size:11px;color:#AAA;font-style:italic;margin-bottom:6px">No templates for category "${category}". Add them in Task Templates tab.</div>`;
     return;
   }
-  container.innerHTML=tasks.map(t=>`
+  // Select All / Deselect All toggle
+  const toggleHtml=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #E0E0E0">
+    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;font-weight:600;color:#8B6914">
+      <input type="checkbox" id="opsTaskSelectAll" onchange="toggleAllTasks(this.checked)" style="accent-color:#C9A84C;width:14px;height:14px">
+      Select / Deselect All
+    </label>
+  </div>`;
+  const tasksHtml=tasks.map(t=>`
     <label style="display:flex;align-items:center;gap:10px;padding:6px 0;cursor:pointer;font-size:12px;border-bottom:0.5px solid #F0F0F0">
-      <input type="checkbox" class="ops-task-cb" value="${t['Task ID']}" data-name="${t['Task Name']||''}" data-dur="${t['Default Duration']||''}" checked style="accent-color:#C9A84C;width:14px;height:14px">
+      <input type="checkbox" class="ops-task-cb" value="${t['Task ID']}" data-name="${t['Task Name']||''}" data-dur="${t['Default Duration']||''}" style="accent-color:#C9A84C;width:14px;height:14px">
       <span style="flex:1">${t['Task Name']||'—'}</span>
       <span style="color:#888;font-size:10px;background:#F0F0F0;padding:2px 6px;border-radius:3px">${t['Default Duration']||''}</span>
     </label>
   `).join('');
+  container.innerHTML=toggleHtml+tasksHtml;
+}
+
+function toggleAllTasks(checked){
+  document.querySelectorAll('.ops-task-cb').forEach(cb=>cb.checked=checked);
 }
 
 function addCustomTask(){
@@ -3782,9 +3788,6 @@ function renderOperations(){
               </div>
               ${g.tasks.length?`<div style="margin-top:6px">
                 ${g.tasks.map(t=>`<div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:11px;border-bottom:0.5px solid #F0F0F0">
-                  <select style="font-size:9px;padding:1px 4px;border:1px solid #DDD;border-radius:2px;background:#FFF" onchange="updateOpStatus('${t['Operation ID']}',this.value)">
-                    ${['Pending','Confirmed','In Progress','Done','Cancelled'].map(s=>`<option value="${s}"${s===t['Status']?' selected':''}>${s}</option>`).join('')}
-                  </select>
                   <span style="flex:1">📋 ${t['Task Name']}</span>
                   ${t['Task Start Time']?`<span style="color:#888;font-size:10px;background:#F0F0F0;padding:1px 5px;border-radius:2px">${t['Task Start Time']}</span>`:''}
                   <button onclick="deleteOperation('${t['Operation ID']}')" style="background:none;border:none;cursor:pointer;color:#CC2200;font-size:12px;padding:0 2px">✕</button>
@@ -3969,7 +3972,7 @@ ${docHeader('Cancellation Notice',`CAN-${e['RES#']}`,'Produced by Pilab Producti
 </div>
 ${docFooter('Productions LLC')}
 </div>
-<script>window.onload=function(){document.title='';setTimeout(function(){window.print();},800);};<\/script>
+<script>window.onload=function(){document.title=' ';try{history.replaceState(null,'',' ');}catch(e){}setTimeout(function(){window.print();},1000);};<\/script>
 </body></html>`;
   docWrite(win,html);
 }
@@ -4047,7 +4050,7 @@ ${docHeader('Date Change Amendment',`DCH-${e['RES#']}`,'Produced by Pilab Produc
 </div>
 ${docFooter('Productions LLC')}
 </div>
-<script>window.onload=function(){document.title='';setTimeout(function(){window.print();},800);};<\/script>
+<script>window.onload=function(){document.title=' ';try{history.replaceState(null,'',' ');}catch(e){}setTimeout(function(){window.print();},1000);};<\/script>
 </body></html>`;
   docWrite(win,html);
 }
@@ -4134,7 +4137,7 @@ ${docHeader('Force Majeure — Event Freeze',`FMJ-${e['RES#']}`,'Produced by Pil
 </div>
 ${docFooter('Productions LLC')}
 </div>
-<script>window.onload=function(){document.title='';setTimeout(function(){window.print();},800);};<\/script>
+<script>window.onload=function(){document.title=' ';try{history.replaceState(null,'',' ');}catch(e){}setTimeout(function(){window.print();},1000);};<\/script>
 </body></html>`;
   docWrite(win,html);
 }
@@ -4223,7 +4226,7 @@ ${docHeader('Venue Staff Summary',e['RES#'],'INTERNAL — Payment Summary')}
 </div>
 ${docFooter('Productions LLC')}
 </div>
-<script>window.onload=function(){document.title='';setTimeout(function(){window.print();},800);};<\/script>
+<script>window.onload=function(){document.title=' ';try{history.replaceState(null,'',' ');}catch(e){}setTimeout(function(){window.print();},1000);};<\/script>
 </body></html>`;
   docWrite(win,html);
 }
