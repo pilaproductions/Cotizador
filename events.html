@@ -1622,7 +1622,14 @@ function generateDoc(docId){
 
 // ── SHARED HELPERS ────────────────────────────────────────────────────────────
 function docOpen(){const win=window.open('','_blank','width=960,height=800');if(!win){showToast('Allow popups to generate document','error');return null;}return win;}
-function docWrite(win,html){win.document.open();win.document.write(html);win.document.close();showToast('Document opening...','success');}
+function docWrite(win,html){
+  // Inject empty title to suppress browser print header
+  const cleanHtml=html.replace(/<title>[^<]*<\/title>/,'<title></title>');
+  win.document.open();
+  win.document.write(cleanHtml);
+  win.document.close();
+  showToast('Document opening...','success');
+}
 function docToday(){return new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});}
 function fmtM(n){return '$'+(parseFloat(n)||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});}
 function fmtDateDoc(d){
@@ -1647,18 +1654,33 @@ function fmtDateDoc(d){
   return `${mm}/${dd}/${yyyy} · ${days[dt.getDay()]}`;
 }
 const ET_LABELS_DOC={wedding:'Wedding',quinceanera:'Quinceañera',sweet16:'Sweet 16',baby_shower:'Baby Shower',kids_party:'Kids Party',birthday:'Birthday Party',special_social:'Special Event — Social',special_corporate:'Special Event — Corporate',bautizo:'Bautizo',graduacion:'Graduation',primera_comunion:'Primera Comunión'};
-function etLabel(){return ET_LABELS_DOC[currentEvent['Event Type']]||currentEvent['Event Type']||'—';}
+function etLabel(){
+  const base=ET_LABELS_DOC[currentEvent['Event Type']]||currentEvent['Event Type']||'—';
+  const sub=currentEvent['Event Sub-Type'];
+  if(sub&&sub!=='na'&&sub!==''&&sub!==base)return `${base} / ${sub}`;
+  return base;
+}
 function isWeekend(){const d=(currentEvent['Day of Week']||'').toLowerCase();return d==='saturday'||d==='sunday'||d==='friday';}
+function fmtTime(t){
+  if(!t)return '';
+  // Handle ISO date-time string like 1899-12-31T04:00:00.000Z
+  if(typeof t==='string'&&t.includes('T')){
+    const parts=t.split('T');
+    if(parts[1]){
+      const timeParts=parts[1].split(':');
+      if(timeParts.length>=2)return `${timeParts[0].padStart(2,'0')}:${timeParts[1].padStart(2,'0')}`;
+    }
+  }
+  // Already HH:MM format
+  if(typeof t==='string'&&t.match(/^\d{1,2}:\d{2}$/))return t;
+  return String(t);
+}
 
 function scheduleInfo(){
   const e=currentEvent;
-  const hasDecor=e['Decor Plan']&&e['Decor Plan']!=='na';
-  const hasDJ=e['Entertainment Plan']&&e['Entertainment Plan']!=='na';
   const start=e['Event Start Time']||'[Start Time]';
   const end=e['Event End Time']||'[End Time]';
-  if(hasDecor&&hasDJ) return `Event: ${start} – ${end} (6-hour event with decoration setup)`;
-  if(hasDecor&&!hasDJ) return `Event: ${start} – ${end} (6-hour event · DJ may arrive 1 hour before start)`;
-  return `Event: ${start} – ${end} (8-hour continuous event)`;
+  return `${start} – ${end}`;
 }
 
 function isCopy(docId){
@@ -1744,8 +1766,8 @@ html,body{background:#fff;font-family:'Montserrat',sans-serif;font-size:12px;col
 @media print{
   *{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;}
   @page{margin:12mm;size:A4;marks:none;}
-  head,head *{display:none !important;}
   html{-webkit-print-color-adjust:exact;}
+  body > *:not(.doc){display:none !important;}
 }`;
 }
 
@@ -1804,7 +1826,7 @@ function servicesTableHTML(){
     ['Catering & Hospitality', e['Catering Line']||'—', e['Catering Plan']||'', fmtM(e['Price Catering'])],
     ['Design & Decor', e['Decor Plan']||'—', '', fmtM(e['Price Decor'])],
     ['Entertainment & Production', e['Entertainment Plan']||'—', e['Sound Plan']||'', fmtM(e['Price Entertainment'])],
-    ['Photo & Video', e['Photo Plan']||'—', e['Photo Tier']||'', fmtM(e['Price Photo'])],
+    ['Photo & Video', e['Photo Tier']||e['Photo Plan']||'—', e['Photo Plan']&&e['Photo Plan']!==e['Photo Tier']?e['Photo Plan']:'', fmtM(e['Price Photo'])],
   ].filter(r=>r[3]!=='$0'&&r[3]!==fmtM(0));
   return `
 <table class="services-table">
@@ -1834,7 +1856,7 @@ function generateClientContract(){
 ${copy?copyWatermark():''}
 <div class="doc">
 ${docHeader('Service Agreement',`${e['COT#']} / ${e['RES#']}`)}
-<div class="notice-bar">This contract must be signed and returned within 7 days of issuance. After this period, the reserved date will be released and any deposit paid will be forfeited.</div>
+<div class="notice-bar">This contract must be signed and returned within 24 hours of issuance. After this period, the reserved date will be released and any deposit paid will be forfeited.</div>
 
 <div class="sec">
   <div class="sec-title">1. Parties</div>
@@ -2047,6 +2069,7 @@ ${docHeader('Venue Rules & Policies',`REF: ${e['RES#']}`,'Venue & Host Services 
     <li>Music and entertainment must conclude <strong>30 minutes before</strong> the event end time.</li>
     <li>Overtime is charged at <strong>$650 per hour</strong> (or any portion thereof) — deducted from the security deposit.</li>
     <li>The bar does not reopen during overtime under any circumstances.</li>
+    <li>All vendors (decorators, DJs, photographers, videographers, and any other service provider) must vacate the premises by the agreed event end time stated in their service contract. Overtime charges apply to vendors who remain beyond this time.</li>
     <li>The absolute maximum event end time is <strong>1:00 AM</strong>. No exceptions.</li>
   </ul>
 </div>
@@ -2055,7 +2078,7 @@ ${docHeader('Venue Rules & Policies',`REF: ${e['RES#']}`,'Venue & Host Services 
   <ul class="bullet-list">
     <li>All decorations must be approved in advance by Cardona Hall management.</li>
     <li>No staples, nails, screws, tacks, or adhesive tape on walls, ceilings, columns, or light fixtures.</li>
-    <li>Client-provided decorations must be removed within <strong>90 minutes</strong> of the event conclusion. Items not removed will be discarded.</li>
+
     <li>Violations may result in partial or full forfeiture of the security deposit.</li>
   </ul>
 </div>
@@ -2868,17 +2891,43 @@ ${docHeader('Venue Staff Sheet',`${e['RES#']}`,'INTERNAL — Manager Copy')}
   <table class="staff-table">
     <thead><tr><th>Role</th><th>Name</th><th>Phone</th><th>Arrival</th><th>Departure</th></tr></thead>
     <tbody>
-      ${['Manager','Bartender','Server 1','Server 2','Security','Setup','Cleaning'].map((r,i)=>{
-        const p=getStaffByRole(r);
-        const name=p&&p['Provider Name']?p['Provider Name']:'';
-        return `<tr>
+      ${(()=>{
+        // Get staff from Operations (Sheet 8) - filter by Staff category
+        const staffOps=currentOperations.filter(op=>{
+          const cat=(op['Category']||'').toLowerCase();
+          return cat==='staff'||cat==='venue';
+        });
+        // Deduplicate by provider - one row per provider
+        const seen=new Set();
+        const staffRows=staffOps.filter(op=>{
+          const key=op['Provider ID']||op['Provider Name'];
+          if(seen.has(key))return false;
+          seen.add(key);
+          return true;
+        });
+        // Get phone from directory providers
+        const getPhone=(provId)=>{
+          const p=allDirectoryProviders&&allDirectoryProviders.find(p=>p['Provider ID']===provId);
+          return p?p['Phone']||'':'';
+        };
+        if(staffRows.length){
+          return staffRows.map(op=>`<tr>
+            <td style="font-weight:600;color:#333">${op['Role']||'—'}${op['Description']?' · '+op['Description']:''}</td>
+            <td style="font-weight:500">${op['Provider Name']||mLine('','write name')}</td>
+            <td>${mLine(getPhone(op['Provider ID']),'—')}</td>
+            <td style="text-align:center">${op['Arrival Time']||mLine('','__:__')}</td>
+            <td style="text-align:center">${op['Departure Time']||mLine('','__:__')}</td>
+          </tr>`).join('');
+        }
+        // Fallback: default roles if no Operations data
+        return ['Manager','Bartender','Server 1','Server 2','Security','Setup','Cleaning'].map(r=>`<tr>
           <td style="font-weight:600;color:#333">${r}</td>
-          <td>${mLine(name,'write name')}</td>
-          <td class="manual-line" style="border-bottom:2px dashed #BBB;background:#FAFAFA;font-size:10px;color:#BBB;padding:6px 10px"></td>
-          <td class="manual-line" style="border-bottom:2px dashed #BBB;background:#FAFAFA;font-size:10px;color:#BBB;padding:6px 10px;text-align:center">__:__</td>
-          <td class="manual-line" style="border-bottom:2px dashed #BBB;background:#FAFAFA;font-size:10px;color:#BBB;padding:6px 10px;text-align:center">__:__</td>
-        </tr>`;
-      }).join('')}
+          <td>${mLine('','write name')}</td>
+          <td>${mLine('','—')}</td>
+          <td style="border-bottom:2px dashed #BBB;background:#FAFAFA;font-size:10px;color:#BBB;padding:6px 10px;text-align:center">__:__</td>
+          <td style="border-bottom:2px dashed #BBB;background:#FAFAFA;font-size:10px;color:#BBB;padding:6px 10px;text-align:center">__:__</td>
+        </tr>`).join('');
+      })()}
     </tbody>
   </table>
 </div>
@@ -3410,7 +3459,9 @@ function filterOpsProviders(){
     const pcat=(p['Category']||'').toLowerCase();
     const role=(p['Role']||'').toLowerCase();
     const matchQ=!q||name.includes(q)||role.includes(q);
-    const matchCat=!cat||pcat===cat;
+    // Staff filter also matches 'venue' category (Cardona Hall internal staff)
+    const catFilter=cat==='staff'?['staff','venue']:cat?[cat]:null;
+    const matchCat=!catFilter||catFilter.includes(pcat);
     return matchQ&&matchCat&&p['Status']!=='Blacklisted';
   });
   filtered.forEach(p=>{
@@ -3620,7 +3671,7 @@ async function saveOperation(){
       await fetch(SCRIPT_URL,{method:'POST',body:JSON.stringify(payload)});
     }
     showToast('Operation saved','success');
-    hideOpsForm();
+    clearOpsForm();
     await loadOperations();
   }catch(e){showToast('Error saving operation','error');}
   hideLoading();
@@ -3701,8 +3752,8 @@ function renderOperations(){
                 <span style="font-size:10px;font-weight:700;color:${sColor};letter-spacing:1px;text-transform:uppercase">${status}</span>
               </div>
               <div style="display:flex;gap:14px;font-size:11px;color:#777;flex-wrap:wrap;margin-bottom:6px">
-                ${g.arrival?`<span>🕐 Arrives: <strong>${g.arrival}</strong></span>`:''}
-                ${g.departure?`<span>🕐 Departs: <strong>${g.departure}</strong></span>`:''}
+                ${g.arrival?`<span>🕐 Arrives: <strong>${fmtTime(g.arrival)}</strong></span>`:''}
+                ${g.departure?`<span>🕐 Departs: <strong>${fmtTime(g.departure)}</strong></span>`:''}
               </div>
               ${g.tasks.length?`<div style="margin-top:6px">
                 ${g.tasks.map(t=>`<div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:11px;border-bottom:0.5px solid #F0F0F0">
@@ -3710,7 +3761,7 @@ function renderOperations(){
                     ${['Pending','Confirmed','In Progress','Done','Cancelled'].map(s=>`<option value="${s}"${s===t['Status']?' selected':''}>${s}</option>`).join('')}
                   </select>
                   <span style="flex:1">📋 ${t['Task Name']}</span>
-                  ${t['Task Start Time']?`<span style="color:#AAA">${t['Task Start Time']}${t['Task End Time']?' – '+t['Task End Time']:''}</span>`:''}
+                  ${t['Task Start Time']?`<span style="color:#AAA">${fmtTime(t['Task Start Time'])}${t['Task End Time']?' – '+fmtTime(t['Task End Time']):''}</span>`:''}
                   <button onclick="deleteOperation('${t['Operation ID']}')" style="background:none;border:none;cursor:pointer;color:#CC2200;font-size:12px;padding:0 2px">✕</button>
                 </div>`).join('')}
               </div>`:''}
@@ -4055,6 +4106,95 @@ ${docHeader('Force Majeure — Event Freeze',`FMJ-${e['RES#']}`,'Produced by Pil
   <div class="sec-title">5. Acknowledgment</div>
   <p style="font-size:11px;color:#555;margin-bottom:14px">By signing below, both parties confirm the extraordinary circumstances described in this document and agree to the event freeze terms. This document is an official amendment to the original Service Agreement.</p>
   ${sigBlock('Authorized — James Cardona · Cardona Hall LLC / Pilab Productions LLC','James Cardona · Cardona Hall LLC / Pilab Productions LLC')}
+</div>
+${docFooter('Productions LLC')}
+</div>
+<script>window.onload=function(){setTimeout(function(){window.print();},800);};<\/script>
+</body></html>`;
+  docWrite(win,html);
+}
+
+
+function generateVenueStaffFromOps(){generateVenueStaff();}
+
+function generateStaffSummary(){
+  const win=docOpen();if(!win)return;
+  const e=currentEvent;
+  const staffOps=currentOperations.filter(op=>{
+    const cat=(op['Category']||'').toLowerCase();
+    return cat==='staff'||cat==='venue';
+  });
+  const seen=new Set();
+  const staffRows=staffOps.filter(op=>{
+    const key=op['Provider ID']||op['Provider Name'];
+    if(seen.has(key))return false;
+    seen.add(key);
+    return true;
+  });
+  const staffExpenses=currentExpenses.filter(ex=>{
+    const cat=(ex['Category']||'').toLowerCase();
+    return cat==='staff'||cat==='venue';
+  });
+  const getPhone=(provId)=>{
+    const p=allDirectoryProviders&&allDirectoryProviders.find(p=>p['Provider ID']===provId);
+    return p?p['Phone']||'':'';
+  };
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title></title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>${baseStyles('#C9A84C')}
+.staff-table{width:100%;border-collapse:collapse;margin-top:8px;}
+.staff-table th{background:#1A1A1A;color:#C9A84C;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:8px 10px;text-align:left;}
+.staff-table td{padding:9px 10px;border-bottom:1px solid #F0F0F0;font-size:11px;vertical-align:middle;}
+.staff-table tr:nth-child(even) td{background:#FAFAFA;}
+.sig-mini{border-bottom:1px solid #444;height:28px;min-width:120px;display:inline-block;}
+</style></head><body><div class="doc">
+${docHeader('Venue Staff Summary',e['RES#'],'INTERNAL — Payment Summary')}
+<div class="sec">
+  <div class="field-grid">
+    <div class="field-item"><div class="field-lbl">Client Name</div><div class="field-val">${e['Client Name']||'—'}</div></div>
+    <div class="field-item"><div class="field-lbl">Event Date</div><div class="field-val">${fmtDateDoc(e['Event Date'])}</div></div>
+    <div class="field-item"><div class="field-lbl">Event Type</div><div class="field-val">${etLabel()}</div></div>
+    <div class="field-item"><div class="field-lbl">Reservation #</div><div class="field-val">${e['RES#']||'—'}</div></div>
+  </div>
+</div>
+<div class="sec">
+  <div class="sec-title">Staff Assignment & Payment</div>
+  <table class="staff-table">
+    <thead><tr><th>Name</th><th>Role</th><th>Phone</th><th>Arrival</th><th>Departure</th><th style="text-align:right">Agreed</th><th style="text-align:right">Paid</th><th style="text-align:right">Balance</th><th>Signature</th></tr></thead>
+    <tbody>
+      ${staffRows.length?staffRows.map((op,i)=>{
+        const exp=staffExpenses.find(ex=>ex['Provider ID']===op['Provider ID']||ex['Provider Name']===op['Provider Name']);
+        const agreed=exp?parseFloat(exp['Agreed Amount'])||0:0;
+        const paid=exp?parseFloat(exp['Amount Paid'])||0:0;
+        const balance=agreed-paid;
+        const phone=getPhone(op['Provider ID']);
+        return `<tr>
+          <td style="font-weight:600">${op['Provider Name']||'—'}</td>
+          <td>${op['Role']||'—'}${op['Description']?' · '+op['Description']:''}</td>
+          <td style="font-size:10px;color:#777">${phone||'—'}</td>
+          <td style="text-align:center">${fmtTime(op['Arrival Time'])||'—'}</td>
+          <td style="text-align:center">${fmtTime(op['Departure Time'])||'—'}</td>
+          <td style="text-align:right">${agreed?fmtM(agreed):'—'}</td>
+          <td style="text-align:right;color:#1E5C2E;font-weight:600">${paid?fmtM(paid):'—'}</td>
+          <td style="text-align:right;color:${balance>0?'#CC2200':'#1E5C2E'};font-weight:600">${agreed?fmtM(balance):'—'}</td>
+          <td><div class="sig-mini"></div></td>
+        </tr>`;
+      }).join(''):`<tr><td colspan="9" style="text-align:center;color:#AAA;padding:20px">No staff assigned in Operations tab</td></tr>`}
+    </tbody>
+    ${staffRows.length?`<tfoot><tr style="background:#1A1A1A">
+      <td colspan="5" style="padding:8px 10px;color:#C9A84C;font-weight:700;font-size:11px">TOTALS</td>
+      <td style="text-align:right;padding:8px 10px;color:#C9A84C;font-weight:700">${fmtM(staffExpenses.reduce((s,ex)=>s+(parseFloat(ex['Agreed Amount'])||0),0))}</td>
+      <td style="text-align:right;padding:8px 10px;color:#6EC98A;font-weight:700">${fmtM(staffExpenses.reduce((s,ex)=>s+(parseFloat(ex['Amount Paid'])||0),0))}</td>
+      <td style="text-align:right;padding:8px 10px;color:#FF8888;font-weight:700">${fmtM(staffExpenses.reduce((s,ex)=>s+Math.max(0,(parseFloat(ex['Agreed Amount'])||0)-(parseFloat(ex['Amount Paid'])||0)),0))}</td>
+      <td></td>
+    </tr></tfoot>`:''}
+  </table>
+</div>
+<div class="sec">
+  <div class="sec-title">Authorization</div>
+  <p style="font-size:11px;color:#555;margin-bottom:14px">This summary confirms the staff assignments and payments for the event referenced above. Each staff member acknowledges receipt of payment by signing next to their name.</p>
+  ${sigBlock('Authorized — James Cardona · Cardona Hall LLC / Pilab Productions LLC','James Cardona · Pilab Productions LLC','Event Manager Signature')}
 </div>
 ${docFooter('Productions LLC')}
 </div>
