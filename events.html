@@ -1490,6 +1490,20 @@ function renderPL(){
 // ── DOCUMENTS ──
 let currentDocuments=[];
 
+// True if a quotation field holds a real selection (not empty / not 'na')
+function hasVal(field){
+  const v=currentEvent&&currentEvent[field];
+  if(v===undefined||v===null)return false;
+  const s=String(v).trim().toLowerCase();
+  return s!==''&&s!=='na'&&s!=='n/a'&&s!=='—';
+}
+// True if the event contracted any Entertainment / Sound service
+function hasEntertainment(){return hasVal('Entertainment Plan')||hasVal('Sound Plan');}
+// True if the event contracted any Photo / Video service
+function hasPhoto(){return hasVal('Photo Plan')||hasVal('Photo Tier')||hasVal('Photo Shoot')||hasVal('Photo Prints');}
+// True if the event contracted any Decor service
+function hasDecor(){return hasVal('Decor Plan')||hasVal('Decor Honor Tier')||hasVal('Decor CP Tier');}
+
 const DOC_DEFINITIONS=[
   // Client docs — always
   {id:'quotation',name:'Quotation PDF',sub:'Event quotation document',group:'client',condition:()=>true,statuses:['Generated'],icon:'📋',canGenerate:true},
@@ -1498,16 +1512,16 @@ const DOC_DEFINITIONS=[
   {id:'venue_rules',name:'Venue Rules & Policies',sub:'Alcohol policy, anti-violence, overtime fees, restrictions',group:'client',condition:()=>true,statuses:['Draft','Sent','Signed'],icon:'📋',canGenerate:true},
   {id:'receipt',name:'Payment Receipt',sub:'Generated from Payments tab',group:'client',condition:()=>true,statuses:['Generated'],icon:'🧾',canGenerate:true},
   // Provider contracts
-  {id:'contract_entertainment',name:'Entertainment Contract',sub:'DJ / Performer service agreement',group:'provider',condition:()=>currentEvent&&currentEvent['Entertainment Plan']&&String(currentEvent['Entertainment Plan']).trim()!==''&&String(currentEvent['Entertainment Plan']).toLowerCase()!=='na',statuses:['Draft','Sent','Signed'],icon:'🎵',canGenerate:true},
-  {id:'contract_decor',name:'Decor Contract',sub:'Decoration service agreement',group:'provider',condition:()=>currentEvent&&currentEvent['Decor Plan']&&String(currentEvent['Decor Plan']).trim()!==''&&String(currentEvent['Decor Plan']).toLowerCase()!=='na',statuses:['Draft','Sent','Signed'],icon:'🎨',canGenerate:true},
-  {id:'contract_photo',name:'Photo & Video Contract',sub:'Photography / videography agreement',group:'provider',condition:()=>currentEvent&&currentEvent['Photo Plan']&&String(currentEvent['Photo Plan']).trim()!==''&&String(currentEvent['Photo Plan']).toLowerCase()!=='na',statuses:['Draft','Sent','Signed'],icon:'📷',canGenerate:true},
+  {id:'contract_entertainment',name:'Entertainment Contract',sub:'DJ / Performer service agreement',group:'provider',condition:()=>hasEntertainment(),statuses:['Draft','Sent','Signed'],icon:'🎵',canGenerate:true},
+  {id:'contract_decor',name:'Decor Contract',sub:'Decoration service agreement',group:'provider',condition:()=>hasDecor(),statuses:['Draft','Sent','Signed'],icon:'🎨',canGenerate:true},
+  {id:'contract_photo',name:'Photo & Video Contract',sub:'Photography / videography agreement',group:'provider',condition:()=>hasPhoto(),statuses:['Draft','Sent','Signed'],icon:'📷',canGenerate:true},
   // Operational
   {id:'catering_beo',name:'Catering Order (BEO)',sub:'Food & beverage order for Noches de Colombia',group:'operational',condition:()=>currentEvent&&['collection','luxury'].includes(currentEvent['Catering Line']),statuses:['Draft','Sent','Delivered'],icon:'🍽️',canGenerate:true},
   {id:'menu_selection',name:'Menu Selection Form',sub:'Client selects dishes based on their catering plan',group:'operational',condition:()=>currentEvent&&['collection','luxury'].includes(currentEvent['Catering Line']),statuses:['Draft','Sent','Confirmed'],icon:'📋',canGenerate:true},
   {id:'venue_staff',name:'Venue Staff Sheet',sub:'Staff assignments, roles, arrival times',group:'operational',condition:()=>currentEvent&&currentEvent['Venue Tier']!=='EXTERNAL',statuses:['Draft','Printed'],icon:'👥',canGenerate:true},
-  {id:'decor_requirements',name:'Decor Requirements',sub:'Decoration specifications by plan',group:'operational',condition:()=>currentEvent&&currentEvent['Decor Plan']&&currentEvent['Decor Plan']!=='na',statuses:['Draft','Sent','Confirmed'],icon:'🎀',canGenerate:true},
-  {id:'music_program',name:'Music & Program Request',sub:'Music genres, event timeline, special moments',group:'operational',condition:()=>currentEvent&&currentEvent['Entertainment Plan']&&String(currentEvent['Entertainment Plan']).trim()!==''&&String(currentEvent['Entertainment Plan']).toLowerCase()!=='na',statuses:['Draft','Sent','Confirmed'],icon:'🎶',canGenerate:true},
-  {id:'photo_session',name:'Photo Session Details',sub:'Session locations, dates, times, directions',group:'operational',condition:()=>currentEvent&&currentEvent['Photo Plan']&&String(currentEvent['Photo Plan']).trim()!==''&&String(currentEvent['Photo Plan']).toLowerCase()!=='na',statuses:['Draft','Sent','Confirmed'],icon:'📸',canGenerate:true},
+  {id:'decor_requirements',name:'Decor Requirements',sub:'Decoration specifications by plan',group:'operational',condition:()=>hasDecor(),statuses:['Draft','Sent','Confirmed'],icon:'🎀',canGenerate:true},
+  {id:'music_program',name:'Music & Program Request',sub:'Music genres, event timeline, special moments',group:'operational',condition:()=>hasEntertainment(),statuses:['Draft','Sent','Confirmed'],icon:'🎶',canGenerate:true},
+  {id:'photo_session',name:'Photo Session Details',sub:'Session locations, dates, times, directions',group:'operational',condition:()=>hasPhoto(),statuses:['Draft','Sent','Confirmed'],icon:'📸',canGenerate:true},
   {id:'balance_doc',name:'Balance Statement',sub:'Final balance document — generated after event',group:'client',condition:()=>currentEvent&&(currentEvent['Event Status']||'').toLowerCase()==='completed',statuses:['Generated'],icon:'💰',canGenerate:true},
   {id:'cancellation',name:'Cancellation Notice',sub:'Event cancellation with penalty calculation',group:'operational',condition:()=>true,statuses:['Generated'],icon:'🚫',canGenerate:true},
   {id:'date_change',name:'Date Change Amendment',sub:'Event date change with applicable fee',group:'operational',condition:()=>true,statuses:['Generated','Signed'],icon:'📅',canGenerate:true},
@@ -1623,10 +1637,8 @@ async function updateDocStatus(docId,newStatus){
 }
 
 function generateDoc(docId){
-  if(docId==='quotation'||docId==='reservation'){
-    showToast('Open the Quotations module to generate this document','warn');
-    return;
-  }
+  if(docId==='quotation'){generateQuoteResDoc(false);return;}
+  if(docId==='reservation'){generateQuoteResDoc(true);return;}
   if(docId==='receipt'){generateReceipt();return;}
   if(docId==='contract_client'){generateClientContract();return;}
   if(docId==='venue_rules'){generateVenueRules();return;}
@@ -1878,6 +1890,253 @@ function depositHTML(){
   const total=parseFloat(currentEvent['Final Total'])||0;
   const dep=total>5000?`20% = ${fmtM(total*0.2)}`:`$1,000`;
   return dep;
+}
+
+// ── QUOTATION / RESERVATION PDF (ported from Cotizador v8.29) ─────────────────
+function generateQuoteResDoc(isRes){
+  const win=docOpen(); if(!win)return;
+  const e=currentEvent;
+  const cap=s=>s?String(s).charAt(0).toUpperCase()+String(s).slice(1):'';
+  const cotNum=e['COT#']||'—';
+  const resNum=e['RES#']||'';
+  const clientName=e['Client Name']||'—';
+  const phone=e['Phone']||'—';
+  const email=e['Email']||'—';
+  const eventDate=fmtDateDoc(e['Event Date']);
+  const dayOfWeek=e['Day of Week']||'—';
+  const guests=e['Guests']||0;
+  const children=parseInt(e['Children'])||0;
+  const tables=e['Tables']||0;
+  const fp=e['Full Package']||'na';
+  const finalTotal=parseFloat(e['Final Total'])||0;
+  const deposit=finalTotal>5000?fmtM(finalTotal*0.20):'$1,000';
+  const today=docToday();
+  const validUntil=new Date(Date.now()+7*864e5).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+
+  const vTier=e['Venue Tier']||'';
+  const cLine=e['Catering Line']||'';
+  const cPlan=e['Catering Plan']||'';
+  const decorPlan=hasVal('Decor Plan')?e['Decor Plan']:'na';
+  const entPlan=e['Entertainment Plan']||'';
+  const soundPlan=e['Sound Plan']||'';
+  const photoPlan=hasVal('Photo Plan')?e['Photo Plan']:'na';
+  const photoTier=e['Photo Tier']||'';
+  const photoShoot=e['Photo Shoot']||'';
+  const photoPrints=e['Photo Prints']||'';
+  const honorTier=e['Decor Honor Tier']||'';
+  const honorType=e['Decor Honor Type']||'';
+  const diningTier=e['Decor Dining Tier']||'';
+  const cpTier=e['Decor CP Tier']||'';
+  const cpType=e['Decor CP Type']||'';
+  const extrasTier=e['Decor Extras Tier']||'';
+
+  const soundLabel={'soundlighting':'Sound & Lighting','soundlightingplus':'Sound & Lighting Plus'};
+  const extrasCount={elegant:'3',prestige:'5',legacy:'Custom'};
+  const tag=t=>t?`<span class="tag">${t}</span>`:'';
+
+  function divRow(dot,name,plan,details,catRef){
+    if(!plan||plan==='na')return `<tr class="svc-row"><td class="div-cell"><div class="div-block"><div class="div-dot ${dot}"></div><div class="div-name">${name}</div></div></td><td class="svc-cell plan-cell" colspan="3"><div style="font-size:10px;color:#bbb;font-style:italic">Not included</div></td></tr>`;
+    return `<tr class="svc-row"><td class="div-cell"><div class="div-block"><div class="div-dot ${dot}"></div><div class="div-name">${name}</div></div></td><td class="svc-cell plan-cell"><div class="plan-main">${plan}</div></td><td class="svc-cell"><div class="tags">${details}</div></td><td class="svc-cell" style="text-align:right">${catRef}</td></tr>`;
+  }
+
+  let decorDetails='';
+  if(decorPlan!=='na'){
+    if(honorTier)decorDetails+=tag(`Honor Table · ${cap(honorTier)}${honorType?' · '+cap(honorType):''}`);
+    if(diningTier)decorDetails+=tag(`Dining Setup · ${cap(diningTier)} · ${tables} tables`);
+    if(cpTier)decorDetails+=tag(`Centerpieces · ${cap(cpType)} · ${tables}`);
+    if(extrasTier)decorDetails+=tag(`Add-ons · ${extrasCount[extrasTier]||cap(extrasTier)} included`);
+  }
+  let photoDetails='';
+  if(photoTier)photoDetails+=tag(`Photography · ${cap(photoTier)}`);
+  if(photoShoot&&photoShoot!=='na')photoDetails+=tag(`Photo Shoot · ${cap(photoShoot)}`);
+  if(photoPrints&&photoPrints!=='na')photoDetails+=tag(photoPrints==='frames'?`Frames · ${tables} tables`:`Photo Gallery`);
+
+  const specialConditions=e['Special Conditions']||'—';
+  const copy=isCopy(isRes?'reservation':'quotation');
+
+  const html=`<!DOCTYPE html><html><head>
+<meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+@page{margin:0;size:A4;}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;}
+html,body{background:#fff;width:210mm;font-family:'Montserrat',sans-serif;font-size:14px;color:#1a1a1a;}
+.doc{width:210mm;background:#fff;}
+.hdr{background:#0A0A0A !important;border-bottom:2.5px solid #C9A84C;}
+.hdr-main{padding:20px 28px 14px;display:flex;align-items:flex-start;justify-content:space-between;}
+.ch-name{font-family:'Cormorant Garamond',serif;font-size:36px;font-weight:700;color:#C9A84C;letter-spacing:3px;text-transform:uppercase;}
+.pilab-line{font-size:14px;letter-spacing:2px;margin-top:6px;color:#bbb;}
+.p-pi{color:#D4A853;}.p-la{color:#00B4D8;}.p-b{color:#C0368A;}.p-dot{color:#E8307A;}.p-rest{color:#bbb;}
+.doc-id{text-align:right;}
+.cot-num{font-size:16px;font-weight:600;color:#C9A84C;letter-spacing:1.5px;border:1px solid #C9A84C;padding:6px 16px;display:inline-block;margin-bottom:6px;}
+.doc-badge{display:inline-block;padding:4px 12px;font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;background:#1a1a1a;color:#999;border:1px solid #333;}
+.doc-badge-res{display:inline-block;padding:4px 12px;font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;background:#1a3a1a;color:#6EC98A;border:1px solid #2a4a2a;}
+.cot-ref{font-size:10px;color:#888;letter-spacing:1px;margin-bottom:5px;}
+.hdr-stripe{background:#111 !important;border-top:1px solid #222;padding:12px 28px;display:flex;align-items:center;justify-content:space-between;}
+.fp-pill{display:inline-flex;align-items:center;gap:6px;background:#0A0A0A;border:1px solid #C9A84C;border-radius:2px;padding:5px 14px;}
+.fp-pill-star{color:#C9A84C;font-size:11px;}
+.fp-pill-text{font-size:11px;color:#C9A84C;letter-spacing:1.5px;text-transform:uppercase;font-weight:600;}
+.no-fp{font-size:11px;color:#888;letter-spacing:1px;}
+.meta-bar{display:flex;gap:28px;}
+.meta-item{display:flex;flex-direction:column;gap:4px;}
+.meta-lbl{font-size:10px;color:#888;letter-spacing:2px;text-transform:uppercase;}
+.meta-val{font-size:13px;color:#ddd;font-weight:500;}
+.meta-status{font-size:17px;font-weight:600;letter-spacing:1px;}
+.section{padding:13px 28px;border-bottom:0.5px solid #f0f0f0;}
+.sec-title{font-size:12px;font-weight:600;color:#C9A84C;letter-spacing:3px;text-transform:uppercase;margin-bottom:10px;}
+.client-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px;}
+.cf{display:flex;flex-direction:column;gap:3px;}
+.cf-lbl{font-size:10px;color:#C9A84C;letter-spacing:1.5px;text-transform:uppercase;opacity:0.8;}
+.cf-val{font-size:14px;color:#1a1a1a;font-weight:500;}
+.event-bar{background:#E8DFD0 !important;border-left:3px solid #C9A84C;padding:10px 16px;display:grid;grid-template-columns:repeat(5,1fr);gap:10px;}
+.eb-item{display:flex;flex-direction:column;gap:3px;}
+.eb-lbl{font-size:9px;color:#7a6545;letter-spacing:1.5px;text-transform:uppercase;}
+.eb-val{font-size:14px;font-weight:600;color:#1a1a1a;}
+.svc-table{width:100%;border-collapse:collapse;table-layout:fixed;}
+.svc-th{font-size:10px;font-weight:600;color:#C9A84C;letter-spacing:2px;text-transform:uppercase;padding:0 0 8px;border-bottom:0.5px solid #eee;text-align:left;}
+.svc-row{border-bottom:0.5px solid #f0f0f0;}
+.svc-row:last-child{border-bottom:none;}
+.svc-cell{padding:8px 8px;vertical-align:middle;}
+.div-cell{background:#F0EEEA !important;padding:8px 10px;vertical-align:middle;}
+.div-block{display:flex;align-items:center;gap:8px;}
+.div-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;display:inline-block;}
+.d-venue{background:#0A0A0A !important;border:1px solid #444;}
+.d-catering{background:#fff;border:1.5px solid #C9A84C;}
+.d-decor{background:#D4A853 !important;}
+.d-ent{background:#C0368A !important;}
+.d-photo{background:#00B4D8 !important;}
+.div-name{font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:#444;}
+.plan-cell{padding-left:8px;}
+.plan-main{font-size:13px;font-weight:600;color:#1a1a1a;}
+.tags{display:flex;flex-wrap:wrap;gap:3px;margin-top:3px;}
+.tag{display:inline-block;font-size:10px;color:#555;background:#f5f5f5;padding:2px 7px;border:0.5px solid #ddd;}
+.cat-ref{font-size:11px;color:#C9A84C;font-weight:600;}
+.cat-sub{font-size:9px;color:#999;margin-top:2px;}
+.disc-block{background:#FAFAFA !important;border-top:0.5px solid #f0f0f0;}
+.disc-grid{display:grid;grid-template-columns:1fr 1fr;}
+.disc-col{padding:13px 28px;border-right:0.5px solid #f0f0f0;}
+.disc-col:last-child{border-right:none;}
+.disc-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:0.5px solid #f0f0f0;}
+.disc-name{font-size:12px;color:#555;}
+.pr-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:0.5px solid #f0f0f0;}
+.pr-row:last-child{border-bottom:none;}
+.pr-lbl{font-size:12px;color:#555;}
+.pr-val{font-size:13px;font-weight:600;color:#1a1a1a;}
+.cond-section{padding:13px 28px;border-bottom:0.5px solid #f0f0f0;}
+.cond-text{font-size:12px;color:#555;font-style:italic;}
+.total-bar{background:#0A0A0A !important;padding:16px 28px;display:flex;align-items:center;justify-content:space-between;}
+.total-lbl{font-family:'Cormorant Garamond',serif;font-size:16px;color:#ddd;letter-spacing:2px;text-transform:uppercase;}
+.dep-note{font-size:12px;color:#aaa;margin-top:6px;}
+.dep-amt{color:#C9A84C;font-weight:600;}
+.total-amt{font-family:'Cormorant Garamond',serif;font-size:34px;font-weight:700;color:#C9A84C;}
+.next-section-cot{padding:12px 28px;background:#EDE8DC !important;}
+.next-section-res{padding:12px 28px;background:#0D1A0D !important;border-top:1px solid #1a3a1a;}
+.next-text-cot{font-size:12px;color:#555;line-height:1.8;}
+.next-text-res{font-size:12px;color:#6EC98A;line-height:1.8;}
+.doc-footer{background:#1a1a1a !important;padding:12px 28px;display:flex;justify-content:space-between;align-items:center;border-top:2px solid #C9A84C;}
+.footer-l{font-size:12px;color:#999;letter-spacing:0.5px;}
+.footer-r{display:flex;align-items:center;gap:12px;}
+.validity{font-size:11px;color:#C9A84C;letter-spacing:1px;text-transform:uppercase;padding:4px 12px;border:1px solid #C9A84C;}
+.res-badge-footer{font-size:11px;color:#6EC98A;letter-spacing:1px;text-transform:uppercase;padding:4px 12px;border:1px solid #2a4a2a;}
+.pilab-dots{display:flex;gap:4px;align-items:center;}
+.pdot-f{width:8px;height:8px;border-radius:50%;display:inline-block;}
+.pilab-footer{font-size:14px;letter-spacing:1px;}
+@media print{*{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;}}
+</style></head><body>${copy?copyWatermark():''}<div class="doc">
+<div class="hdr">
+  <div class="hdr-main">
+    <div>
+      <div class="ch-name">Cardona Hall</div>
+      <div class="pilab-line"><span class="p-rest">Produced by </span><span class="p-pi">Pi</span><span class="p-la">la</span><span class="p-b">b</span><span class="p-dot">.</span><span class="p-rest"> Productions</span></div>
+    </div>
+    <div class="doc-id">
+      <div class="cot-num">${isRes?resNum:cotNum}</div><br>
+      ${isRes?`<div class="cot-ref">Ref. ${cotNum}</div>`:''}
+      <span class="${isRes?'doc-badge-res':'doc-badge'}">${isRes?'Reservation Confirmation':'Event Quotation'}</span>
+    </div>
+  </div>
+  <div class="hdr-stripe">
+    ${fp&&fp!=='na'?`<div class="fp-pill"><span class="fp-pill-star">&#9733;</span><span class="fp-pill-text">Full Package · ${cap(fp)}</span></div>`:'<div class="no-fp">Individual Services</div>'}
+    <div class="meta-bar">
+      <div class="meta-item"><div class="meta-lbl">Issued</div><div class="meta-val">${today}</div></div>
+      <div class="meta-item"><div class="meta-lbl">${isRes?'Event Date':'Valid until'}</div><div class="meta-val">${isRes?eventDate:validUntil}</div></div>
+      <div class="meta-item"><div class="meta-lbl">Status</div><div class="meta-status" style="color:${isRes?'#6EC98A':'#C9A84C'}">${isRes?'Reserved':'Quoted'}</div></div>
+    </div>
+  </div>
+</div>
+<div class="section">
+  <div class="sec-title">Client Information</div>
+  <div class="client-grid">
+    <div class="cf"><div class="cf-lbl">Client</div><div class="cf-val">${clientName}</div></div>
+    <div class="cf"><div class="cf-lbl">Phone</div><div class="cf-val">${phone}</div></div>
+    <div class="cf"><div class="cf-lbl">Email</div><div class="cf-val">${email}</div></div>
+  </div>
+  <div class="event-bar">
+    <div class="eb-item"><div class="eb-lbl">Event Type</div><div class="eb-val">${etLabel()}</div></div>
+    <div class="eb-item"><div class="eb-lbl">Date</div><div class="eb-val">${eventDate}</div></div>
+    <div class="eb-item"><div class="eb-lbl">Day</div><div class="eb-val">${dayOfWeek}</div></div>
+    <div class="eb-item"><div class="eb-lbl">Guests</div><div class="eb-val">${guests} adults${children?' · '+children+' children':''}</div></div>
+    <div class="eb-item"><div class="eb-lbl">Schedule</div><div class="eb-val">${scheduleInfo()}</div></div>
+  </div>
+</div>
+<div class="section">
+  <div class="sec-title">Services Included</div>
+  <table class="svc-table">
+    <thead><tr>
+      <th class="svc-th" style="width:185px">Division</th>
+      <th class="svc-th" style="width:130px;padding-left:14px">Plan</th>
+      <th class="svc-th">Details</th>
+      <th class="svc-th" style="width:110px;text-align:right">Catalog Ref.</th>
+    </tr></thead>
+    <tbody>
+      ${divRow('d-venue','Venue & Host',cap(vTier),'',`<div class="cat-ref">Ver Catálogo</div><div class="cat-sub">Venue · ${cap(vTier)}</div>`)}
+      ${cLine?divRow('d-catering','Catering',cap(cLine)+' · '+cap(cPlan),'',`<div class="cat-ref">Ver Catálogo</div><div class="cat-sub">Catering · ${cap(cPlan)}</div>`):divRow('d-catering','Catering','na','','')}
+      ${divRow('d-decor','Design & Decor',decorPlan==='na'?'na':cap(decorPlan)+' Plan',decorDetails,`<div class="cat-ref">Ver Catálogo</div><div class="cat-sub">Decor · ${cap(decorPlan)}</div>`)}
+      ${divRow('d-ent','Entertainment',entPlan?cap(entPlan)+' Collection':(soundPlan&&soundPlan!=='na'?'Sound System':'na'),(soundPlan&&soundPlan!=='na')?tag(soundLabel[soundPlan]||cap(soundPlan)):'',(entPlan||(soundPlan&&soundPlan!=='na'))?`<div class="cat-ref">Ver Catálogo</div><div class="cat-sub">Ent · ${cap(entPlan||soundPlan)}</div>`:'')}
+      ${divRow('d-photo','Photo & Video',photoPlan!=='na'?cap(photoPlan)+' Bundle':(photoTier?cap(photoTier)+' Coverage':'na'),photoDetails,(photoPlan!=='na'||photoTier)?`<div class="cat-ref">Ver Catálogo</div><div class="cat-sub">Photo · ${cap(photoPlan!=='na'?photoPlan:photoTier)}</div>`:'')}
+    </tbody>
+  </table>
+</div>
+<div class="disc-block">
+  <div class="disc-grid">
+    <div class="disc-col">
+      <div class="sec-title">Discounts Applied</div>
+      <div style="font-size:11px;color:#888;font-style:italic;padding:5px 0">See original quotation for itemized discounts.</div>
+    </div>
+    <div class="disc-col">
+      <div class="sec-title">Price Summary</div>
+      <div class="pr-row"><span class="pr-lbl">Venue & Host Services</span><span class="pr-val">${fmtM(e['Price Venue'])}</span></div>
+      <div class="pr-row"><span class="pr-lbl">Catering & Hospitality</span><span class="pr-val">${fmtM(e['Price Catering'])}</span></div>
+      <div class="pr-row"><span class="pr-lbl">Design & Decor</span><span class="pr-val">${fmtM(e['Price Decor'])}</span></div>
+      <div class="pr-row"><span class="pr-lbl">Entertainment & Production</span><span class="pr-val">${fmtM(e['Price Entertainment'])}</span></div>
+      <div class="pr-row"><span class="pr-lbl">Photo & Video</span><span class="pr-val">${fmtM(e['Price Photo'])}</span></div>
+    </div>
+  </div>
+</div>
+<div class="cond-section">
+  <div class="sec-title">Special Conditions / Modifications</div>
+  <div class="cond-text">${specialConditions}</div>
+</div>
+<div class="total-bar">
+  <div>
+    <div class="total-lbl">Total Investment</div>
+    ${isRes?`<div class="dep-note" style="color:#6EC98A;font-weight:600">&#10003; Deposit received &nbsp;·&nbsp; Balance due at event</div>`:`<div class="dep-note">Deposit required to confirm: <span class="dep-amt">${deposit}</span> &nbsp;·&nbsp; Balance due at event</div>`}
+  </div>
+  <div class="total-amt">${fmtM(finalTotal)}</div>
+</div>
+${isRes?`<div class="next-section-res"><div class="next-text-res">Your reservation at Cardona Hall is <strong style="color:#fff">confirmed</strong>. Your contract will be sent separately for your signature. Please review all services and contact us if you have any questions. <span style="color:#2a4a2a">&nbsp;·&nbsp; Cardona Hall · 72 Hoover Ave, Passaic NJ 07055 · +1 862-232-0117</span></div></div>`:`<div class="next-section-cot"><div class="next-text-cot">To confirm this reservation, a <strong style="color:#1a1a1a">deposit is required</strong>. Once received, a <strong style="color:#1a1a1a">Reservation Confirmation (RES#) and contract</strong> will be issued for your signature. &nbsp;<span style="color:#999">This quotation is valid for 7 days · Cardona Hall · 72 Hoover Ave, Passaic NJ 07055 · +1 862-232-0117</span></div></div>`}
+<div class="doc-footer">
+  <div class="footer-l">cardonahall.com &nbsp;·&nbsp; jcardona@cardonahall.com &nbsp;·&nbsp; +1 862-232-0117</div>
+  <div class="footer-r">
+    ${isRes?`<div class="res-badge-footer">Reserved</div>`:`<div class="validity">Valid 7 days</div>`}
+    <div class="pilab-dots"><div class="pdot-f" style="background:#D4A853"></div><div class="pdot-f" style="background:#00B4D8"></div><div class="pdot-f" style="background:#C0368A"></div></div>
+    <div class="pilab-footer"><span class="p-pi">Pi</span><span class="p-la">la</span><span class="p-b">b</span><span class="p-dot">.</span><span style="color:#888"> Productions</span></div>
+  </div>
+</div>
+</div>
+<script>window.onload=function(){document.title=' ';try{history.replaceState(null,'',' ');}catch(e){}setTimeout(function(){window.print();},900);};<\/script>
+</body></html>`;
+  docWrite(win,html);
 }
 
 // ── 1. CLIENT CONTRACT ────────────────────────────────────────────────────────
@@ -2951,8 +3210,8 @@ ${docHeader('Venue Staff Sheet',`${e['RES#']}`,'INTERNAL — Manager Copy')}
             <td style="font-weight:600;color:#333">${op['Role']||'—'}${op['Description']?' · '+op['Description']:''}</td>
             <td style="font-weight:500">${op['Provider Name']||mLine('','write name')}</td>
             <td>${mLine(getPhone(op['Provider ID']),'—')}</td>
-            <td style="text-align:center">${op['Arrival Time']||mLine('','__:__')}</td>
-            <td style="text-align:center">${op['Departure Time']||mLine('','__:__')}</td>
+            <td style="text-align:center">${op['Arrival Time']?fmtTime(op['Arrival Time']):mLine('','__:__')}</td>
+            <td style="text-align:center">${op['Departure Time']?fmtTime(op['Departure Time']):mLine('','__:__')}</td>
           </tr>`).join('');
         }
         // Fallback: default roles if no Operations data
