@@ -838,6 +838,7 @@ function switchTab(name,el){
   if(el)el.classList.add('active');
   const tc=document.getElementById('tab-'+name);if(tc)tc.classList.add('active');
   if(name==='pandl')renderPL();
+  if(name==='expenses')loadExpenses();
   if(name==='documents')loadDocuments();
   if(name==='operations')loadOperations();
 }
@@ -1157,14 +1158,35 @@ async function saveService(){
   showLoading();
   try{
     await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(payload),headers:{'Content-Type':'text/plain'}});
+    // If Internal with a provider chosen at creation, also create the linked Expense
+    if(type==='Internal'&&provName){
+      await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify({
+        action:'saveExpense',
+        'Expense ID':genID('EXP'),
+        'RES#':currentEvent['RES#'],
+        'COT#':currentEvent['COT#'],
+        'Event Date':currentEvent['Event Date'],
+        'Provider ID':provId,
+        'Provider Name':provName,
+        'Category':category,
+        'Role':name,
+        'Description':name,
+        'Agreed Amount':0,'Amount Paid':0,
+        'Payment Date':'','Method':'','Type':'Pago Único',
+        'Status':'Pending','Notes':'',
+        'Provider Type':'Internal',
+        'Detail ID':payload['Detail ID']
+      }),headers:{'Content-Type':'text/plain'}});
+    }
     document.getElementById('svcRole').value='';
     document.getElementById('svcName').value='';
     document.getElementById('svcProviderCustom').value='';
     document.getElementById('svcNotes').value='';
     document.getElementById('svcCustomRow').style.display='none';
     showToast('Role added','success');
-    await new Promise(r=>setTimeout(r,1200));
+    await new Promise(r=>setTimeout(r,1400));
     await loadServices();
+    if(typeof loadExpenses==='function')loadExpenses();
   }catch(e){showToast('Error adding role','error');}
   hideLoading();
 }
