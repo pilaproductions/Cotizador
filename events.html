@@ -53,6 +53,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
 .status-completed{background:#EEF3FF;color:var(--blue);border-color:#BFD0F0;}
 .status-cancelled{background:var(--red-light);color:var(--red);border-color:#D4A0A0;}
 .status-date-pending{background:#FFF1E0;color:#B5560A;border-color:#E8B584;}
+.status-rescheduled{background:#E8E0F0;color:#6A3FA0;border-color:#C4A8E0;}
 .empty-state{padding:60px 28px;text-align:center;}
 .empty-title{font-family:'Cormorant Garamond',serif;font-size:20px;color:#888;margin-bottom:8px;}
 .empty-sub{font-size:11px;color:#AAA;}
@@ -244,7 +245,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
         <span class="status-label">Event Status:</span>
         <button class="btn btn-blue btn-sm" onclick="generateReceipt()">⬇ Receipt PDF</button>
         <button class="btn btn-green btn-sm" id="btnComplete" onclick="updateStatus('Completed')">✓ Mark as Completed</button>
-        <button class="btn btn-sm" style="background:#D4680A;color:#fff" onclick="openDateChangeForm()">📅 Change Date</button>
+        <button class="btn btn-sm" id="btnChangeDate" style="background:#D4680A;color:#fff" onclick="openDateChangeForm()">📅 Change Date</button>
         <button class="btn btn-red btn-sm" onclick="updateStatus('Cancelled')">✕ Cancel Event</button>
         <span class="alert-msg" id="completeAlert" style="display:none">Balance must be $0 to complete</span>
       </div>
@@ -779,9 +780,9 @@ function renderList(){
     return;
   }
   const rows=filtered.map(e=>{
-    const status=(e['Event Status']||'reserved').toLowerCase();
-    const sc={reserved:'status-reserved',completed:'status-completed',cancelled:'status-cancelled',date_pending:'status-date-pending'}[status]||'status-reserved';
-    const sl={reserved:'Reserved',completed:'Completed',cancelled:'Cancelled',date_pending:'Date Pending'}[status]||'Reserved';
+    const status=(e['Status']||e['Event Status']||'reserved').toLowerCase();
+    const sc={reserved:'status-reserved',completed:'status-completed',cancelled:'status-cancelled',date_pending:'status-date-pending',rescheduled:'status-rescheduled'}[status]||'status-reserved';
+    const sl={reserved:'Reserved',completed:'Completed',cancelled:'Cancelled',date_pending:'Date Pending',rescheduled:'Rescheduled'}[status]||'Reserved';
     const etLabel=ET_LABELS[e['Event Type']]||e['Event Type']||'—';
     return `<tr onclick="openEvent('${e['RES#']}')">
       <td><div class="res-num">${e['RES#']}</div><div style="font-size:10px;color:#AAA;margin-top:2px">${e['COT#']||''}</div></td>
@@ -801,10 +802,11 @@ async function openEvent(resNum){
   if(!currentEvent)return;
   document.getElementById('detailRes').textContent=currentEvent['RES#'];
   document.getElementById('detailClient').textContent=currentEvent['Client Name']||'—';
-  const status=(currentEvent['Event Status']||'reserved').toLowerCase();
-  const sc={reserved:'status-reserved',completed:'status-completed',cancelled:'status-cancelled',date_pending:'status-date-pending'}[status]||'status-reserved';
-  const sl={reserved:'Reserved',completed:'Completed',cancelled:'Cancelled',date_pending:'Date Pending'}[status]||'Reserved';
+  const status=(currentEvent['Status']||currentEvent['Event Status']||'reserved').toLowerCase();
+  const sc={reserved:'status-reserved',completed:'status-completed',cancelled:'status-cancelled',date_pending:'status-date-pending',rescheduled:'status-rescheduled'}[status]||'status-reserved';
+  const sl={reserved:'Reserved',completed:'Completed',cancelled:'Cancelled',date_pending:'Date Pending',rescheduled:'Rescheduled'}[status]||'Reserved';
   document.getElementById('detailStatusBadge').innerHTML=`<span class="status-badge ${sc}">${sl}</span>`;
+  updateDateChangeButton();
   document.getElementById('dEventType').textContent=ET_LABELS[currentEvent['Event Type']]||currentEvent['Event Type']||'—';
   document.getElementById('dEventDate').textContent=fmtDate(currentEvent['Event Date']);
   document.getElementById('dEventDay').textContent=currentEvent['Day of Week']||'—';
@@ -1042,6 +1044,14 @@ function dcDaysRemaining(){
   if(isNaN(ed)) return null;
   return Math.floor((ed-today)/(1000*60*60*24));
 }
+function updateDateChangeButton(){
+  const btn=document.getElementById('btnChangeDate');
+  if(!btn||!currentEvent)return;
+  const status=(currentEvent['Status']||currentEvent['Event Status']||'reserved').toLowerCase();
+  // Hide once the date change is used (rescheduled) or the event is closed
+  const hide=['rescheduled','completed','cancelled'].includes(status);
+  btn.style.display=hide?'none':'';
+}
 function openDateChangeForm(){
   if(!currentEvent){showToast('Open an event first','error');return;}
   document.getElementById('dcCurrentDate').textContent=fmtDate(currentEvent['Event Date']);
@@ -1085,7 +1095,7 @@ async function saveDateChange(){
   const reason=document.getElementById('dcReason').value.trim();
   const availability=document.getElementById('dcAvailability').value;
   const oldDate=fmtDate(currentEvent['Event Date']);
-  const newStatus=tbd?'date_pending':'reserved';
+  const newStatus=tbd?'date_pending':'rescheduled';
   const newDateStored=tbd?'TBD':newDate;
   const newDateLabel=tbd?'TBD (to be defined)':fmtDate(newDate);
   const stamp=new Date().toLocaleDateString('en-US');
@@ -1097,7 +1107,7 @@ async function saveDateChange(){
     'RES#':currentEvent['RES#'],
     'Event Date':newDateStored,
     'Day of Week':newDay,
-    'Event Status':newStatus,
+    'Status':newStatus,
     'Date Change Log':logEntry
   };
   showLoading();
@@ -1125,7 +1135,7 @@ async function saveDateChange(){
     // Update in-memory event
     currentEvent['Event Date']=newDateStored;
     currentEvent['Day of Week']=newDay;
-    currentEvent['Event Status']=newStatus;
+    currentEvent['Status']=newStatus;
     currentEvent['Date Change Log']=currentEvent['Date Change Log']?(currentEvent['Date Change Log']+' || '+logEntry):logEntry;
     currentEvent['_dcNewDate']=newDateStored;
     currentEvent['_dcNewDay']=newDay;
@@ -1136,9 +1146,10 @@ async function saveDateChange(){
     currentEvent['_dcTBD']=tbd;
     document.getElementById('dEventDate').textContent=tbd?'TBD':fmtDate(newDate);
     document.getElementById('dEventDay').textContent=newDay||'—';
-    const sc={reserved:'status-reserved',completed:'status-completed',cancelled:'status-cancelled',date_pending:'status-cancelled'}[newStatus]||'status-reserved';
-    const sl={reserved:'Reserved',date_pending:'Date Pending'}[newStatus]||'Reserved';
+    const sc={reserved:'status-reserved',completed:'status-completed',cancelled:'status-cancelled',date_pending:'status-date-pending',rescheduled:'status-rescheduled'}[newStatus]||'status-reserved';
+    const sl={reserved:'Reserved',date_pending:'Date Pending',rescheduled:'Rescheduled'}[newStatus]||'Reserved';
     document.getElementById('detailStatusBadge').innerHTML=`<span class="status-badge ${sc}">${sl}</span>`;
+    updateDateChangeButton();
     closeDateChangeForm();
     showToast(tbd?'Event set to Date Pending':'Date changed to '+fmtDate(newDate),'success');
     await Promise.all([loadPayments(),loadEvents()]);
@@ -1836,27 +1847,52 @@ async function updateDocStatus(docId,newStatus){
   hideLoading();
 }
 
+function logDocGenerated(docType,extraNote){
+  if(!currentEvent)return;
+  const payload={
+    action:'saveDocument',
+    'Document ID':`DOC-${currentEvent['RES#']||'NA'}-${docType}-${Date.now()}`,
+    'RES#':currentEvent['RES#']||'',
+    'COT#':currentEvent['COT#']||'',
+    'Client Name':currentEvent['Client Name']||'',
+    'Event Date':currentEvent['Event Date']||'',
+    'Type':docType,
+    'Generated Date':new Date().toLocaleDateString('en-US'),
+    'Status':'Generated',
+    'Notes':extraNote||''
+  };
+  // Fire-and-forget; the AppScript appends a new row and computes Version
+  fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(payload),headers:{'Content-Type':'text/plain'}})
+    .then(()=>{if(typeof loadDocuments==='function'&&document.getElementById('tab-documents')){loadDocuments();}})
+    .catch(()=>{});
+}
+
 function generateDoc(docId){
-  if(docId==='quotation'){generateQuoteResDoc(false);return;}
-  if(docId==='reservation'){generateQuoteResDoc(true);return;}
-  if(docId==='receipt'){generateReceipt();return;}
-  if(docId==='contract_client'){generateClientContract();return;}
-  if(docId==='venue_rules'){generateVenueRules();return;}
-  if(docId==='contract_entertainment'){generateEntertainmentContract();return;}
-  if(docId==='contract_decor'){generateDecorContract();return;}
-  if(docId==='contract_photo'){generatePhotoContract();return;}
-  if(docId==='catering_beo'){generateCateringBEO();return;}
-  if(docId==='menu_selection'){generateMenuSelection();return;}
-  if(docId==='venue_staff'){generateVenueStaff();return;}
-  if(docId==='decor_requirements'){generateDecorRequirements();return;}
-  if(docId==='music_program'){generateMusicProgram();return;}
-  if(docId==='photo_session'){generatePhotoSession();return;}
-  if(docId==='sitting_chart'){generateSittingChart();return;}
-  if(docId==='balance_doc'){generateBalanceDoc();return;}
-  if(docId==='cancellation'){generateCancellationNotice();return;}
-  if(docId==='date_change'){generateDateChange();return;}
-  if(docId==='force_majeure'){generateForceMajeure();return;}
-  showToast('Document template coming soon','warn');
+  const map={
+    quotation:()=>generateQuoteResDoc(false),
+    reservation:()=>generateQuoteResDoc(true),
+    receipt:generateReceipt,
+    contract_client:generateClientContract,
+    venue_rules:generateVenueRules,
+    contract_entertainment:generateEntertainmentContract,
+    contract_decor:generateDecorContract,
+    contract_photo:generatePhotoContract,
+    catering_beo:generateCateringBEO,
+    menu_selection:generateMenuSelection,
+    venue_staff:generateVenueStaff,
+    decor_requirements:generateDecorRequirements,
+    music_program:generateMusicProgram,
+    photo_session:generatePhotoSession,
+    sitting_chart:generateSittingChart,
+    balance_doc:generateBalanceDoc,
+    cancellation:generateCancellationNotice,
+    date_change:generateDateChange,
+    force_majeure:generateForceMajeure
+  };
+  const fn=map[docId];
+  if(!fn){showToast('Document template coming soon','warn');return;}
+  fn();
+  logDocGenerated(docId);
 }
 
 // ── SHARED HELPERS ────────────────────────────────────────────────────────────
@@ -4799,9 +4835,10 @@ ${docFooter('Pilab Productions LLC')}
 <script>window.onload=function(){document.title=' ';try{history.replaceState(null,'',' ');}catch(e){}setTimeout(function(){window.print();},1000);};<\/script>
 </body></html>`;
   docWrite(win,html);
+  logDocGenerated('provider_agreement',`${exp['Provider Name']||''} · ${category}${isExternal?' · External':''}`);
 }
 
-function generateVenueStaffFromOps(){generateVenueStaff();}
+function generateVenueStaffFromOps(){generateVenueStaff();logDocGenerated('venue_staff');}
 
 function generateStaffSummary(){
   const win=docOpen();if(!win)return;
@@ -4887,6 +4924,7 @@ ${docFooter('Productions LLC')}
 <script>window.onload=function(){document.title=' ';try{history.replaceState(null,'',' ');}catch(e){}setTimeout(function(){window.print();},1000);};<\/script>
 </body></html>`;
   docWrite(win,html);
+  logDocGenerated('staff_summary');
 }
 
 
