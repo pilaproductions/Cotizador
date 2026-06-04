@@ -301,55 +301,8 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
 
     <!-- EXPENSES TAB -->
     <div class="tab-content" id="tab-expenses">
-      <!-- Assign Provider Form -->
-      <div class="add-form">
-        <div class="add-form-title">+ Assign Provider</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
-          <div class="form-field">
-            <div class="form-lbl">Filter by Category</div>
-            <select class="form-select" id="expCatFilter" onchange="filterProviderDropdown()">
-              <option value="">All Categories</option>
-              <option value="Decor">Decor</option>
-              <option value="Entertainment">Entertainment</option>
-              <option value="Photo">Photo & Video</option>
-              <option value="Catering">Catering</option>
-              <option value="Venue">Venue / Staff</option>
-              <option value="Other">Other</option>
-            </select>
-          </div>
-          <div class="form-field">
-            <div class="form-lbl">Search Provider</div>
-            <input class="form-input" type="text" id="expSearch" placeholder="Type to search..." oninput="filterProviderDropdown()">
-          </div>
-        </div>
-        <div class="form-row" style="grid-template-columns:1fr 1fr 1fr 1fr auto;gap:10px;display:grid;align-items:end;">
-          <div class="form-field">
-            <div class="form-lbl">Provider</div>
-            <select class="form-select" id="expProvider">
-              <option value="">— Select —</option>
-            </select>
-          </div>
-          <div class="form-field">
-            <div class="form-lbl">Role / Service</div>
-            <input class="form-input" type="text" id="expRole" placeholder="e.g. Decoración, DJ...">
-          </div>
-          <div class="form-field">
-            <div class="form-lbl">Agreed Amount</div>
-            <input class="form-input" type="number" id="expAgreed" placeholder="0.00" min="0">
-          </div>
-          <div class="form-field">
-            <div class="form-lbl">Notes</div>
-            <input class="form-input" type="text" id="expNotes" placeholder="Details...">
-          </div>
-          <button class="btn btn-gold" onclick="assignProvider()">Assign</button>
-        </div>
-        <div style="margin-top:8px;display:flex;align-items:center;gap:8px;">
-          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#555;cursor:pointer;">
-            <input type="checkbox" id="expExternal" style="accent-color:var(--gold);width:14px;height:14px;">
-            External provider (brought by the client — no payment from Pilab)
-          </label>
-        </div>
-        <div style="margin-top:8px;font-size:10px;color:#888">Provider not in directory? <a href="providers.html" target="_blank" style="color:var(--gold);text-decoration:none;font-weight:600">Add to directory →</a></div>
+      <div style="background:#F7F4EE;border-left:4px solid var(--gold);padding:10px 14px;margin-bottom:16px;font-size:12px;color:#7a6545;">
+        Internal roles with an assigned provider appear here automatically. Assign providers to roles in the <strong>Services</strong> tab. Here you set the agreed price and register payments.
       </div>
 
       <div class="payments-summary" style="margin-bottom:20px;">
@@ -359,14 +312,10 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
         <div class="summary-card"><div class="summary-lbl">Overpaid</div><div class="summary-val" style="color:#E8A030" id="expSumOverpaid">$0</div></div>
       </div>
 
-      <div style="margin-bottom:12px;text-align:right">
-        <a href="providers.html" target="_blank" class="btn btn-outline btn-sm">+ Add to Directory</a>
-      </div>
-
-      <div class="section-title">Assigned Providers</div>
+      <div class="section-title">Internal Providers</div>
       <table class="data-table" id="expensesTable">
         <thead><tr><th>Provider</th><th>Role</th><th>Agreed</th><th>Paid</th><th>Balance</th><th>Status</th><th style="text-align:right">Actions</th></tr></thead>
-        <tbody id="expensesBody"><tr><td colspan="7" class="no-data">No providers assigned</td></tr></tbody>
+        <tbody id="expensesBody"><tr><td colspan="7" class="no-data">No internal providers yet — assign them in Services</td></tr></tbody>
       </table>
 
       <!-- Payment form — shown inline per provider -->
@@ -1065,14 +1014,37 @@ function openAssignProviderToRole(detailId){
   updateRoleProvider(detailId,provId,provName);
 }
 async function updateRoleProvider(detailId,provId,provName){
+  const s=currentServices.find(x=>x['Detail ID']===detailId);
   showLoading();
   try{
     await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify({
       action:'updateServiceDetail','Detail ID':detailId,'Provider ID':provId,'Provider Name':provName,'Assign Status':'Assigned'
     }),headers:{'Content-Type':'text/plain'}});
+    // For Internal roles, create the linked Expense record (price blank, to fill in Expenses)
+    if(s&&(s['Provider Type']||'Internal').toLowerCase()==='internal'){
+      await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify({
+        action:'saveExpense',
+        'Expense ID':genID('EXP'),
+        'RES#':currentEvent['RES#'],
+        'COT#':currentEvent['COT#'],
+        'Event Date':currentEvent['Event Date'],
+        'Provider ID':provId,
+        'Provider Name':provName,
+        'Category':s['Division']||'',
+        'Role':s['Item']||'',
+        'Description':s['Item']||'',
+        'Agreed Amount':0,
+        'Amount Paid':0,
+        'Payment Date':'','Method':'','Type':'Pago Único',
+        'Status':'Pending','Notes':'',
+        'Provider Type':'Internal',
+        'Detail ID':detailId
+      }),headers:{'Content-Type':'text/plain'}});
+    }
     showToast('Provider assigned','success');
-    await new Promise(r=>setTimeout(r,1200));
+    await new Promise(r=>setTimeout(r,1400));
     await loadServices();
+    if(typeof loadExpenses==='function')loadExpenses();
   }catch(e){showToast('Error assigning provider','error');}
   hideLoading();
 }
@@ -1656,24 +1628,7 @@ async function loadDirectoryProviders(){
     const res=await fetch(SCRIPT_URL+'?sheet=Providers&nocache='+Date.now());
     const data=await res.json();
     allDirectoryProviders=Array.isArray(data)?data.filter(p=>p['Status']!=='Blacklisted'):[];
-    const sel=document.getElementById('expProvider');
-    sel.innerHTML='<option value="">— Select from directory —</option>';
-    allDirectoryProviders.forEach(p=>{
-      const opt=document.createElement('option');
-      opt.value=p['Provider ID'];
-      opt.textContent=`${p['Name']} (${p['Category']} · ${p['Role']||p['Category']})`;
-      opt.dataset.name=p['Name'];
-      opt.dataset.rate=p['Rate']||'';
-      opt.dataset.role=p['Role']||'';
-      sel.appendChild(opt);
-    });
-    sel.onchange=function(){
-      const opt=sel.options[sel.selectedIndex];
-      if(opt&&opt.dataset.role)document.getElementById('expRole').value=opt.dataset.role;
-      if(opt&&opt.dataset.rate)document.getElementById('expAgreed').value=opt.dataset.rate;
-    };
-    filterProviderDropdown();// initial render
-  }catch(e){}
+  }catch(e){allDirectoryProviders=[];}
 }
 
 async function loadExpenses(){
@@ -1686,68 +1641,65 @@ async function loadExpenses(){
   renderPL();
 }
 
-function filterProviderDropdown(){
-  const cat=document.getElementById('expCatFilter').value;
-  const search=document.getElementById('expSearch').value.toLowerCase();
-  const sel=document.getElementById('expProvider');
-  const current=sel.value;
-  sel.innerHTML='<option value="">— Select —</option>';
-  allDirectoryProviders
-    .filter(p=>(!cat||p['Category']===cat)&&(!search||(p['Name']||'').toLowerCase().includes(search)||(p['Role']||'').toLowerCase().includes(search)))
-    .forEach(p=>{
-      const opt=document.createElement('option');
-      opt.value=p['Provider ID'];
-      opt.textContent=`${p['Name']} (${p['Role']||p['Category']})`;
-      opt.dataset.name=p['Name'];opt.dataset.rate=p['Rate']||'';opt.dataset.role=p['Role']||'';
-      if(p['Provider ID']===current)opt.selected=true;
-      sel.appendChild(opt);
-    });
-}
-
 function renderExpenses(){
-  const totalAgreed=currentExpenses.reduce((s,e)=>s+(parseFloat(e['Agreed Amount'])||0),0);
-  const totalPaid=currentExpenses.reduce((s,e)=>s+(parseFloat(e['Amount Paid'])||0),0);
-  const pending=currentExpenses.reduce((s,e)=>{const b=(parseFloat(e['Agreed Amount'])||0)-(parseFloat(e['Amount Paid'])||0);return s+(b>0?b:0);},0);
-  const overpaid=currentExpenses.reduce((s,e)=>{const b=(parseFloat(e['Amount Paid'])||0)-(parseFloat(e['Agreed Amount'])||0);return s+(b>0?b:0);},0);
+  // Expenses now lists only internal providers linked from Services
+  const list=currentExpenses.filter(e=>(e['Provider Type']||'Internal').toLowerCase()==='internal');
+  const totalAgreed=list.reduce((s,e)=>s+(parseFloat(e['Agreed Amount'])||0),0);
+  const totalPaid=list.reduce((s,e)=>s+(parseFloat(e['Amount Paid'])||0),0);
+  const pending=list.reduce((s,e)=>{const b=(parseFloat(e['Agreed Amount'])||0)-(parseFloat(e['Amount Paid'])||0);return s+(b>0?b:0);},0);
+  const overpaid=list.reduce((s,e)=>{const b=(parseFloat(e['Amount Paid'])||0)-(parseFloat(e['Agreed Amount'])||0);return s+(b>0?b:0);},0);
   document.getElementById('expSumAgreed').textContent=fmtMoney(totalAgreed);
   document.getElementById('expSumPaid').textContent=fmtMoney(totalPaid);
   document.getElementById('expSumPending').textContent=fmtMoney(pending);
   document.getElementById('expSumOverpaid').textContent=fmtMoney(overpaid);
 
-  if(!currentExpenses.length){
-    document.getElementById('expensesBody').innerHTML='<tr><td colspan="7" class="no-data">No providers assigned yet</td></tr>';
+  if(!list.length){
+    document.getElementById('expensesBody').innerHTML='<tr><td colspan="7" class="no-data">No internal providers yet — assign them in Services</td></tr>';
     return;
   }
-  const rows=currentExpenses.map(e=>{
+  const rows=list.map(e=>{
     const agreed=parseFloat(e['Agreed Amount'])||0;
     const paid=parseFloat(e['Amount Paid'])||0;
     const balance=agreed-paid;
     const isOverpaid=paid>agreed;
-    const statusColor=balance<=0&&!isOverpaid?'#6EC98A':balance<agreed?'#E8A030':'#E87070';
-    const statusLabel=isOverpaid?'Overpaid':balance<=0?'Paid':balance<agreed?'Partial':'Pending';
+    const noPrice=agreed<=0;
+    const statusColor=noPrice?'#C99000':balance<=0&&!isOverpaid?'#6EC98A':balance<agreed?'#E8A030':'#E87070';
+    const statusLabel=noPrice?'No price':isOverpaid?'Overpaid':balance<=0?'Paid':balance<agreed?'Partial':'Pending';
     const canRemove=paid===0;
-    const canPay=balance>0&&!isOverpaid;
-    const isStaffOrCatering=['staff','catering'].includes((e['Category']||'').toLowerCase());
+    const canPay=balance>0&&!isOverpaid&&!noPrice;
+    const isStaffOrCatering=['staff','catering','venue'].includes((e['Category']||'').toLowerCase());
     const canReceipt=paid>0&&!isStaffOrCatering;
-    const provType=(e['Provider Type']||'Internal');
-    const isExternal=provType.toLowerCase()==='external';
-    const typeBadge=`<span style="font-size:8px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;padding:1px 5px;border-radius:2px;margin-left:6px;${isExternal?'background:#FFF1E0;color:#B5560A;':'background:#EAF4ED;color:#1E5C2E;'}">${isExternal?'External':'Internal'}</span>`;
     return `<tr>
-      <td style="font-weight:500">${e['Provider Name']||'—'}${typeBadge}</td>
+      <td style="font-weight:500">${e['Provider Name']||'—'}</td>
       <td style="font-size:11px;color:#888">${e['Role']||e['Category']||'—'}</td>
-      <td style="font-weight:600">${isExternal?'—':fmtMoney(agreed)}</td>
-      <td style="font-weight:600;color:#1E5C2E">${isExternal?'—':fmtMoney(paid)}</td>
-      <td style="font-weight:600;color:${isOverpaid?'#E8A030':balance>0?'#E87070':'#6EC98A'}">${isExternal?'—':fmtMoney(Math.abs(balance))+(isOverpaid?' (over)':'')}</td>
-      <td><span style="font-size:9px;font-weight:700;color:${statusColor};letter-spacing:1px;text-transform:uppercase">${isExternal?'External':statusLabel}</span></td>
+      <td style="font-weight:600">${noPrice?'<span style="color:#C99000;font-style:italic;font-size:11px">Set price</span>':fmtMoney(agreed)}</td>
+      <td style="font-weight:600;color:#1E5C2E">${fmtMoney(paid)}</td>
+      <td style="font-weight:600;color:${isOverpaid?'#E8A030':balance>0?'#E87070':'#6EC98A'}">${fmtMoney(Math.abs(balance))}${isOverpaid?' (over)':''}</td>
+      <td><span style="font-size:9px;font-weight:700;color:${statusColor};letter-spacing:1px;text-transform:uppercase">${statusLabel}</span></td>
       <td style="text-align:right;display:flex;gap:6px;justify-content:flex-end">
-        <button class="btn btn-outline btn-sm" onclick="generateProviderAgreement('${e['Expense ID']}')">⬇ Contract</button>
+        <button class="btn btn-outline btn-sm" onclick="setExpensePrice('${e['Expense ID']}','${(e['Provider Name']||'').replace(/'/g,'')}',${agreed})">$ Price</button>
         ${canReceipt?`<button class="btn btn-outline btn-sm" onclick="generateExpenseReceipt('${e['Expense ID']}')">⬇ Receipt</button>`:''}
-        <button class="btn btn-outline btn-sm" onclick="openExpPayForm('${e['Expense ID']}','${e['Provider Name']}',${Math.max(0,balance)})" ${canPay&&!isExternal?'':'disabled style="opacity:0.35;cursor:not-allowed"'}>+ Pay</button>
+        <button class="btn btn-outline btn-sm" onclick="openExpPayForm('${e['Expense ID']}','${e['Provider Name']}',${Math.max(0,balance)})" ${canPay?'':'disabled style="opacity:0.35;cursor:not-allowed"'}>+ Pay</button>
         ${canRemove?`<button class="btn btn-red btn-sm" onclick="removeExpense('${e['Expense ID']}','${e['Provider Name']}')">✕</button>`:''}
       </td>
     </tr>`;
   }).join('');
   document.getElementById('expensesBody').innerHTML=rows;
+}
+
+async function setExpensePrice(expenseId,provName,current){
+  const v=prompt('Agreed price for '+provName+':',current||'');
+  if(v===null)return;
+  const price=parseFloat(v);
+  if(isNaN(price)||price<0){showToast('Invalid price','error');return;}
+  showLoading();
+  try{
+    await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify({action:'updateExpense','Expense ID':expenseId,'Agreed Amount':price}),headers:{'Content-Type':'text/plain'}});
+    showToast('Price updated','success');
+    await new Promise(r=>setTimeout(r,1200));
+    await loadExpenses();
+  }catch(e){showToast('Error updating price','error');}
+  hideLoading();
 }
 
 function openExpPayForm(expenseId,providerName,balance){
@@ -1762,50 +1714,6 @@ function openExpPayForm(expenseId,providerName,balance){
 
 function closeExpPayForm(){
   document.getElementById('expPayForm').style.display='none';
-}
-
-async function assignProvider(){
-  const sel=document.getElementById('expProvider');
-  const provId=sel.value;
-  if(!provId){showToast('Select a provider','error');return;}
-  const agreed=parseFloat(document.getElementById('expAgreed').value);
-  if(!agreed||agreed<=0){showToast('Enter agreed amount','error');return;}
-  const opt=sel.options[sel.selectedIndex];
-  const provName=opt.dataset.name||opt.textContent.split(' (')[0];
-  const provType=document.getElementById('expExternal').checked?'External':'Internal';
-
-  const payload={
-    action:'saveExpense',
-    'Expense ID':genID('EXP'),
-    'RES#':currentEvent['RES#'],
-    'COT#':currentEvent['COT#'],
-    'Event Date':currentEvent['Event Date'],
-    'Provider ID':provId,
-    'Provider Name':provName,
-    'Category':allDirectoryProviders.find(p=>p['Provider ID']===provId)?.['Category']||'',
-    'Role':document.getElementById('expRole').value,
-    'Description':document.getElementById('expRole').value,
-    'Agreed Amount':agreed,
-    'Amount Paid':0,
-    'Payment Date':'',
-    'Method':'',
-    'Type':'Pago Único',
-    'Status':'Pending',
-    'Notes':document.getElementById('expNotes').value,
-    'Provider Type':provType
-  };
-  showLoading();
-  try{
-    await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(payload),headers:{'Content-Type':'text/plain'}});
-    document.getElementById('expProvider').value='';
-    document.getElementById('expRole').value='';
-    document.getElementById('expAgreed').value='';
-    document.getElementById('expNotes').value='';
-    document.getElementById('expExternal').checked=false;
-    showToast('Provider assigned','success');
-    await loadExpenses();
-  }catch(e){showToast('Error assigning provider','error');}
-  hideLoading();
 }
 
 async function saveExpensePayment(){
