@@ -1723,12 +1723,18 @@ async function loadDirectoryProviders(){
   }catch(e){allDirectoryProviders=[];}
 }
 
+let currentExpensePayments=[];
 async function loadExpenses(){
   try{
-    const res=await fetch(`${SCRIPT_URL}?sheet=Expenses&filterKey=RES%23&filterVal=${encodeURIComponent(currentEvent['RES#'])}&nocache=`+Date.now());
-    const data=await res.json();
+    const [eRes,pRes]=await Promise.all([
+      fetch(`${SCRIPT_URL}?sheet=Expenses&filterKey=RES%23&filterVal=${encodeURIComponent(currentEvent['RES#'])}&nocache=`+Date.now()),
+      fetch(`${SCRIPT_URL}?sheet=Expense%20Payments&filterKey=RES%23&filterVal=${encodeURIComponent(currentEvent['RES#'])}&nocache=`+Date.now())
+    ]);
+    const data=await eRes.json();
     currentExpenses=Array.isArray(data)?data:[];
-  }catch(e){currentExpenses=[];}
+    const pdata=await pRes.json();
+    currentExpensePayments=Array.isArray(pdata)?pdata:[];
+  }catch(e){currentExpenses=[];currentExpensePayments=[];}
   renderExpenses();
   renderPL();
 }
@@ -1755,12 +1761,11 @@ function renderExpenses(){
     const balance=agreed-paid;
     const isOverpaid=paid>agreed;
     const noPrice=agreed<=0;
-    const statusColor=noPrice?'#C99000':balance<=0&&!isOverpaid?'#6EC98A':balance<agreed?'#E8A030':'#E87070';
+    const isPaid=!noPrice&&balance<=0; // 0 or overpaid => fully paid, lock it
+    const statusColor=noPrice?'#C99000':isOverpaid?'#E8A030':balance<=0?'#6EC98A':balance<agreed?'#E8A030':'#E87070';
     const statusLabel=noPrice?'No price':isOverpaid?'Overpaid':balance<=0?'Paid':balance<agreed?'Partial':'Pending';
-    const canRemove=paid===0;
-    const canPay=balance>0&&!isOverpaid&&!noPrice;
-    const isStaffOrCatering=['staff','catering','venue'].includes((e['Category']||'').toLowerCase());
-    const canReceipt=paid>0&&!isStaffOrCatering;
+    const canPay=balance>0&&!noPrice;
+    const canReceipt=paid>0;
     return `<tr>
       <td style="font-weight:500">${e['Provider Name']||'—'}</td>
       <td style="font-size:11px;color:#888">${e['Role']||e['Category']||'—'}</td>
@@ -1769,10 +1774,9 @@ function renderExpenses(){
       <td style="font-weight:600;color:${isOverpaid?'#E8A030':balance>0?'#E87070':'#6EC98A'}">${fmtMoney(Math.abs(balance))}${isOverpaid?' (over)':''}</td>
       <td><span style="font-size:9px;font-weight:700;color:${statusColor};letter-spacing:1px;text-transform:uppercase">${statusLabel}</span></td>
       <td style="text-align:right;display:flex;gap:6px;justify-content:flex-end">
-        <button class="btn btn-outline btn-sm" onclick="setExpensePrice('${e['Expense ID']}','${(e['Provider Name']||'').replace(/'/g,'')}',${agreed})">$ Price</button>
+        ${!isPaid?`<button class="btn btn-outline btn-sm" onclick="setExpensePrice('${e['Expense ID']}','${(e['Provider Name']||'').replace(/'/g,'')}',${agreed})">$ Price</button>`:''}
         ${canReceipt?`<button class="btn btn-outline btn-sm" onclick="generateExpenseReceipt('${e['Expense ID']}')">⬇ Receipt</button>`:''}
-        <button class="btn btn-outline btn-sm" onclick="openExpPayForm('${e['Expense ID']}','${e['Provider Name']}',${Math.max(0,balance)})" ${canPay?'':'disabled style="opacity:0.35;cursor:not-allowed"'}>+ Pay</button>
-        ${canRemove?`<button class="btn btn-red btn-sm" onclick="removeExpense('${e['Expense ID']}','${e['Provider Name']}')">✕</button>`:''}
+        ${canPay?`<button class="btn btn-gold btn-sm" onclick="openExpPayForm('${e['Expense ID']}','${e['Provider Name']}',${Math.max(0,balance)})">+ Pay</button>`:''}
       </td>
     </tr>`;
   }).join('');
@@ -1844,9 +1848,23 @@ async function saveExpensePayment(){
   showLoading();
   try{
     await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(payload),headers:{'Content-Type':'text/plain'}});
+    // Save the individual payment record (Sheet 11) so the receipt can list each one
+    await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify({
+      action:'saveExpensePaymentRecord',
+      'Payment ID':'EXPAY-'+Date.now(),
+      'Expense ID':expenseId,
+      'RES#':currentEvent['RES#'],
+      'COT#':currentEvent['COT#'],
+      'Provider Name':expense['Provider Name']||'',
+      'Payment Date':date,
+      'Amount':amount,
+      'Method':document.getElementById('expPayMethod').value,
+      'Notes':document.getElementById('expPayNotes').value,
+      'Recorded Date':new Date().toLocaleDateString('en-US')
+    }),headers:{'Content-Type':'text/plain'}});
     closeExpPayForm();
     showToast(overpaying?'Payment registered (exceeds agreed amount)':'Payment registered','success');
-    await new Promise(r=>setTimeout(r,1200));
+    await new Promise(r=>setTimeout(r,1400));
     await loadExpenses();
   }catch(e){showToast('Error saving payment','error');}
   hideLoading();
@@ -5093,14 +5111,19 @@ ${docHeader('Payment Receipt',`RCP-${exp['Expense ID']||''}`,'Produced by Pilab 
 <div class="sec">
   <div class="sec-title">Payment Detail</div>
   <table class="services-table">
-    <thead><tr><th>Concept</th><th style="text-align:right">Amount</th><th>Notes</th></tr></thead>
+    <thead><tr><th>Date</th><th>Method</th><th style="text-align:right">Amount</th></tr></thead>
     <tbody>
-      <tr><td>Agreed Service Fee</td><td style="text-align:right">${fmtM(agreed)}</td><td>${exp['Role']||exp['Category']||''}</td></tr>
-      <tr><td>Amount Paid</td><td style="text-align:right">${fmtM(paid)}</td><td>${exp['Method']||'—'}${exp['Payment Date']?(' · '+fmtDateDoc(exp['Payment Date'])):''}</td></tr>
-      <tr class="total-row"><td>Balance Due</td><td style="text-align:right">${fmtM(balance)}</td><td>${balance>0?'Pending':'Settled'}</td></tr>
+      ${(currentExpensePayments||[]).filter(p=>String(p['Expense ID'])===String(exp['Expense ID'])).map(p=>`<tr><td>${fmtDateDoc(p['Payment Date'])}</td><td>${p['Method']||'—'}</td><td style="text-align:right">${fmtM(parseFloat(p['Amount'])||0)}</td></tr>`).join('')||`<tr><td colspan="3" style="color:#999;font-style:italic">No itemized payments</td></tr>`}
+      <tr class="total-row"><td>Total Paid</td><td></td><td style="text-align:right">${fmtM(paid)}</td></tr>
     </tbody>
   </table>
-  <div class="info-box" style="margin-top:10px;font-size:10px">This receipt confirms payment made by Pilab Productions / Cardona Hall LLC to the provider named above.</div>
+  <table class="services-table" style="margin-top:10px">
+    <tbody>
+      <tr><td>Agreed Service Fee</td><td style="text-align:right">${fmtM(agreed)}</td></tr>
+      <tr class="total-row"><td>Balance Due</td><td style="text-align:right">${fmtM(balance)}</td></tr>
+    </tbody>
+  </table>
+  <div class="info-box" style="margin-top:10px;font-size:10px">This receipt confirms payment(s) made by Pilab Productions / Cardona Hall LLC to the provider named above.</div>
 </div>
 <div class="sec">
   <div class="sec-title">Acknowledgment</div>
