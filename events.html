@@ -337,6 +337,17 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
           <button class="btn btn-ghost btn-sm" onclick="closeExpPayForm()" style="margin-top:18px">Cancel</button>
         </div>
       </div>
+
+      <!-- Set Price form -->
+      <div id="expPriceForm" style="display:none;margin-top:16px;" class="add-form">
+        <div class="add-form-title" id="expPriceFormTitle">Set Agreed Price</div>
+        <input type="hidden" id="expPriceExpenseId">
+        <div class="form-row" style="grid-template-columns:1fr auto auto;gap:10px;display:grid;align-items:end;">
+          <div class="form-field"><div class="form-lbl">Agreed Price</div><input class="form-input" type="number" id="expPriceAmount" placeholder="0.00" min="0"></div>
+          <button class="btn btn-gold" onclick="saveExpensePrice()">Save</button>
+          <button class="btn btn-ghost btn-sm" onclick="closeExpPriceForm()">Cancel</button>
+        </div>
+      </div>
     </div>
 
     <!-- OPERATIONS TAB -->
@@ -652,6 +663,32 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
 <div class="overlay" id="overlay"><div class="overlay-text">Loading...</div></div>
 
 <!-- ── DATE CHANGE MODAL ─────────────────────────────────────────────────── -->
+<!-- ── ASSIGN PROVIDER MODAL ─────────────────────────────────────────────── -->
+<div id="assignProvOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10000;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:8px;max-width:460px;width:92%;box-shadow:0 12px 40px rgba(0,0,0,0.3);">
+    <div style="background:var(--gold);color:#fff;padding:14px 20px;border-radius:8px 8px 0 0;display:flex;align-items:center;justify-content:space-between;">
+      <span style="font-size:15px;font-weight:700;letter-spacing:0.5px;">Assign Provider</span>
+      <button onclick="closeAssignProvForm()" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;line-height:1;">✕</button>
+    </div>
+    <div style="padding:20px;">
+      <input type="hidden" id="assignProvDetailId">
+      <div id="assignProvRoleInfo" style="font-size:12px;color:#777;margin-bottom:14px;"></div>
+      <div id="assignProvInternalRow" class="form-field" style="margin-bottom:16px;">
+        <div class="form-lbl">Provider (from directory)</div>
+        <select class="form-select" id="assignProvSelect"><option value="">— Select —</option></select>
+      </div>
+      <div id="assignProvCustomRow" class="form-field" style="margin-bottom:16px;display:none;">
+        <div class="form-lbl">Provider Name</div>
+        <input class="form-input" type="text" id="assignProvCustom" placeholder="Write provider name">
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button class="btn btn-ghost btn-sm" onclick="closeAssignProvForm()">Cancel</button>
+        <button class="btn btn-gold btn-sm" onclick="confirmAssignProvider()">Assign</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="dateChangeOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10000;align-items:center;justify-content:center;">
   <div style="background:#fff;border-radius:8px;max-width:520px;width:92%;max-height:90vh;overflow-y:auto;box-shadow:0 12px 40px rgba(0,0,0,0.3);">
     <div style="background:#D4680A;color:#fff;padding:14px 20px;border-radius:8px 8px 0 0;display:flex;align-items:center;justify-content:space-between;">
@@ -995,23 +1032,45 @@ function renderServices(){
   box.innerHTML=html;
 }
 
-// Assign a provider to a role that was created as pending
+// Assign a provider to a role that was created as pending — opens modal
 function openAssignProviderToRole(detailId){
+  const s=currentServices.find(x=>x['Detail ID']===detailId);
+  if(!s)return;
+  const type=s['Provider Type']||'Internal';
+  document.getElementById('assignProvDetailId').value=detailId;
+  document.getElementById('assignProvRoleInfo').innerHTML=`Role: <strong>${s['Item']||''}</strong> · ${type} · ${s['Division']||''}`;
+  const isInternal=type==='Internal';
+  document.getElementById('assignProvInternalRow').style.display=isInternal?'block':'none';
+  document.getElementById('assignProvCustomRow').style.display=isInternal?'none':'block';
+  if(isInternal){
+    const sel=document.getElementById('assignProvSelect');
+    let html='<option value="">— Select —</option>';
+    (allDirectoryProviders||[]).filter(p=>(p['Category']||'').toLowerCase()===(s['Division']||'').toLowerCase()).forEach(p=>{
+      html+=`<option value="${p['Provider ID']}" data-name="${p['Name']||''}">${p['Name']||''}</option>`;
+    });
+    sel.innerHTML=html;
+  }else{
+    document.getElementById('assignProvCustom').value='';
+  }
+  document.getElementById('assignProvOverlay').style.display='flex';
+}
+function closeAssignProvForm(){document.getElementById('assignProvOverlay').style.display='none';}
+function confirmAssignProvider(){
+  const detailId=document.getElementById('assignProvDetailId').value;
   const s=currentServices.find(x=>x['Detail ID']===detailId);
   if(!s)return;
   const type=s['Provider Type']||'Internal';
   let provId='',provName='';
   if(type==='Internal'){
-    const opts=(allDirectoryProviders||[]).filter(p=>(p['Category']||'').toLowerCase()===(s['Division']||'').toLowerCase());
-    const list=opts.map((p,i)=>`${i+1}. ${p['Name']}`).join('\n');
-    const pick=prompt('Assign provider for "'+s['Item']+'":\n'+list+'\n\nType the number:');
-    const i=parseInt(pick)-1;
-    if(isNaN(i)||!opts[i])return;
-    provId=opts[i]['Provider ID'];provName=opts[i]['Name'];
+    const sel=document.getElementById('assignProvSelect');
+    provId=sel.value;
+    if(!provId){showToast('Select a provider','error');return;}
+    provName=sel.options[sel.selectedIndex].dataset.name||'';
   }else{
-    provName=prompt('Name of the '+type+' provider for "'+s['Item']+'":')||'';
-    if(!provName.trim())return;
+    provName=document.getElementById('assignProvCustom').value.trim();
+    if(!provName){showToast('Enter the provider name','error');return;}
   }
+  closeAssignProvForm();
   updateRoleProvider(detailId,provId,provName);
 }
 async function updateRoleProvider(detailId,provId,provName){
@@ -1709,14 +1768,22 @@ function renderExpenses(){
   document.getElementById('expensesBody').innerHTML=rows;
 }
 
-async function setExpensePrice(expenseId,provName,current){
-  const v=prompt('Agreed price for '+provName+':',current||'');
-  if(v===null)return;
-  const price=parseFloat(v);
+function setExpensePrice(expenseId,provName,current){
+  document.getElementById('expPriceExpenseId').value=expenseId;
+  document.getElementById('expPriceFormTitle').textContent=`Set Agreed Price → ${provName}`;
+  document.getElementById('expPriceAmount').value=current>0?current:'';
+  document.getElementById('expPriceForm').style.display='block';
+  document.getElementById('expPriceForm').scrollIntoView({behavior:'smooth'});
+}
+function closeExpPriceForm(){document.getElementById('expPriceForm').style.display='none';}
+async function saveExpensePrice(){
+  const expenseId=document.getElementById('expPriceExpenseId').value;
+  const price=parseFloat(document.getElementById('expPriceAmount').value);
   if(isNaN(price)||price<0){showToast('Invalid price','error');return;}
   showLoading();
   try{
     await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify({action:'updateExpense','Expense ID':expenseId,'Agreed Amount':price}),headers:{'Content-Type':'text/plain'}});
+    closeExpPriceForm();
     showToast('Price updated','success');
     await new Promise(r=>setTimeout(r,1200));
     await loadExpenses();
@@ -4990,6 +5057,55 @@ ${docFooter('Productions LLC')}
   docWrite(win,html);
 }
 
+
+// ── PROVIDER PAYMENT RECEIPT ──────────────────────────────────────────────────
+function generateExpenseReceipt(expenseId){
+  const exp=currentExpenses.find(x=>x['Expense ID']===expenseId);
+  if(!exp){showToast('Provider not found','error');return;}
+  const win=docOpen();if(!win)return;
+  const e=currentEvent;
+  const paid=parseFloat(exp['Amount Paid'])||0;
+  const agreed=parseFloat(exp['Agreed Amount'])||0;
+  const balance=agreed-paid;
+  const accent='#C9A84C';
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>Payment Receipt — ${exp['Provider Name']||''}</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>${baseStyles(accent)}</style></head><body><div class="doc">
+${docHeader('Payment Receipt',`RCP-${exp['Expense ID']||''}`,'Produced by Pilab Productions',accent)}
+<div class="sec">
+  <div class="sec-title">Paid To</div>
+  <div class="field-grid">
+    <div class="field-item"><div class="field-lbl">Provider</div><div class="field-val">${exp['Provider Name']||'—'}</div></div>
+    <div class="field-item"><div class="field-lbl">Role / Service</div><div class="field-val">${exp['Role']||exp['Category']||'—'}</div></div>
+    <div class="field-item"><div class="field-lbl">Event</div><div class="field-val">${e['Client Name']||'—'} · ${etLabel()}</div></div>
+    <div class="field-item"><div class="field-lbl">Event Date</div><div class="field-val">${fmtDateDoc(e['Event Date'])}</div></div>
+  </div>
+</div>
+<div class="sec">
+  <div class="sec-title">Payment Detail</div>
+  <table class="services-table">
+    <thead><tr><th>Concept</th><th style="text-align:right">Amount</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Agreed Service Fee</td><td style="text-align:right">${fmtM(agreed)}</td><td>${exp['Role']||exp['Category']||''}</td></tr>
+      <tr><td>Amount Paid</td><td style="text-align:right">${fmtM(paid)}</td><td>${exp['Method']||'—'}${exp['Payment Date']?(' · '+fmtDateDoc(exp['Payment Date'])):''}</td></tr>
+      <tr class="total-row"><td>Balance Due</td><td style="text-align:right">${fmtM(balance)}</td><td>${balance>0?'Pending':'Settled'}</td></tr>
+    </tbody>
+  </table>
+  <div class="info-box" style="margin-top:10px;font-size:10px">This receipt confirms payment made by Pilab Productions / Cardona Hall LLC to the provider named above.</div>
+</div>
+<div class="sec">
+  <div class="sec-title">Acknowledgment</div>
+  <p style="font-size:11px;color:#555;margin-bottom:14px">The provider confirms receipt of the amount stated above.</p>
+  ${sigBlock('Paid by — James Cardona · Pilab Productions LLC','James Cardona · Pilab Productions LLC','Provider Signature')}
+</div>
+${docFooter('Pilab Productions LLC')}
+</div>
+<script>window.onload=function(){document.title=' ';try{history.replaceState(null,'',' ');}catch(e){}setTimeout(function(){window.print();},900);};<\/script>
+</body></html>`;
+  docWrite(win,html);
+  logDocGenerated('provider_receipt',`${exp['Provider Name']||''} · ${fmtM(paid)}`);
+}
 
 // ── PROVIDER AGREEMENT (per provider, from Expenses) ──────────────────────────
 function generateProviderAgreement(expenseId,directExp){
