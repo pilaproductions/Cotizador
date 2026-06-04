@@ -1127,12 +1127,23 @@ function generateProviderAgreementFromRole(detailId){
 
 async function removeService(detailId,itemName){
   if(!confirm('Remove role "'+itemName+'"?'))return;
+  // Find a linked expense (by Detail ID)
+  const linked=(currentExpenses||[]).find(e=>String(e['Detail ID'])===String(detailId));
+  if(linked&&(parseFloat(linked['Amount Paid'])||0)>0){
+    showToast('Cannot remove: this role has payments registered in Expenses','error');
+    return;
+  }
   showLoading();
   try{
     await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify({action:'removeServiceDetail','Detail ID':detailId}),headers:{'Content-Type':'text/plain'}});
+    // Remove the linked (unpaid) expense too
+    if(linked){
+      await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify({action:'removeExpense','Expense ID':linked['Expense ID']}),headers:{'Content-Type':'text/plain'}});
+    }
     showToast('Role removed','success');
-    await new Promise(r=>setTimeout(r,1200));
+    await new Promise(r=>setTimeout(r,1400));
     await loadServices();
+    if(typeof loadExpenses==='function')loadExpenses();
   }catch(e){showToast('Error removing role','error');}
   hideLoading();
 }
@@ -1819,12 +1830,8 @@ async function saveExpensePayment(){
   const newPaid=(parseFloat(expense['Amount Paid'])||0)+amount;
   const agreed=parseFloat(expense['Agreed Amount'])||0;
 
-  // Overpayment warning
-  if(newPaid>agreed){
-    if(!confirm(`Warning: Total paid (${fmtMoney(newPaid)}) exceeds agreed amount (${fmtMoney(agreed)}). Continue?`))return;
-  }
-
   const newStatus=newPaid>=agreed?'Paid':'Partial';
+  const overpaying=newPaid>agreed;
   const payload={
     action:'updateExpense',
     'Expense ID':expenseId,
@@ -1838,7 +1845,8 @@ async function saveExpensePayment(){
   try{
     await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(payload),headers:{'Content-Type':'text/plain'}});
     closeExpPayForm();
-    showToast('Payment registered','success');
+    showToast(overpaying?'Payment registered (exceeds agreed amount)':'Payment registered','success');
+    await new Promise(r=>setTimeout(r,1200));
     await loadExpenses();
   }catch(e){showToast('Error saving payment','error');}
   hideLoading();
