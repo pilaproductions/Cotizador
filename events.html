@@ -1067,6 +1067,7 @@ function generateProviderAgreementFromRole(detailId){
 
 async function removeService(detailId,itemName){
   if(!confirm('Remove role "'+itemName+'"?'))return;
+  const role=(currentServices||[]).find(s=>String(s['Detail ID'])===String(detailId));
   // Find a linked expense (by Detail ID)
   const linked=(currentExpenses||[]).find(e=>String(e['Detail ID'])===String(detailId));
   if(linked&&(parseFloat(linked['Amount Paid'])||0)>0){
@@ -1079,6 +1080,12 @@ async function removeService(detailId,itemName){
     // Remove the linked (unpaid) expense too
     if(linked){
       await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify({action:'removeExpense','Expense ID':linked['Expense ID']}),headers:{'Content-Type':'text/plain'}});
+    }
+    // Remove its operations (schedule + tasks) too
+    if(role){
+      await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify({
+        action:'deleteOperationsByRole','RES#':currentEvent['RES#'],'Role':role['Item']||'','Category':role['Division']||''
+      }),headers:{'Content-Type':'text/plain'}});
     }
     showToast('Role removed','success');
     await new Promise(r=>setTimeout(r,1400));
