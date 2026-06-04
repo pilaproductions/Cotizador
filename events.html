@@ -887,7 +887,7 @@ function renderPayments(){
     document.getElementById('paymentsBody').innerHTML='<tr><td colspan="7" class="no-data">No payments registered yet</td></tr>';
     return;
   }
-  const tc={'Deposit':'type-deposit','Abono':'type-abono','Balance Final':'type-balance'};
+  const tc={'Deposit':'type-deposit','Abono':'type-abono','Balance Final':'type-balance','Date Change Fee':'type-balance'};
   const rows=currentPayments.map(p=>`<tr>
     <td style="font-size:10px;color:#AAA">${p['Payment ID']||'—'}</td>
     <td>${fmtDate(p['Payment Date'])}</td>
@@ -1152,6 +1152,8 @@ async function saveDateChange(){
     updateDateChangeButton();
     closeDateChangeForm();
     showToast(tbd?'Event set to Date Pending':'Date changed to '+fmtDate(newDate),'success');
+    // Wait briefly so the Sheet finishes writing the fee payment before reloading
+    await new Promise(r=>setTimeout(r,1500));
     await Promise.all([loadPayments(),loadEvents()]);
     if(confirm('Saved. Generate the Date Change Amendment now?')) generateDateChange();
   }catch(e){showToast('Error changing date','error');}
