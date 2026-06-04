@@ -4130,7 +4130,8 @@ async function loadOperations(){
     if(!Array.isArray(currentTaskTemplates)) currentTaskTemplates=[];
     if(!Array.isArray(currentRoles)) currentRoles=[];
     // Ensure Services (assigned roles) are loaded for the day-of selector
-    if(!currentServices||!currentServices.length){await loadServices();}
+    // Always refresh Services so newly assigned providers show up here
+    await loadServices();
     renderOperations();
     renderTaskTemplates();
     populateOpsAssignedRoles();
