@@ -259,7 +259,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
       </div>
 
       <div class="add-form">
-        <div class="add-form-title">+ Add Service</div>
+        <div class="add-form-title">+ Add Role to Event</div>
         <div class="form-row form-row-3">
           <div class="form-field"><div class="form-lbl">Category</div>
             <select class="form-select" id="svcCategory" onchange="populateSvcRoleDropdown()">
@@ -270,18 +270,28 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
               <option value="Photo">Photo &amp; Video</option>
             </select>
           </div>
-          <div class="form-field"><div class="form-lbl">Service / Role</div>
+          <div class="form-field"><div class="form-lbl">Role</div>
             <select class="form-select" id="svcRole" onchange="onSvcRoleChange()">
               <option value="">— Select —</option>
             </select>
           </div>
-          <div class="form-field"><div class="form-lbl">Price</div><input class="form-input" type="number" id="svcPrice" placeholder="0.00" min="0"></div>
+          <div class="form-field"><div class="form-lbl">Type</div>
+            <select class="form-select" id="svcType" onchange="onSvcTypeChange()">
+              <option value="Internal">Internal (we pay)</option>
+              <option value="External">External (client brings)</option>
+              <option value="Client">Client (does it himself)</option>
+            </select>
+          </div>
           <button class="btn btn-gold" onclick="saveService()">Add</button>
         </div>
         <div class="form-row" id="svcCustomRow" style="margin-top:10px;display:none">
-          <div class="form-field"><div class="form-lbl">Custom Service Name</div><input class="form-input" type="text" id="svcName" placeholder="e.g. CO2 Jets, Hora Loca..."></div>
+          <div class="form-field"><div class="form-lbl">Custom Role Name</div><input class="form-input" type="text" id="svcName" placeholder="e.g. Hora Loca, CO2 Jets..."></div>
         </div>
-        <div style="margin-top:10px;">
+        <div class="form-row form-row-2" style="margin-top:10px;">
+          <div class="form-field"><div class="form-lbl">Provider (optional — can assign later)</div>
+            <select class="form-select" id="svcProvider"><option value="">— Pending assignment —</option></select>
+          </div>
+          <div class="form-field" id="svcProviderCustomRow" style="display:none"><div class="form-lbl">Provider Name (external / client)</div><input class="form-input" type="text" id="svcProviderCustom" placeholder="Write name"></div>
           <div class="form-field"><div class="form-lbl">Notes</div><input class="form-input" type="text" id="svcNotes" placeholder="Details, requirements..."></div>
         </div>
       </div>
@@ -900,6 +910,7 @@ async function loadServices(){
     currentServices=Array.isArray(data)?data:[];
   }catch(e){currentServices=[];}
   populateSvcRoleDropdown();
+  onSvcTypeChange();
   renderServices();
 }
 
@@ -959,16 +970,33 @@ function populateSvcRoleDropdown(){
   html+='<option value="Other">Other (custom)</option>';
   sel.innerHTML=html;
   onSvcRoleChange();
+  populateSvcProviderDropdown();
 }
 function onSvcRoleChange(){
   const v=document.getElementById('svcRole').value;
   const row=document.getElementById('svcCustomRow');
   if(row)row.style.display=(v==='Other')?'flex':'none';
 }
+function onSvcTypeChange(){
+  // Internal => pick from directory; External/Client => free-text name
+  const type=document.getElementById('svcType').value;
+  const isInternal=type==='Internal';
+  document.getElementById('svcProvider').parentElement.style.display=isInternal?'block':'none';
+  document.getElementById('svcProviderCustomRow').style.display=isInternal?'none':'block';
+}
+function populateSvcProviderDropdown(){
+  const sel=document.getElementById('svcProvider');
+  if(!sel)return;
+  const cat=document.getElementById('svcCategory').value;
+  let html='<option value="">— Pending assignment —</option>';
+  (allDirectoryProviders||[]).filter(p=>(p['Category']||'').toLowerCase()===cat.toLowerCase()).forEach(p=>{
+    html+=`<option value="${p['Provider ID']}" data-name="${p['Name']||''}">${p['Name']||''} (${p['Category']||''})</option>`;
+  });
+  sel.innerHTML=html;
+}
 
 function renderServices(){
-  const total=currentServices.reduce((s,sv)=>s+(parseFloat(sv['Price'])||0),0);
-  document.getElementById('servicesTotalVal').textContent=fmtMoney(total);
+  document.getElementById('servicesTotalVal').textContent=fmtMoney(getEventTotal());
   document.getElementById('dTotal').textContent=fmtMoney(getEventTotal());
   document.getElementById('sumTotal').textContent=fmtMoney(getEventTotal());
   const received=getTotalReceived();
@@ -977,6 +1005,11 @@ function renderServices(){
 
   const box=document.getElementById('servicesByCategory');
   if(!box)return;
+  const typeBadge=(t)=>{
+    const tt=(t||'Internal').toLowerCase();
+    const m={internal:['Internal','#EAF4ED','#1E5C2E'],external:['External','#FFF1E0','#B5560A'],client:['Client','#E8E0F0','#6A3FA0']}[tt]||['Internal','#EAF4ED','#1E5C2E'];
+    return `<span style="font-size:8px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;padding:1px 6px;border-radius:2px;background:${m[1]};color:${m[2]}">${m[0]}</span>`;
+  };
   let html='';
   SVC_CATEGORIES.forEach(cat=>{
     const list=currentServices.map((s,idx)=>({s,idx})).filter(o=>(o.s['Division']||'Other')===cat.key);
@@ -985,17 +1018,22 @@ function renderServices(){
         ${cat.label}<span style="font-size:10px;color:#BBB;font-weight:400">(${list.length})</span>
       </div>`;
     if(!list.length){
-      html+='<div style="font-size:11px;color:#BBB;font-style:italic;padding:4px 0 8px">No services in this category</div>';
+      html+='<div style="font-size:11px;color:#BBB;font-style:italic;padding:4px 0 8px">No roles in this category</div>';
     }else{
       html+='<table class="data-table"><tbody>';
       list.forEach(o=>{
         const s=o.s;
+        const provName=s['Provider Name']||'';
+        const pending=!provName;
+        const provCell=pending
+          ? `<span style="font-size:11px;color:#C99000;font-style:italic">Pending assignment</span>`
+          : `<span style="font-size:12px">${provName}</span>`;
         html+=`<tr>
-          <td style="font-weight:500">${s['Item']||'—'}</td>
-          <td class="amount-col">${fmtMoney(s['Price'])}</td>
+          <td style="font-weight:500">${s['Item']||'—'} ${typeBadge(s['Provider Type'])}</td>
+          <td>${provCell}</td>
           <td style="font-size:11px;color:#888">${s['Notes']||'—'}</td>
           <td style="text-align:right;white-space:nowrap">
-            <button class="btn btn-outline btn-sm" onclick="generateAmendment(${o.idx})">⬇ Amendment</button>
+            ${pending?`<button class="btn btn-outline btn-sm" onclick="openAssignProviderToRole('${s['Detail ID']}')">Assign</button>`:`<button class="btn btn-outline btn-sm" onclick="generateProviderAgreementFromRole('${s['Detail ID']}')">⬇ Contract</button>`}
             <button class="btn btn-red btn-sm" onclick="removeService('${s['Detail ID']}','${(s['Item']||'').replace(/'/g,'')}')">✕</button>
           </td>
         </tr>`;
@@ -1007,16 +1045,63 @@ function renderServices(){
   box.innerHTML=html;
 }
 
+// Assign a provider to a role that was created as pending
+function openAssignProviderToRole(detailId){
+  const s=currentServices.find(x=>x['Detail ID']===detailId);
+  if(!s)return;
+  const type=s['Provider Type']||'Internal';
+  let provId='',provName='';
+  if(type==='Internal'){
+    const opts=(allDirectoryProviders||[]).filter(p=>(p['Category']||'').toLowerCase()===(s['Division']||'').toLowerCase());
+    const list=opts.map((p,i)=>`${i+1}. ${p['Name']}`).join('\n');
+    const pick=prompt('Assign provider for "'+s['Item']+'":\n'+list+'\n\nType the number:');
+    const i=parseInt(pick)-1;
+    if(isNaN(i)||!opts[i])return;
+    provId=opts[i]['Provider ID'];provName=opts[i]['Name'];
+  }else{
+    provName=prompt('Name of the '+type+' provider for "'+s['Item']+'":')||'';
+    if(!provName.trim())return;
+  }
+  updateRoleProvider(detailId,provId,provName);
+}
+async function updateRoleProvider(detailId,provId,provName){
+  showLoading();
+  try{
+    await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify({
+      action:'updateServiceDetail','Detail ID':detailId,'Provider ID':provId,'Provider Name':provName,'Assign Status':'Assigned'
+    }),headers:{'Content-Type':'text/plain'}});
+    showToast('Provider assigned','success');
+    await new Promise(r=>setTimeout(r,1200));
+    await loadServices();
+  }catch(e){showToast('Error assigning provider','error');}
+  hideLoading();
+}
+// Generate Provider Agreement from a Services role
+function generateProviderAgreementFromRole(detailId){
+  const s=currentServices.find(x=>x['Detail ID']===detailId);
+  if(!s){showToast('Role not found','error');return;}
+  const pseudoExp={
+    'Expense ID':s['Detail ID'],
+    'Provider Type':s['Provider Type']||'Internal',
+    'Category':s['Division']||'',
+    'Provider ID':s['Provider ID']||'',
+    'Provider Name':s['Provider Name']||'',
+    'Role':s['Item']||'',
+    'Description':s['Item']||'',
+    'Agreed Amount':0,'Amount Paid':0,'Method':''
+  };
+  generateProviderAgreement(null,pseudoExp);
+}
+
 async function removeService(detailId,itemName){
-  if(!confirm('Remove service "'+itemName+'"?'))return;
+  if(!confirm('Remove role "'+itemName+'"?'))return;
   showLoading();
   try{
     await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify({action:'removeServiceDetail','Detail ID':detailId}),headers:{'Content-Type':'text/plain'}});
-    showToast('Service removed','success');
+    showToast('Role removed','success');
     await new Promise(r=>setTimeout(r,1200));
     await loadServices();
-    renderPayments();
-  }catch(e){showToast('Error removing service','error');}
+  }catch(e){showToast('Error removing role','error');}
   hideLoading();
 }
 
@@ -1067,11 +1152,19 @@ async function saveService(){
   const role=document.getElementById('svcRole').value;
   const customName=document.getElementById('svcName').value.trim();
   const name=(role==='Other')?customName:role;
-  const price=parseFloat(document.getElementById('svcPrice').value);
-  if(!role){showToast('Select a service / role','error');return;}
-  if(role==='Other'&&!customName){showToast('Enter the custom service name','error');return;}
-  if(!price||price<=0){showToast('Enter a valid price','error');return;}
+  if(!role){showToast('Select a role','error');return;}
+  if(role==='Other'&&!customName){showToast('Enter the custom role name','error');return;}
   const category=document.getElementById('svcCategory').value||'Other';
+  const type=document.getElementById('svcType').value||'Internal';
+  // Provider is optional (can be assigned later)
+  let provId='',provName='';
+  if(type==='Internal'){
+    const sel=document.getElementById('svcProvider');
+    provId=sel.value||'';
+    if(provId){const opt=sel.options[sel.selectedIndex];provName=opt.dataset.name||opt.textContent;}
+  }else{
+    provName=document.getElementById('svcProviderCustom').value.trim();
+  }
   const payload={
     action:'saveServiceDetail',
     'Detail ID':genID('SVC'),
@@ -1079,29 +1172,28 @@ async function saveService(){
     'COT#':currentEvent['COT#'],
     'Event Date':currentEvent['Event Date'],
     'Division':category,
-    'Type':'Add-on',
+    'Type':'Role',
     'Item':name,
     'Description':name,
-    'Price':price,
-    'Notes':document.getElementById('svcNotes').value
+    'Price':0,
+    'Notes':document.getElementById('svcNotes').value,
+    'Provider Type':type,
+    'Provider ID':provId,
+    'Provider Name':provName,
+    'Assign Status':provName?'Assigned':'Pending'
   };
   showLoading();
   try{
     await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(payload),headers:{'Content-Type':'text/plain'}});
     document.getElementById('svcRole').value='';
     document.getElementById('svcName').value='';
-    document.getElementById('svcPrice').value='';
+    document.getElementById('svcProviderCustom').value='';
     document.getElementById('svcNotes').value='';
     document.getElementById('svcCustomRow').style.display='none';
-    showToast('Service added','success');
+    showToast('Role added','success');
     await new Promise(r=>setTimeout(r,1200));
     await loadServices();
-    renderPayments();// recalc balance
-    const contractStatus=getDocStatus('contract_client');
-    if(contractStatus&&contractStatus!==''){
-      showToast('Service added — generate its Amendment in the Documents tab','success');
-    }
-  }catch(e){showToast('Error saving service','error');}
+  }catch(e){showToast('Error adding role','error');}
   hideLoading();
 }
 
@@ -4970,12 +5062,12 @@ ${docFooter('Productions LLC')}
 
 
 // ── PROVIDER AGREEMENT (per provider, from Expenses) ──────────────────────────
-function generateProviderAgreement(expenseId){
-  const exp=currentExpenses.find(x=>x['Expense ID']===expenseId);
+function generateProviderAgreement(expenseId,directExp){
+  const exp=directExp||currentExpenses.find(x=>x['Expense ID']===expenseId);
   if(!exp){showToast('Provider not found','error');return;}
   const win=docOpen();if(!win)return;
   const e=currentEvent;
-  const isExternal=(exp['Provider Type']||'Internal').toLowerCase()==='external';
+  const isExternal=['external','client'].includes((exp['Provider Type']||'Internal').toLowerCase());
   const category=exp['Category']||'';
   const catColors={Entertainment:'#E040A0',Decor:'#D4A853',Photo:'#00B4D8',Staff:'#C9A84C',Catering:'#1A7A3C'};
   const accent=catColors[category]||'#C9A84C';
