@@ -750,7 +750,7 @@ function getTotalReceived(){
 async function loadEvents(){
   showLoading();
   try{
-    const res=await fetch(SCRIPT_URL+'?sheet=Quotations&nocache='+Date.now());
+    const res=await fetch(SCRIPT_URL+'?sheet=Quotations&latestByRes=1&nocache='+Date.now());
     const data=await res.json();
     allEvents=data.filter(r=>r['RES#']&&String(r['RES#']).startsWith('RES'));
     renderList();
@@ -768,7 +768,7 @@ function renderList(){
   const typeF=document.getElementById('filterType').value;
   let filtered=allEvents.filter(e=>{
     const matchSearch=!search||(e['Client Name']||'').toLowerCase().includes(search)||(e['RES#']||'').toLowerCase().includes(search);
-    const evStatus=(e['Event Status']||'reserved').toLowerCase();
+    const evStatus=(e['Status']||e['Event Status']||'reserved').toLowerCase();
     const matchStatus=!statusF||evStatus===statusF;
     const matchType=!typeF||(e['Event Type']||'')===typeF;
     return matchSearch&&matchStatus&&matchType;
@@ -1749,8 +1749,12 @@ async function loadDocuments(){
 }
 
 function getDocStatus(docId){
-  const rec=currentDocuments.find(d=>d['Type']===docId);
-  return rec?rec['Status']:'';
+  // Append-only: take the LAST record of this type (most recent generation)
+  const recs=currentDocuments.filter(d=>d['Type']===docId);
+  return recs.length?recs[recs.length-1]['Status']:'';
+}
+function getDocVersionCount(docId){
+  return currentDocuments.filter(d=>d['Type']===docId).length;
 }
 
 function renderDocuments(){
@@ -1861,9 +1865,15 @@ function logDocGenerated(docType,extraNote){
     'Status':'Generated',
     'Notes':extraNote||''
   };
-  // Fire-and-forget; the AppScript appends a new row and computes Version
+  // Fire-and-forget; the AppScript appends a new row and computes Version.
+  // Wait briefly so the append completes before reloading the Documents list.
   fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(payload),headers:{'Content-Type':'text/plain'}})
-    .then(()=>{if(typeof loadDocuments==='function'&&document.getElementById('tab-documents')){loadDocuments();}})
+    .then(()=>{
+      const docTab=document.getElementById('tab-documents');
+      if(docTab&&docTab.classList.contains('active')&&typeof loadDocuments==='function'){
+        setTimeout(loadDocuments,1500);
+      }
+    })
     .catch(()=>{});
 }
 
