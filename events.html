@@ -369,64 +369,17 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
       <!-- ── OPERATIONS VIEW ── -->
       <div id="opsViewOperations">
 
-        <!-- ASSIGN PROVIDER FORM -->
+        <!-- ASSIGN LOGISTICS FORM -->
         <div style="background:#F8F5EE;border:1px solid #E8E0CC;border-radius:6px;padding:16px;margin-bottom:16px">
-          <div style="font-size:10px;font-weight:700;color:#8B6914;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px">+ Assign Provider</div>
+          <div style="font-size:10px;font-weight:700;color:#8B6914;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px">+ Day-of Logistics</div>
+          <div style="font-size:11px;color:#888;margin-bottom:12px">Pick a provider already assigned in <strong>Services</strong>, then set arrival, departure and tasks for the event day.</div>
 
-          <!-- Row 1: Filter + Search -->
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+          <!-- Row 1: assigned-role selector + arrival + departure -->
+          <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;margin-bottom:10px">
             <div class="form-field">
-              <div class="form-lbl">Filter by Category</div>
-              <select class="form-select" id="opsProvCatFilter" onchange="filterOpsProviders()">
-                <option value="">All Categories</option>
-                <option value="Staff">Staff</option>
-                <option value="Entertainment">Entertainment</option>
-                <option value="Decor">Decor</option>
-                <option value="Photo">Photo</option>
-                <option value="Catering">Catering</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
-            <div class="form-field">
-              <div class="form-lbl">Search Provider</div>
-              <input class="form-input" type="text" id="opsProvSearch" placeholder="Type to search..." oninput="filterOpsProviders()">
-            </div>
-          </div>
-
-          <!-- Row 2: Provider dropdown + Role + Arrival + Departure -->
-          <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:10px;margin-bottom:10px">
-            <div class="form-field">
-              <div class="form-lbl">Provider</div>
-              <select class="form-select" id="opsProviderSelect" onchange="onOpsProviderSelect()">
+              <div class="form-lbl">Assigned Provider (from Services)</div>
+              <select class="form-select" id="opsAssignedRole" onchange="onOpsAssignedRoleSelect()">
                 <option value="">— Select —</option>
-              </select>
-            </div>
-            <div class="form-field">
-              <div class="form-lbl">Role (this event)</div>
-              <select class="form-select" id="opsRole" onchange="onOpsRoleChange()">
-                <option value="">— Select —</option>
-                <option value="Manager">Manager</option>
-                <option value="Bartender">Bartender</option>
-                <option value="Server">Server</option>
-                <option value="Security">Security</option>
-                <option value="Setup">Setup</option>
-                <option value="Cleaning">Cleaning</option>
-                <option value="Host">Host</option>
-                <option value="DJ">DJ</option>
-                <option value="MC">MC</option>
-                <option value="DJ/MC">DJ/MC</option>
-                <option value="Performer">Performer</option>
-                <option value="Live Show">Live Show</option>
-                <option value="Decorator">Decorator</option>
-                <option value="Florist">Florist</option>
-                <option value="Photographer">Photographer</option>
-                <option value="Videographer">Videographer</option>
-                <option value="Photographer/Videographer">Photographer/Videographer</option>
-                <option value="Chef">Chef</option>
-                <option value="Kitchen Staff">Kitchen Staff</option>
-                <option value="Delivery">Delivery</option>
-                <option value="Coordinator">Coordinator</option>
-                <option value="Other">Other</option>
               </select>
             </div>
             <div class="form-field">
@@ -439,32 +392,28 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
             </div>
           </div>
 
-          <!-- Row 3: Description + Category (auto) + Other cat (if Other) + Notes -->
+          <!-- Row 2: read-only role/category/type + notes -->
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px">
             <div class="form-field">
-              <div class="form-lbl">Description / Specialty</div>
-              <input class="form-input" type="text" id="opsDescription" placeholder="e.g. Clown, Violinist...">
+              <div class="form-lbl">Role</div>
+              <input class="form-input" type="text" id="opsRole" readonly style="background:#F0F0F0;color:#777">
             </div>
             <div class="form-field">
               <div class="form-lbl">Category</div>
               <input class="form-input" type="text" id="opsCategory" readonly style="background:#F0F0F0;color:#777">
             </div>
-            <div class="form-field" id="opsOtherCatRow" style="display:none">
-              <div class="form-lbl">Category (Other)</div>
-              <select class="form-select" id="opsOtherCat" onchange="renderOpsTaskCheckboxes(this.value)">
-                <option value="Staff">Staff</option>
-                <option value="Entertainment">Entertainment</option>
-                <option value="Decor">Decor</option>
-                <option value="Photo">Photo</option>
-                <option value="Catering">Catering</option>
-                <option value="Other">Other</option>
-              </select>
+            <div class="form-field">
+              <div class="form-lbl">Type</div>
+              <input class="form-input" type="text" id="opsType" readonly style="background:#F0F0F0;color:#777">
             </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr;gap:10px;margin-bottom:10px">
             <div class="form-field">
               <div class="form-lbl">Notes</div>
               <input class="form-input" type="text" id="opsNotes" placeholder="Additional notes...">
             </div>
           </div>
+          <input type="hidden" id="opsDescription">
 
           <!-- TASKS SECTION — appears after provider selected -->
           <div id="opsTaskSection" style="display:none;border-top:1px solid #DDD;margin:12px 0 10px;padding-top:12px">
@@ -3642,49 +3591,44 @@ ${docHeader('Venue Staff Sheet',`${e['RES#']}`,'INTERNAL — Manager Copy')}
   </div>
 </div>
 <div class="sec">
-  <div class="sec-title">2. Staff Assignment</div>
-  <table class="staff-table">
-    <thead><tr><th>Role</th><th>Name</th><th>Phone</th><th>Arrival</th><th>Departure</th></tr></thead>
-    <tbody>
-      ${(()=>{
-        // Get staff from Operations (Sheet 8) - filter by Staff category
-        const staffOps=currentOperations.filter(op=>{
-          const cat=(op['Category']||'').toLowerCase();
-          return cat==='staff'||cat==='venue';
-        });
-        // Deduplicate by provider - one row per provider
-        const seen=new Set();
-        const staffRows=staffOps.filter(op=>{
-          const key=op['Provider ID']||op['Provider Name'];
-          if(seen.has(key))return false;
-          seen.add(key);
-          return true;
-        });
-        // Get phone from directory providers
-        const getPhone=(provId)=>{
-          const p=allDirectoryProviders&&allDirectoryProviders.find(p=>p['Provider ID']===provId);
-          return p?p['Phone']||'':'';
-        };
-        if(staffRows.length){
-          return staffRows.map(op=>`<tr>
-            <td style="font-weight:600;color:#333">${op['Role']||'—'}${op['Description']?' · '+op['Description']:''}</td>
-            <td style="font-weight:500">${op['Provider Name']||mLine('','write name')}</td>
-            <td>${mLine(getPhone(op['Provider ID']),'—')}</td>
-            <td style="text-align:center">${op['Arrival Time']?fmtTime(op['Arrival Time']):mLine('','__:__')}</td>
-            <td style="text-align:center">${op['Departure Time']?fmtTime(op['Departure Time']):mLine('','__:__')}</td>
-          </tr>`).join('');
-        }
-        // Fallback: default roles if no Operations data
-        return ['Manager','Bartender','Server 1','Server 2','Security','Setup','Cleaning'].map(r=>`<tr>
-          <td style="font-weight:600;color:#333">${r}</td>
-          <td>${mLine('','write name')}</td>
-          <td>${mLine('','—')}</td>
-          <td style="border-bottom:2px dashed #BBB;background:#FAFAFA;font-size:10px;color:#BBB;padding:6px 10px;text-align:center">__:__</td>
-          <td style="border-bottom:2px dashed #BBB;background:#FAFAFA;font-size:10px;color:#BBB;padding:6px 10px;text-align:center">__:__</td>
-        </tr>`).join('');
-      })()}
-    </tbody>
-  </table>
+  <div class="sec-title">2. Provider & Staff Assignment</div>
+  ${(()=>{
+    const getPhone=(provId)=>{
+      const p=allDirectoryProviders&&allDirectoryProviders.find(p=>p['Provider ID']===provId);
+      return p?p['Phone']||'':'';
+    };
+    // One row per provider (dedupe)
+    const seen=new Set();
+    const allProv=currentOperations.filter(op=>{
+      const key=(op['Provider ID']||op['Provider Name'])+'||'+(op['Category']||'');
+      if(seen.has(key))return false;seen.add(key);
+      return (op['Provider Name']||'').trim()||op['Role'];
+    });
+    const svcType=(name,pid)=>{
+      const s=(currentServices||[]).find(x=>(x['Provider Name']||'')===(name||'')||(pid&&x['Provider ID']===pid));
+      return s?(s['Provider Type']||'Internal'):'Internal';
+    };
+    const internal=allProv.filter(op=>(op['Provider Type']||svcType(op['Provider Name'],op['Provider ID'])).toLowerCase()==='internal');
+    const external=allProv.filter(op=>(op['Provider Type']||svcType(op['Provider Name'],op['Provider ID'])).toLowerCase()!=='internal');
+    const rowsFor=(list)=>list.length?list.map(op=>`<tr>
+        <td style="font-weight:600;color:#333">${op['Role']||'—'}</td>
+        <td style="font-weight:500">${op['Provider Name']||mLine('','write name')}</td>
+        <td>${mLine(getPhone(op['Provider ID']),'—')}</td>
+        <td style="text-align:center">${op['Arrival Time']?fmtTime(op['Arrival Time']):mLine('','__:__')}</td>
+        <td style="text-align:center">${op['Departure Time']?fmtTime(op['Departure Time']):mLine('','__:__')}</td>
+      </tr>`).join(''):`<tr><td colspan="5" style="color:#AAA;font-style:italic;font-size:10px">None</td></tr>`;
+    return `
+      <div style="background:#EAF4ED;border-left:4px solid #1E7A3C;padding:6px 12px;margin:4px 0 6px;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#1E5C2E">Internal Team</div>
+      <table class="staff-table">
+        <thead><tr><th>Role</th><th>Name</th><th>Phone</th><th>Arrival</th><th>Departure</th></tr></thead>
+        <tbody>${rowsFor(internal)}</tbody>
+      </table>
+      <div style="background:#FFF1E0;border-left:4px solid #D4680A;padding:6px 12px;margin:16px 0 6px;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#B5560A">External &amp; Client Providers</div>
+      <table class="staff-table">
+        <thead><tr><th>Role</th><th>Name</th><th>Phone</th><th>Arrival</th><th>Departure</th></tr></thead>
+        <tbody>${rowsFor(external)}</tbody>
+      </table>`;
+  })()}
 </div>
 <div class="sec">
   <div class="sec-title">3. Event Timeline & Tasks</div>
@@ -4194,10 +4138,11 @@ async function loadOperations(){
     if(!Array.isArray(currentOperations)) currentOperations=[];
     if(!Array.isArray(currentTaskTemplates)) currentTaskTemplates=[];
     if(!Array.isArray(currentRoles)) currentRoles=[];
+    // Ensure Services (assigned roles) are loaded for the day-of selector
+    if(!currentServices||!currentServices.length){await loadServices();}
     renderOperations();
     renderTaskTemplates();
-    populateOpsRoleDropdown();
-    filterOpsProviders();
+    populateOpsAssignedRoles();
   }catch(e){currentOperations=[];currentTaskTemplates=[];currentRoles=[];renderOperations();}
 }
 
@@ -4287,24 +4232,8 @@ async function deleteRole(roleId,roleName){
   }catch(e){showToast('Error deleting role','error');}
   hideLoading();
 }
-// Rebuild the Operations role dropdown from the catalog (grouped by category) + Other
-function populateOpsRoleDropdown(){
-  const sel=document.getElementById('opsRole');
-  if(!sel)return;
-  const cur=sel.value;
-  const cats=['Venue','Catering','Decor','Entertainment','Photo'];
-  let html='<option value="">— Select —</option>';
-  cats.forEach(cat=>{
-    const list=currentRoles.filter(r=>(r['Category']||'')===cat);
-    if(!list.length)return;
-    html+=`<optgroup label="${cat}">`;
-    list.forEach(r=>{html+=`<option value="${r['Role Name']}">${r['Role Name']}</option>`;});
-    html+='</optgroup>';
-  });
-  html+='<option value="Other">Other</option>';
-  sel.innerHTML=html;
-  if(cur)sel.value=cur;
-}
+// (Deprecated) Operations role is now read-only, filled from the assigned role.
+function populateOpsRoleDropdown(){ /* no-op: role comes from Services assignment */ }
 
 function switchOpsView(view){
   const views={operations:'opsViewOperations',templates:'opsViewTemplates',roles:'opsViewRoles'};
@@ -4324,76 +4253,49 @@ function switchOpsView(view){
 }
 
 // ── PROVIDER SEARCH (Expenses style) ─────────────────────────────────────────
-function filterOpsProviders(){
-  const q=(document.getElementById('opsProvSearch').value||'').toLowerCase();
-  const cat=(document.getElementById('opsProvCatFilter').value||'').toLowerCase();
-  const sel=document.getElementById('opsProviderSelect');
-  const curVal=sel.value;
-  sel.innerHTML='<option value="">— Select —</option>';
-  const providers=allDirectoryProviders||[];
-  if(!providers.length){
-    sel.innerHTML='<option value="">No providers in directory</option>';
-    return;
+// Build the dropdown from roles already assigned in Services (with a provider)
+function populateOpsAssignedRoles(){
+  const sel=document.getElementById('opsAssignedRole');
+  if(!sel)return;
+  const cur=sel.value;
+  const assigned=(currentServices||[]).filter(s=>(s['Provider Name']||'').trim());
+  let html='<option value="">— Select —</option>';
+  if(!assigned.length){
+    html='<option value="">No providers assigned in Services yet</option>';
+  }else{
+    assigned.forEach(s=>{
+      const type=s['Provider Type']||'Internal';
+      html+=`<option value="${s['Detail ID']}">${s['Provider Name']} — ${s['Item']||''} (${type})</option>`;
+    });
   }
-  const filtered=providers.filter(p=>{
-    const name=(p['Name']||'').toLowerCase();
-    const pcat=(p['Category']||'').toLowerCase();
-    const role=(p['Role']||'').toLowerCase();
-    const matchQ=!q||name.includes(q)||role.includes(q);
-    // Staff filter also matches 'venue' category (Cardona Hall internal staff)
-    const catFilter=cat==='staff'?['staff','venue']:cat?[cat]:null;
-    const matchCat=!catFilter||catFilter.includes(pcat);
-    return matchQ&&matchCat&&p['Status']!=='Blacklisted';
-  });
-  filtered.forEach(p=>{
-    const opt=document.createElement('option');
-    opt.value=p['Provider ID'];
-    opt.dataset.name=p['Name']||'';
-    opt.dataset.category=p['Category']||'';
-    opt.dataset.role=p['Role']||'';
-    opt.textContent=`${p['Name']} — ${p['Category']}${p['Role']?' ('+p['Role']+')':''}`;
-    sel.appendChild(opt);
-  });
-  if(curVal) sel.value=curVal;
+  sel.innerHTML=html;
+  if(cur)sel.value=cur;
 }
 
-function onOpsProviderSelect(){
-  const sel=document.getElementById('opsProviderSelect');
-  const opt=sel.options[sel.selectedIndex];
-  if(!opt||!opt.value){
+function onOpsAssignedRoleSelect(){
+  const sel=document.getElementById('opsAssignedRole');
+  const detailId=sel.value;
+  if(!detailId){
     document.getElementById('opsTaskSection').style.display='none';
+    document.getElementById('opsRole').value='';
     document.getElementById('opsCategory').value='';
+    document.getElementById('opsType').value='';
     return;
   }
-  // Auto-fill category
-  const cat=opt.dataset.category||'';
+  const s=(currentServices||[]).find(x=>x['Detail ID']===detailId);
+  if(!s)return;
+  const cat=s['Division']||'';
+  document.getElementById('opsRole').value=s['Item']||'';
   document.getElementById('opsCategory').value=cat;
-  // Auto-fill role if matches list
-  const roleEl=document.getElementById('opsRole');
-  const provRole=opt.dataset.role||'';
-  let found=false;
-  for(let i=0;i<roleEl.options.length;i++){
-    if(roleEl.options[i].value===provRole){roleEl.selectedIndex=i;found=true;break;}
-  }
-  if(!found) roleEl.selectedIndex=0;
-  // Show tasks section
+  document.getElementById('opsType').value=s['Provider Type']||'Internal';
+  document.getElementById('opsDescription').value=s['Item']||'';
+  // Tasks section
   const taskSection=document.getElementById('opsTaskSection');
   taskSection.style.display='block';
-  document.getElementById('opsTaskSectionTitle').textContent=`Tasks for ${opt.dataset.name}`;
+  document.getElementById('opsTaskSectionTitle').textContent=`Tasks for ${s['Provider Name']}`;
   opsPendingTasks=[];
   renderOpsPendingTasks();
   renderOpsTaskCheckboxes(cat);
-}
-
-function onOpsRoleChange(){
-  const role=document.getElementById('opsRole').value;
-  const otherRow=document.getElementById('opsOtherCatRow');
-  otherRow.style.display=role==='Other'?'block':'none';
-  // Reload task checkboxes if category changes via Other
-  if(role==='Other'){
-    const cat=document.getElementById('opsOtherCat').value;
-    renderOpsTaskCheckboxes(cat);
-  }
 }
 
 function renderOpsTaskCheckboxes(category){
@@ -4457,57 +4359,36 @@ function removePendingTask(idx){
 }
 
 function showOpsForm(opId=null){
-  document.getElementById('opsForm').style.display='block';
-  document.getElementById('opsFormTitle').textContent=opId?'Edit Operation':'Add Provider / Task';
-  document.getElementById('opsEditId').value=opId||'';
-  opsPendingTasks=[];
-  renderOpsPendingTasks();
-  // Reset provider search
-  document.getElementById('opsProvSearch').value='';
-  document.getElementById('opsProvCatFilter').value='';
-  document.getElementById('opsProviderSelect').innerHTML='<option value="">— Type to search providers —</option>';
-  document.getElementById('opsSelectedProvider').style.display='none';
-  document.getElementById('opsCategory').value='';
-  document.getElementById('opsRole').selectedIndex=0;
-  document.getElementById('opsDescription').value='';
-  document.getElementById('opsArrival').value='';
-  document.getElementById('opsDeparture').value='';
-  document.getElementById('opsStatus').value='Pending';
-  document.getElementById('opsNotes').value='';
-  document.getElementById('opsOtherCatRow').style.display='none';
-  document.getElementById('opsTaskCheckboxes').innerHTML='<div style="font-size:11px;color:#AAA;font-style:italic">Select a provider to load tasks</div>';
+  // Form is always visible now; "Edit" just scrolls up and prefills logistics
+  const formEl=document.getElementById('opsAssignedRole');
+  if(formEl)formEl.scrollIntoView({behavior:'smooth'});
   if(opId){
     const op=currentOperations.find(o=>o['Operation ID']===opId);
     if(op){
-      document.getElementById('opsCategory').value=op['Category']||'';
-      document.getElementById('opsRole').value=op['Role']||'';
-      document.getElementById('opsDescription').value=op['Description']||'';
-      document.getElementById('opsArrival').value=op['Arrival Time']||'';
-      document.getElementById('opsDeparture').value=op['Departure Time']||'';
+      // Try to match the assigned-role select by provider name
+      const sel=document.getElementById('opsAssignedRole');
+      const match=(currentServices||[]).find(s=>(s['Provider Name']||'')===(op['Provider Name']||''));
+      if(match){sel.value=match['Detail ID'];onOpsAssignedRoleSelect();}
+      document.getElementById('opsArrival').value=op['Arrival Time']?String(op['Arrival Time']).split('T')[1]?.slice(0,5)||op['Arrival Time']:'';
+      document.getElementById('opsDeparture').value=op['Departure Time']?String(op['Departure Time']).split('T')[1]?.slice(0,5)||op['Departure Time']:'';
       document.getElementById('opsStatus').value=op['Status']||'Pending';
       document.getElementById('opsNotes').value=op['Notes']||'';
-      document.getElementById('opsSelectedProvider').style.display='block';
-      document.getElementById('opsSelectedProvider').textContent=`✓ ${op['Provider Name']||'—'} — ${op['Category']||''}`;
-      if(op['Category'])renderOpsTaskCheckboxes(op['Category']);
     }
   }
-  filterOpsProviders();
 }
 
 function hideOpsForm(){}
 
 function clearOpsForm(){
-  document.getElementById('opsProviderSelect').value='';
-  document.getElementById('opsProvSearch').value='';
-  document.getElementById('opsProvCatFilter').value='';
-  document.getElementById('opsRole').selectedIndex=0;
+  const a=document.getElementById('opsAssignedRole');if(a)a.value='';
+  document.getElementById('opsRole').value='';
   document.getElementById('opsCategory').value='';
+  const t=document.getElementById('opsType');if(t)t.value='';
   document.getElementById('opsDescription').value='';
   document.getElementById('opsArrival').value='';
   document.getElementById('opsDeparture').value='';
   document.getElementById('opsNotes').value='';
   document.getElementById('opsStatus').value='Pending';
-  document.getElementById('opsOtherCatRow').style.display='none';
   document.getElementById('opsTaskSection').style.display='none';
   document.getElementById('opsTaskCheckboxes').innerHTML='';
   document.getElementById('opsTasksList').innerHTML='';
@@ -4519,20 +4400,20 @@ function clearOpsForm(){
 
 async function saveOperation(){
   const editId='';
-  const sel=document.getElementById('opsProviderSelect');
-  const opt=sel.options[sel.selectedIndex];
-  const provId=opt&&opt.value?opt.value:'';
-  const provName=opt&&opt.value?(opt.dataset.name||''):'';
-  let category=document.getElementById('opsCategory').value;
-  const role=document.getElementById('opsRole').value;
-  if(role==='Other')category=document.getElementById('opsOtherCat').value;
-  const desc=document.getElementById('opsDescription').value;
+  const sel=document.getElementById('opsAssignedRole');
+  const detailId=sel.value;
+  if(!detailId){showToast('Select an assigned provider','error');return;}
+  const s=(currentServices||[]).find(x=>x['Detail ID']===detailId);
+  if(!s){showToast('Provider not found','error');return;}
+  const provId=s['Provider ID']||'';
+  const provName=s['Provider Name']||'';
+  const category=s['Division']||'';
+  const role=s['Item']||'';
+  const desc=s['Item']||'';
   const arrival=document.getElementById('opsArrival').value;
   const departure=document.getElementById('opsDeparture').value;
   const status=document.getElementById('opsStatus').value;
   const notes=document.getElementById('opsNotes').value;
-
-  if(!provId&&!role){showToast('Select a provider or role','error');return;}
 
   // Collect checked template tasks + custom tasks
   const checkedTasks=[];
@@ -4548,7 +4429,7 @@ async function saveOperation(){
     for(const task of recordsToSave){
       const opId=editId||`OPS-${currentEvent['RES#']}-${Date.now()}-${Math.random().toString(36).slice(2,6)}`;
       const payload={
-        action: editId&&allTasks.length<=1?'updateOperation':'saveOperation',
+        action:'saveOperation',
         'Operation ID':opId,
         'RES#':currentEvent['RES#'],
         'COT#':currentEvent['COT#'],
@@ -4564,12 +4445,14 @@ async function saveOperation(){
         'Task Start Time':task.duration||'',
         'Task End Time':'',
         'Status':status,
-        'Notes':notes
+        'Notes':notes,
+        'Provider Type':s['Provider Type']||'Internal'
       };
-      await fetch(SCRIPT_URL,{method:'POST',body:JSON.stringify(payload)});
+      await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(payload),headers:{'Content-Type':'text/plain'}});
     }
     showToast('Operation saved','success');
     clearOpsForm();
+    await new Promise(r=>setTimeout(r,1400));
     await loadOperations();
   }catch(e){showToast('Error saving operation','error');}
   hideLoading();
@@ -4614,66 +4497,87 @@ function renderOperations(){
     return;
   }
   // Group by Provider Name + Category
+  const svcType=(name,pid)=>{
+    const s=(currentServices||[]).find(x=>(x['Provider Name']||'')===(name||'')||(pid&&x['Provider ID']===pid));
+    return s?(s['Provider Type']||'Internal'):'Internal';
+  };
   const groups={};
   ops.forEach(op=>{
     const key=`${op['Category']}||${op['Provider Name']}||${op['Provider ID']}`;
-    if(!groups[key])groups[key]={cat:op['Category'],name:op['Provider Name'],provId:op['Provider ID'],role:op['Role'],desc:op['Description'],arrival:op['Arrival Time'],departure:op['Departure Time'],tasks:[]};
+    if(!groups[key])groups[key]={cat:op['Category'],name:op['Provider Name'],provId:op['Provider ID'],role:op['Role'],desc:op['Description'],arrival:op['Arrival Time'],departure:op['Departure Time'],ptype:(op['Provider Type']||svcType(op['Provider Name'],op['Provider ID'])),tasks:[]};
     if(op['Task Name']&&String(op['Task Name']).trim()){
       groups[key].tasks.push(op);
     }
   });
-  const catColors={Staff:'#8B6914',Entertainment:'#9C1060',Decor:'#7A5C10',Photo:'#006B82',Catering:'#1A5C2E',Other:'#555555'};
+  const catColors={Venue:'#8B6914',Staff:'#8B6914',Entertainment:'#9C1060',Decor:'#7A5C10',Photo:'#006B82',Catering:'#1A5C2E',Other:'#555555'};
   const statusColors={Pending:'#888',Confirmed:'#1A7A3C','In Progress':'#D4680A',Done:'#1E5C2E',Cancelled:'#CC2200'};
-  // Group by category for display
-  const byCat={};
-  Object.values(groups).forEach(g=>{
-    if(!byCat[g.cat])byCat[g.cat]=[];
-    byCat[g.cat].push(g);
-  });
-  let html='';
-  Object.entries(byCat).forEach(([cat,provs])=>{
-    const color=catColors[cat]||'#555';
-    html+=`<div style="margin-bottom:20px">
-      <div style="font-size:10px;font-weight:700;color:${color};letter-spacing:2px;text-transform:uppercase;padding:6px 0;border-bottom:2px solid ${color};margin-bottom:10px">${cat}</div>
-      ${provs.map(g=>{
-        const firstOp=currentOperations.find(o=>o['Provider ID']===g.provId&&o['Provider Name']===g.name);
-        const opId=firstOp?firstOp['Operation ID']:'';
-        const status=firstOp?firstOp['Status']:'Pending';
-        const sColor=statusColors[status]||'#888';
-        return `<div style="background:#FAFAFA;border:1px solid #EEE;border-radius:4px;padding:10px 14px;margin-bottom:8px">
-          <div style="display:flex;align-items:flex-start;gap:10px">
-            <div style="flex:1">
-              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
-                <span style="font-size:13px;font-weight:700;color:#222">${g.name||'(No provider)'}</span>
-                ${g.role?`<span style="font-size:10px;background:#EEE;color:#555;padding:2px 6px;border-radius:3px">${g.role}</span>`:''}
-                ${g.desc?`<span style="font-size:10px;color:#888;font-style:italic">${g.desc}</span>`:''}
-                <span style="font-size:10px;font-weight:700;color:${sColor};letter-spacing:1px;text-transform:uppercase">${status}</span>
-              </div>
-              <div style="display:flex;gap:14px;font-size:11px;color:#777;flex-wrap:wrap;margin-bottom:6px">
-                ${g.arrival?`<span>🕐 Arrives: <strong>${fmtTime(g.arrival)}</strong></span>`:''}
-                ${g.departure?`<span>🕐 Departs: <strong>${fmtTime(g.departure)}</strong></span>`:''}
-              </div>
-              ${g.tasks.length?`<div style="margin-top:6px">
-                ${g.tasks.map(t=>`<div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:11px;border-bottom:0.5px solid #F0F0F0">
-                  <span style="flex:1">📋 ${t['Task Name']}</span>
-                  ${t['Task Start Time']?`<span style="color:#888;font-size:10px;background:#F0F0F0;padding:1px 5px;border-radius:2px">${t['Task Start Time']}</span>`:''}
-                  <button onclick="deleteOperation('${t['Operation ID']}')" style="background:none;border:none;cursor:pointer;color:#CC2200;font-size:12px;padding:0 2px">✕</button>
-                </div>`).join('')}
-              </div>`:''}
-            </div>
-            <div style="display:flex;gap:6px;flex-shrink:0">
-              <select style="font-size:10px;padding:3px 6px;border:1px solid #DDD;border-radius:3px;background:#FFF" onchange="updateOpStatus('${opId}',this.value)">
-                ${['Pending','Confirmed','In Progress','Done','Cancelled'].map(s=>`<option value="${s}"${s===status?' selected':''}>${s}</option>`).join('')}
-              </select>
-              <button class="btn btn-outline btn-sm" onclick="showOpsForm('${opId}')">Edit</button>
-              <button class="btn btn-red btn-sm" onclick="deleteOperation('${opId}')">✕</button>
-            </div>
+
+  const renderGroup=(g)=>{
+    const firstOp=currentOperations.find(o=>o['Provider ID']===g.provId&&o['Provider Name']===g.name);
+    const opId=firstOp?firstOp['Operation ID']:'';
+    const status=firstOp?firstOp['Status']:'Pending';
+    const sColor=statusColors[status]||'#888';
+    const tBadge={internal:['Internal','#EAF4ED','#1E5C2E'],external:['External','#FFF1E0','#B5560A'],client:['Client','#E8E0F0','#6A3FA0']}[(g.ptype||'Internal').toLowerCase()]||['Internal','#EAF4ED','#1E5C2E'];
+    return `<div style="background:#FAFAFA;border:1px solid #EEE;border-radius:4px;padding:10px 14px;margin-bottom:8px">
+      <div style="display:flex;align-items:flex-start;gap:10px">
+        <div style="flex:1">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+            <span style="font-size:13px;font-weight:700;color:#222">${g.name||'(No provider)'}</span>
+            ${g.role?`<span style="font-size:10px;background:#EEE;color:#555;padding:2px 6px;border-radius:3px">${g.role}</span>`:''}
+            <span style="font-size:8px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;padding:1px 6px;border-radius:2px;background:${tBadge[1]};color:${tBadge[2]}">${tBadge[0]}</span>
+            <span style="font-size:10px;font-weight:700;color:${sColor};letter-spacing:1px;text-transform:uppercase">${status}</span>
           </div>
-        </div>`;
-      }).join('')}
+          <div style="display:flex;gap:14px;font-size:11px;color:#777;flex-wrap:wrap;margin-bottom:6px">
+            ${g.arrival?`<span>🕐 Arrives: <strong>${fmtTime(g.arrival)}</strong></span>`:''}
+            ${g.departure?`<span>🕐 Departs: <strong>${fmtTime(g.departure)}</strong></span>`:''}
+          </div>
+          ${g.tasks.length?`<div style="margin-top:6px">
+            ${g.tasks.map(t=>`<div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:11px;border-bottom:0.5px solid #F0F0F0">
+              <span style="flex:1">📋 ${t['Task Name']}</span>
+              ${t['Task Start Time']?`<span style="color:#888;font-size:10px;background:#F0F0F0;padding:1px 5px;border-radius:2px">${t['Task Start Time']}</span>`:''}
+              <button onclick="deleteOperation('${t['Operation ID']}')" style="background:none;border:none;cursor:pointer;color:#CC2200;font-size:12px;padding:0 2px">✕</button>
+            </div>`).join('')}
+          </div>`:''}
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <select style="font-size:10px;padding:3px 6px;border:1px solid #DDD;border-radius:3px;background:#FFF" onchange="updateOpStatus('${opId}',this.value)">
+            ${['Pending','Confirmed','In Progress','Done','Cancelled'].map(s=>`<option value="${s}"${s===status?' selected':''}>${s}</option>`).join('')}
+          </select>
+          <button class="btn btn-outline btn-sm" onclick="showOpsForm('${opId}')">Edit</button>
+          <button class="btn btn-red btn-sm" onclick="deleteOperation('${opId}')">✕</button>
+        </div>
+      </div>
     </div>`;
-  });
-  container.innerHTML=html;
+  };
+
+  // Split into Internal vs External/Client
+  const allGroups=Object.values(groups);
+  const internal=allGroups.filter(g=>(g.ptype||'Internal').toLowerCase()==='internal');
+  const external=allGroups.filter(g=>(g.ptype||'Internal').toLowerCase()!=='internal');
+
+  const renderSection=(title,list,barColor)=>{
+    if(!list.length)return '';
+    // group by category within the section
+    const byCat={};
+    list.forEach(g=>{(byCat[g.cat]=byCat[g.cat]||[]).push(g);});
+    let inner='';
+    Object.entries(byCat).forEach(([cat,provs])=>{
+      const color=catColors[cat]||'#555';
+      inner+=`<div style="margin-bottom:14px">
+        <div style="font-size:10px;font-weight:700;color:${color};letter-spacing:1.5px;text-transform:uppercase;padding:4px 0;border-bottom:1px solid #EEE;margin-bottom:8px">${cat}</div>
+        ${provs.map(renderGroup).join('')}
+      </div>`;
+    });
+    return `<div style="margin-bottom:24px">
+      <div style="font-size:12px;font-weight:700;color:#fff;background:${barColor};letter-spacing:2px;text-transform:uppercase;padding:8px 14px;border-radius:4px;margin-bottom:12px">${title}</div>
+      ${inner}
+    </div>`;
+  };
+
+  let html='';
+  html+=renderSection('Internal Team',internal,'#1E5C2E');
+  html+=renderSection('External & Client',external,'#B5560A');
+  container.innerHTML=html||'<div style="text-align:center;padding:30px;color:#AAA;font-size:13px">No operations found.</div>';
 }
 
 // ── TASK TEMPLATES CRUD ───────────────────────────────────────────────────────
