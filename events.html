@@ -543,11 +543,17 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
 
     <!-- P&L TAB -->
     <div class="tab-content" id="tab-pandl">
-      <div class="payments-summary" style="margin-bottom:24px;">
-        <div class="summary-card"><div class="summary-lbl">Total Revenue</div><div class="summary-val green" id="plRevenue">$0</div></div>
-        <div class="summary-card"><div class="summary-lbl">Total Expenses</div><div class="summary-val red" id="plExpenses">$0</div></div>
+      <div class="payments-summary" style="margin-bottom:16px;">
+        <div class="summary-card"><div class="summary-lbl">Total Revenue (billed)</div><div class="summary-val green" id="plRevenue">$0</div></div>
+        <div class="summary-card"><div class="summary-lbl">Expenses Paid</div><div class="summary-val red" id="plExpenses">$0</div></div>
         <div class="summary-card"><div class="summary-lbl">Net Profit</div><div class="summary-val" id="plProfit">$0</div></div>
         <div class="summary-card"><div class="summary-lbl">Margin</div><div class="summary-val white" id="plMargin">0%</div></div>
+      </div>
+      <div class="payments-summary" style="margin-bottom:24px;">
+        <div class="summary-card"><div class="summary-lbl">Expenses Agreed (to pay)</div><div class="summary-val" style="color:#E8A030" id="plExpAgreed">$0</div></div>
+        <div class="summary-card"><div class="summary-lbl">Pending to Providers</div><div class="summary-val" style="color:#E8A030" id="plExpPending">$0</div></div>
+        <div class="summary-card"><div class="summary-lbl">Projected Profit</div><div class="summary-val white" id="plProjProfit">$0</div></div>
+        <div class="summary-card"><div class="summary-lbl">Projected Margin</div><div class="summary-val white" id="plProjMargin">0%</div></div>
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
@@ -559,9 +565,9 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
           </table>
         </div>
         <div>
-          <div class="section-title">Expense Breakdown</div>
+          <div class="section-title">Expense Breakdown (internal)</div>
           <table class="data-table">
-            <thead><tr><th>Provider</th><th style="text-align:right">Agreed</th></tr></thead>
+            <thead><tr><th>Provider</th><th style="text-align:right">Agreed</th><th style="text-align:right">Paid</th></tr></thead>
             <tbody id="plExpenseBody"></tbody>
           </table>
         </div>
@@ -1831,31 +1837,59 @@ async function removeExpense(expenseId,providerName){
 
 // ── P&L ──
 function renderPL(){
-  const totalRevenue=getEventTotal();
-  const received=getTotalReceived();
-  const totalExpenses=currentExpenses.reduce((s,e)=>s+(parseFloat(e['Agreed Amount'])||0),0);
-  const netProfit=totalRevenue-totalExpenses;
+  // ── REVENUE (billed): contract Final Total + extra income (fees/clauses) ──
+  const base=parseFloat(currentEvent['Final Total'])||0;
+  // Extra income = client payments that are NOT deposits/installments toward the package
+  // (e.g. Date Change Fee, clauses). Identify by Type.
+  const extraIncomeTypes=['date change fee','force majeure fee','cancellation fee','clause','penalty','overtime'];
+  const extraIncome=(currentPayments||[]).filter(p=>{
+    const t=(p['Type']||'').toLowerCase();
+    return extraIncomeTypes.some(x=>t.includes(x));
+  });
+  const extraTotal=extraIncome.reduce((s,p)=>s+(parseFloat(p['Amount'])||0),0);
+  const totalRevenue=base+extraTotal;
+
+  // ── EXPENSES (internal only) ──
+  const internal=(currentExpenses||[]).filter(e=>(e['Provider Type']||'Internal').toLowerCase()==='internal');
+  const expPaid=internal.reduce((s,e)=>s+(parseFloat(e['Amount Paid'])||0),0);
+  const expAgreed=internal.reduce((s,e)=>s+(parseFloat(e['Agreed Amount'])||0),0);
+  const expPending=internal.reduce((s,e)=>{const b=(parseFloat(e['Agreed Amount'])||0)-(parseFloat(e['Amount Paid'])||0);return s+(b>0?b:0);},0);
+
+  // Net profit uses PAID expenses (real). Projected uses AGREED.
+  const netProfit=totalRevenue-expPaid;
   const margin=totalRevenue>0?Math.round(netProfit/totalRevenue*100):0;
+  const projProfit=totalRevenue-expAgreed;
+  const projMargin=totalRevenue>0?Math.round(projProfit/totalRevenue*100):0;
 
   document.getElementById('plRevenue').textContent=fmtMoney(totalRevenue);
-  document.getElementById('plExpenses').textContent=fmtMoney(totalExpenses);
+  document.getElementById('plExpenses').textContent=fmtMoney(expPaid);
   document.getElementById('plProfit').textContent=fmtMoney(netProfit);
   document.getElementById('plProfit').style.color=netProfit>=0?'#6EC98A':'#E87070';
   document.getElementById('plMargin').textContent=margin+'%';
   document.getElementById('plProfitLarge').textContent=fmtMoney(netProfit);
   document.getElementById('plProfitLarge').style.color=netProfit>=0?'#6EC98A':'#E87070';
 
+  document.getElementById('plExpAgreed').textContent=fmtMoney(expAgreed);
+  document.getElementById('plExpPending').textContent=fmtMoney(expPending);
+  document.getElementById('plProjProfit').textContent=fmtMoney(projProfit);
+  document.getElementById('plProjProfit').style.color=projProfit>=0?'#6EC98A':'#E87070';
+  document.getElementById('plProjMargin').textContent=projMargin+'%';
+
   // Revenue breakdown
-  const base=parseFloat(currentEvent['Final Total'])||0;
-  const extras=currentServices.reduce((s,sv)=>s+(parseFloat(sv['Price'])||0),0);
   let revRows=`<tr><td>Event Package</td><td style="text-align:right;font-weight:600">${fmtMoney(base)}</td></tr>`;
-  if(extras>0)currentServices.forEach(s=>{revRows+=`<tr><td style="color:#888;font-size:11px">${s['Item']}</td><td style="text-align:right;font-weight:600;font-size:11px">${fmtMoney(s['Price'])}</td></tr>`;});
-  revRows+=`<tr style="border-top:1px solid #EEE"><td style="font-weight:700">Total</td><td style="text-align:right;font-weight:700;color:#C9A84C">${fmtMoney(totalRevenue)}</td></tr>`;
+  extraIncome.forEach(p=>{
+    revRows+=`<tr><td style="color:#888;font-size:11px">${p['Type']||'Extra'}${p['Notes']?' · '+p['Notes']:''}</td><td style="text-align:right;font-weight:600;font-size:11px">${fmtMoney(parseFloat(p['Amount'])||0)}</td></tr>`;
+  });
+  revRows+=`<tr style="border-top:1px solid #EEE"><td style="font-weight:700">Total Billed</td><td style="text-align:right;font-weight:700;color:#C9A84C">${fmtMoney(totalRevenue)}</td></tr>`;
   document.getElementById('plRevenueBody').innerHTML=revRows;
 
-  // Expense breakdown
-  let expRows=currentExpenses.length?currentExpenses.map(e=>`<tr><td>${e['Provider Name']||'—'}<br><span style="font-size:10px;color:#AAA">${e['Role']||''}</span></td><td style="text-align:right;font-weight:600">${fmtMoney(e['Agreed Amount'])}</td></tr>`).join(''):'<tr><td colspan="2" class="no-data">No expenses</td></tr>';
-  if(currentExpenses.length)expRows+=`<tr style="border-top:1px solid #EEE"><td style="font-weight:700">Total</td><td style="text-align:right;font-weight:700;color:#E87070">${fmtMoney(totalExpenses)}</td></tr>`;
+  // Expense breakdown (internal only) — Agreed + Paid
+  let expRows=internal.length?internal.map(e=>{
+    const a=parseFloat(e['Agreed Amount'])||0;
+    const p=parseFloat(e['Amount Paid'])||0;
+    return `<tr><td>${e['Provider Name']||'—'}<br><span style="font-size:10px;color:#AAA">${e['Role']||''}</span></td><td style="text-align:right;font-weight:600">${fmtMoney(a)}</td><td style="text-align:right;font-weight:600;color:#1E5C2E">${fmtMoney(p)}</td></tr>`;
+  }).join(''):'<tr><td colspan="3" class="no-data">No internal expenses</td></tr>';
+  if(internal.length)expRows+=`<tr style="border-top:1px solid #EEE"><td style="font-weight:700">Total</td><td style="text-align:right;font-weight:700;color:#E8A030">${fmtMoney(expAgreed)}</td><td style="text-align:right;font-weight:700;color:#E87070">${fmtMoney(expPaid)}</td></tr>`;
   document.getElementById('plExpenseBody').innerHTML=expRows;
 }
 
