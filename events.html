@@ -717,10 +717,22 @@ function showToast(msg,type='success'){const t=document.getElementById('toast');
 function showLoading(){document.getElementById('overlay').classList.add('show');}
 function hideLoading(){document.getElementById('overlay').classList.remove('show');}
 
+// Extra income = client payments that are NOT package deposits/installments
+// (date change fees, clauses, penalties, overtime). Shared by Payments & P&L.
+function getExtraIncome(){
+  const types=['date change fee','force majeure fee','cancellation fee','clause','penalty','overtime'];
+  return (currentPayments||[]).filter(p=>{
+    const t=(p['Type']||'').toLowerCase();
+    return types.some(x=>t.includes(x));
+  });
+}
+function getExtraIncomeTotal(){
+  return getExtraIncome().reduce((s,p)=>s+(parseFloat(p['Amount'])||0),0);
+}
 function getEventTotal(){
   const base=parseFloat(currentEvent['Final Total'])||0;
-  const extras=currentServices.reduce((s,sv)=>s+(parseFloat(sv['Price'])||0),0);
-  return base+extras;
+  // Billed total = contract + extra income (fees/clauses), matching the P&L
+  return base+getExtraIncomeTotal();
 }
 
 function getTotalReceived(){
@@ -1839,14 +1851,8 @@ async function removeExpense(expenseId,providerName){
 function renderPL(){
   // ── REVENUE (billed): contract Final Total + extra income (fees/clauses) ──
   const base=parseFloat(currentEvent['Final Total'])||0;
-  // Extra income = client payments that are NOT deposits/installments toward the package
-  // (e.g. Date Change Fee, clauses). Identify by Type.
-  const extraIncomeTypes=['date change fee','force majeure fee','cancellation fee','clause','penalty','overtime'];
-  const extraIncome=(currentPayments||[]).filter(p=>{
-    const t=(p['Type']||'').toLowerCase();
-    return extraIncomeTypes.some(x=>t.includes(x));
-  });
-  const extraTotal=extraIncome.reduce((s,p)=>s+(parseFloat(p['Amount'])||0),0);
+  const extraIncome=getExtraIncome();
+  const extraTotal=getExtraIncomeTotal();
   const totalRevenue=base+extraTotal;
 
   // ── EXPENSES (internal only) ──
