@@ -1498,10 +1498,10 @@ ${balance<=0?'<div class="balance-bar"><span class="balance-lbl">Payment Status<
       <div style="font-size:9px;color:#999;letter-spacing:1px;">Date</div>
     </div>
     <div>
-      <div style="font-size:10px;color:#888;margin-bottom:24px;">Issued by Cardona Hall / Pilab Productions</div>
+      <div style="font-size:10px;color:#888;margin-bottom:24px;">Issued by CARDONA HALL LLC</div>
       <div style="border-bottom:1px solid #333;margin-bottom:6px;height:32px;"></div>
       <div style="font-size:9px;color:#999;letter-spacing:1px;">Authorized Signature</div>
-      <div style="margin-top:14px;font-size:11px;color:#555;font-weight:500;">James Cardona · Cardona Hall</div>
+      <div style="margin-top:14px;font-size:11px;color:#555;font-weight:500;">James Cardona · CARDONA HALL LLC</div>
     </div>
   </div>
 </div>
@@ -2209,71 +2209,196 @@ function mLine(val,hint=''){
   return `<span style="border-bottom:2px dashed #BBBBBB;padding:2px 4px;background:#FAFAFA;font-size:11px;color:#BBB;font-style:italic;min-width:120px;display:inline-block">${hint||''}</span>`;
 }
 
-function baseStyles(accentColor='#C9A84C',bgColor='#F8F5EE'){
+/* ============================================================================
+   FUNDACIÓN — funciones base (Fase 0). Reemplaza baseStyles/docHeader/docFooter
+   y AGREGA: PALETTES, BRAND, legalEntity, DOC_META, docPageOpen/docPageClose.
+   100% retrocompatible: las firmas viejas (accent string) siguen funcionando.
+   ============================================================================ */
+
+/* Brand tokens — single source of truth */
+const BRAND = {
+  wPi:'#D4A853', wLa:'#00B4D8', wB:'#C0368A', wDot:'#E8307A'  // Pilab wordmark (b corregido a #C0368A)
+};
+
+/* Paletas por grupo. dark = color estructural oscuro.
+   En Decor se reemplaza el negro por champagne (spec: no black). */
+const PALETTES = {
+  venue:   {accent:'#C9A84C', text:'#8B6914', dark:'#1A1A1A', headerBg:'#EDE8DC', infoBg:'#FBF5E6'},
+  decor:   {accent:'#B79A5B', text:'#7A6534', dark:'#7A6534', headerBg:'#F6F1E6', infoBg:'#F6F1E6'},
+  ent:     {accent:'#D6157E', text:'#A01060', dark:'#1A1A1A', headerBg:'#FBE9F2', infoBg:'#FBE9F2'},
+  photo:   {accent:'#2E86C1', text:'#1B5C8A', dark:'#1A1A1A', headerBg:'#E8F2FA', infoBg:'#E8F2FA'},
+  finance: {accent:'#B8902E', text:'#7A5E1C', dark:'#3A3A3A', headerBg:'#EFEDE7', infoBg:'#EFEDE7'}
+};
+
+/* legalEntity(docKey, providerCategory) — entidad legal por documento */
+function legalEntity(docKey, providerCategory){
+  const CH='CARDONA HALL LLC', PS='PILAB SOLUTIONS LLC';
+  // 11-18 = PILAB SOLUTIONS LLC
+  const psKeys=['contract_decor','decor_requirements','sitting_chart',
+                'contract_entertainment','music_program','contract_photo',
+                'photo_session','photo_coverage','balance_doc'];
+  // 19 Expense Receipt = según categoría del proveedor
+  if(docKey==='expense_receipt'||docKey==='provider_receipt'){
+    const c=(providerCategory||'').toLowerCase();
+    return (c==='catering'||c==='venue') ? CH : PS;
+  }
+  if(psKeys.includes(docKey)) return PS;
+  return CH; // 1-10, 20-23 + default
+}
+
+/* DOC_META — registro central de branding por documento (docKey → meta) */
+const DOC_META = {
+  // CLIENTE
+  contract_client:    {num:3,  group:'venue',   headerMode:'cardona', footerMode:'standard'},
+  receipt:            {num:4,  group:'venue',   headerMode:'cardona', footerMode:'standard'},
+  // VENUE
+  venue_rules:        {num:5,  group:'venue',   headerMode:'cardona', footerMode:'standard'},
+  venue_staff:        {num:6,  group:'venue',   headerMode:'cardona', footerMode:'standard'},
+  staff_summary:      {num:7,  group:'venue',   headerMode:'cardona', footerMode:'standard'},
+  provider_agreement: {num:8,  group:'venue',   headerMode:'cardona', footerMode:'standard'},
+  // CATERING
+  menu_selection:     {num:9,  group:'venue',   headerMode:'cardona', footerMode:'standard'},
+  catering_beo:       {num:10, group:'venue',   headerMode:'cardona', footerMode:'standard'},
+  // DECOR
+  contract_decor:     {num:11, group:'decor',   headerMode:'pilab',   footerMode:'pilab'},
+  decor_requirements: {num:12, group:'decor',   headerMode:'pilab',   footerMode:'pilab'},
+  sitting_chart:      {num:13, group:'decor',   headerMode:'pilab',   footerMode:'pilab'},
+  // ENTERTAINMENT
+  contract_entertainment:{num:14, group:'ent',  headerMode:'pilab',   footerMode:'pilab'},
+  music_program:      {num:15, group:'ent',     headerMode:'pilab',   footerMode:'pilab'},
+  // PHOTO & VIDEO
+  contract_photo:     {num:16, group:'photo',   headerMode:'pilab',   footerMode:'pilab'},
+  photo_coverage:     {num:17, group:'photo',   headerMode:'pilab',   footerMode:'pilab'},
+  photo_session:      {num:17, group:'photo',   headerMode:'pilab',   footerMode:'pilab'},
+  // FINANZAS
+  balance_doc:        {num:18, group:'finance', headerMode:'pilab',   footerMode:'pilab'},
+  expense_receipt:    {num:19, group:'finance', headerMode:'pilab',   footerMode:'pilab'},
+  // ENMIENDAS / LEGAL
+  cancellation:       {num:20, group:'venue',   headerMode:'cardona', footerMode:'standard'},
+  date_change:        {num:21, group:'venue',   headerMode:'cardona', footerMode:'standard'},
+  force_majeure:      {num:22, group:'venue',   headerMode:'cardona', footerMode:'standard'},
+  amendment:          {num:23, group:'venue',   headerMode:'cardona', footerMode:'standard'}
+};
+
+/* Resuelve la paleta a partir de: objeto paleta | string accent (legacy) | nada */
+function resolvePalette(p){
+  if(p && typeof p==='object' && p.accent) return p;          // ya es paleta
+  if(typeof p==='string'){                                     // legacy accent string
+    // Mapea los accents conocidos a su paleta; si no, arma una venue-like.
+    if(p==='#C9A84C') return PALETTES.venue;
+    if(p==='#B79A5B'||p==='#C9A24B') return PALETTES.decor;
+    if(p==='#D6157E'||p==='#E040A0') return PALETTES.ent;
+    if(p==='#2E86C1') return PALETTES.photo;
+    if(p==='#B8902E') return PALETTES.finance;
+    return {accent:p, text:p, dark:'#1A1A1A', headerBg:'#EDE8DC', infoBg:'#FBF5E6'};
+  }
+  return PALETTES.venue;
+}
+
+/* baseStyles — acepta paleta (nuevo) o accentColor string (legacy). El 2º arg
+   bgColor del viejo ya no se usa (se ignora sin romper la llamada). */
+function baseStyles(p, _bgLegacy){
+  const P = resolvePalette(p);
+  const A=P.accent, T=P.text, D=P.dark, HB=P.headerBg, IB=P.infoBg||HB;
+  const noticeTxt = (D==='#1A1A1A') ? '#CCC' : '#F2E9D6';
   return `
-@page{margin:12mm;size:A4;}
+@page{margin:14mm 12mm;size:A4;}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;}
-html,body{background:#fff;font-family:'Montserrat',sans-serif;font-size:12px;color:#2A2A2A;}
+html,body{background:#fff;font-family:'Montserrat',sans-serif;font-size:13.5px;color:#2A2A2A;}
 .doc{width:100%;background:#fff;}
-.hdr{background:#EDE8DC;padding:20px 24px 14px;display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid ${accentColor};}
-.ch-name{font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:700;color:${accentColor==='#C9A84C'?'#8B6914':accentColor};letter-spacing:2px;text-transform:uppercase;}
-.ch-addr{font-size:10px;color:#888;margin-top:3px;}
-.ch-sub{font-size:9px;color:${accentColor};font-weight:600;letter-spacing:1.5px;margin-top:3px;}
+/* tabla envolvente: thead = banda repetida en cada página impresa */
+.page-wrap{width:100%;border-collapse:collapse;}
+.page-wrap > thead{display:table-header-group;}
+.page-wrap > tbody > tr > td,.page-wrap > thead > tr > td{padding:0;}
+.run-band{display:flex;justify-content:space-between;align-items:center;background:${D};border-bottom:2px solid ${A};padding:5px 16px;}
+.run-band .rb-l{font-family:'Cormorant Garamond',serif;font-size:12px;letter-spacing:2px;color:${A};font-weight:700;}
+.run-band .rb-c{font-size:9px;letter-spacing:1.5px;color:#BBB;text-transform:uppercase;}
+.run-band .rb-r{font-size:9px;letter-spacing:.5px;color:#999;}
+.hdr{background:${HB};padding:22px 26px 16px;display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid ${A};}
+.ch-name{font-family:'Cormorant Garamond',serif;font-size:34px;font-weight:700;color:${T};letter-spacing:2px;text-transform:uppercase;}
+.ch-addr{font-size:11px;color:#888;margin-top:4px;}
+.ch-sub{font-size:10px;color:${A};font-weight:600;letter-spacing:1.5px;margin-top:4px;}
+.pilab-wm{font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:700;letter-spacing:1px;}
+.pilab-wm .w-pi{color:${BRAND.wPi};}.pilab-wm .w-la{color:${BRAND.wLa};}.pilab-wm .w-b{color:${BRAND.wB};}.pilab-wm .w-dot{color:${BRAND.wDot};}.pilab-wm .w-rest{color:${T};}
+.pilab-at{font-size:11px;color:#888;margin-top:4px;letter-spacing:.5px;}
 .doc-ref{text-align:right;}
-.doc-title{font-size:13px;font-weight:700;color:${accentColor==='#C9A84C'?'#8B6914':accentColor};letter-spacing:1px;text-transform:uppercase;}
-.doc-num{font-size:11px;color:#888;margin-top:4px;}
-.doc-date{font-size:10px;color:#999;margin-top:2px;}
-.notice-bar{background:#1A1A1A;padding:8px 18px;font-size:10px;color:#CCC;font-style:italic;border-left:4px solid ${accentColor};}
-.sec{padding:14px 24px;border-bottom:0.5px solid #EEEEEE;}
-.sec-title{font-size:9px;font-weight:700;color:${accentColor==='#C9A84C'?'#8B6914':accentColor};letter-spacing:3px;text-transform:uppercase;margin-bottom:10px;padding-bottom:5px;border-bottom:2px solid ${accentColor};}
-.field-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-.field-item{display:flex;flex-direction:column;gap:2px;}
-.field-lbl{font-size:8px;font-weight:600;color:#888;letter-spacing:1.5px;text-transform:uppercase;}
-.field-val{font-size:12px;color:#2A2A2A;font-weight:500;border-bottom:1px solid #CCCCCC;padding-bottom:3px;}
-/* MANUAL fields — dotted border, light background */
-.field-manual{font-size:12px;color:#2A2A2A;font-weight:400;border-bottom:2px dashed #BBBBBB;padding:3px 4px;background:#FAFAFA;min-height:20px;}
-.manual-line{border-bottom:2px dashed #BBBBBB;padding:3px 4px;background:#FAFAFA;min-height:20px;font-size:11px;color:#AAA;font-style:italic;}
-.info-box{background:#FBF5E6;border-left:4px solid ${accentColor};border-top:1px solid ${accentColor};border-bottom:1px solid ${accentColor};padding:10px 14px;margin:10px 0;font-size:11px;font-weight:600;color:#2A2A2A;}
-.warn-box{background:#FFF0EE;border-left:4px solid #CC2200;border-top:1px solid #CC2200;border-bottom:1px solid #CC2200;padding:10px 14px;margin:10px 0;font-size:11px;font-weight:600;color:#2A2A2A;}
-.services-table{width:100%;border-collapse:collapse;margin-top:8px;}
-.services-table th{background:#1A1A1A;color:${accentColor};font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:8px 10px;text-align:left;}
-.services-table td{padding:8px 10px;border-bottom:1px solid #F0F0F0;font-size:11px;vertical-align:top;}
+.doc-title{font-size:15px;font-weight:700;color:${T};letter-spacing:1px;text-transform:uppercase;}
+.doc-num{font-size:12px;color:#888;margin-top:5px;}
+.doc-date{font-size:11px;color:#999;margin-top:3px;}
+.notice-bar{background:${D};padding:10px 20px;font-size:11px;color:${noticeTxt};font-style:italic;border-left:4px solid ${A};}
+.sec{padding:15px 26px;border-bottom:0.5px solid #EEEEEE;page-break-inside:avoid;}
+.sec-title{font-size:11px;font-weight:700;color:${T};letter-spacing:3px;text-transform:uppercase;margin-bottom:11px;padding-bottom:6px;border-bottom:2px solid ${A};}
+.field-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.field-item{display:flex;flex-direction:column;gap:3px;}
+.field-lbl{font-size:9px;font-weight:600;color:#888;letter-spacing:1.5px;text-transform:uppercase;}
+.field-val{font-size:14px;color:#2A2A2A;font-weight:500;border-bottom:1px solid #CCCCCC;padding-bottom:4px;}
+.field-manual{font-size:13px;color:#2A2A2A;font-weight:400;border-bottom:2px dashed #BBBBBB;padding:3px 4px;background:#FAFAFA;min-height:22px;}
+.manual-line{border-bottom:2px dashed #BBBBBB;padding:3px 4px;background:#FAFAFA;min-height:22px;font-size:12px;color:#AAA;font-style:italic;}
+.info-box{background:${IB};border-left:4px solid ${A};border-top:1px solid ${A};border-bottom:1px solid ${A};padding:11px 15px;margin:10px 0;font-size:12px;font-weight:600;color:#2A2A2A;}
+.warn-box{background:#FFF0EE;border-left:4px solid #CC2200;border-top:1px solid #CC2200;border-bottom:1px solid #CC2200;padding:11px 15px;margin:10px 0;font-size:12px;font-weight:600;color:#2A2A2A;}
+.services-table{width:100%;border-collapse:collapse;margin-top:9px;}
+.services-table th{background:${D};color:${A};font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:9px 11px;text-align:left;}
+.services-table td{padding:9px 11px;border-bottom:1px solid #F0F0F0;font-size:12.5px;vertical-align:top;}
 .services-table tr:nth-child(even) td{background:#FAFAFA;}
-.services-table .total-row td{background:#1A1A1A;color:${accentColor};font-weight:700;font-size:12px;}
+.services-table .total-row td{background:${D};color:${A};font-weight:700;font-size:13.5px;}
 .bullet-list{list-style:none;padding:0;}
-.bullet-list li{padding:4px 0 4px 14px;font-size:11px;color:#333;border-bottom:0.5px solid #F5F5F5;position:relative;}
-.bullet-list li:before{content:"•";position:absolute;left:0;color:${accentColor};font-weight:700;}
-.cancel-table{width:100%;border-collapse:collapse;margin-top:8px;}
-.cancel-table th{background:#1A1A1A;color:${accentColor};font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:8px 10px;}
-.cancel-table td{padding:7px 10px;border-bottom:1px solid #F0F0F0;font-size:11px;}
+.bullet-list li{padding:5px 0 5px 16px;font-size:12.5px;color:#333;border-bottom:0.5px solid #F5F5F5;position:relative;}
+.bullet-list li:before{content:"•";position:absolute;left:0;color:${A};font-weight:700;}
+.cancel-table{width:100%;border-collapse:collapse;margin-top:9px;}
+.cancel-table th{background:${D};color:${A};font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:9px 11px;}
+.cancel-table td{padding:8px 11px;border-bottom:1px solid #F0F0F0;font-size:12.5px;}
 .cancel-table tr:nth-child(even) td{background:#FAFAFA;}
-.sig-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:16px;}
-.sig-block{display:flex;flex-direction:column;gap:6px;}
-.sig-line{border-bottom:1px solid #444;height:36px;}
-.sig-lbl{font-size:9px;color:#888;letter-spacing:1px;}
-.sig-name{font-size:11px;font-weight:600;color:#333;margin-top:3px;}
-.sig-date{border-bottom:1px solid #CCCCCC;height:28px;margin-top:14px;}
-.footer-bar{background:#1A1A1A;padding:10px 24px;display:flex;justify-content:space-between;align-items:center;border-top:2px solid ${accentColor};margin-top:auto;}
-.footer-l{font-size:9px;color:#888;}
+.sec p{font-size:12.5px;line-height:1.5;}
+.sig-grid{display:grid;grid-template-columns:1fr 1fr;gap:44px;margin-top:18px;}
+.sig-block{display:flex;flex-direction:column;gap:7px;}
+.sig-line{border-bottom:1px solid #444;height:40px;}
+.sig-lbl{font-size:10px;color:#888;letter-spacing:1px;}
+.sig-name{font-size:12.5px;font-weight:600;color:#333;margin-top:4px;}
+.sig-date{border-bottom:1px solid #CCCCCC;height:30px;margin-top:16px;}
+.footer-bar{background:${D};padding:11px 26px;display:flex;justify-content:space-between;align-items:center;border-top:2px solid ${A};margin-top:auto;}
+.footer-l{font-size:10px;color:#999;}
+.footer-std-r{font-size:11px;color:${A};font-family:'Cormorant Garamond',serif;letter-spacing:1.5px;}
 .footer-r{display:flex;align-items:center;gap:8px;}
 .pdot{width:6px;height:6px;border-radius:50%;display:inline-block;}
 .pilab-txt{font-size:10px;}
-.p-pi{color:#D4A853;}.p-la{color:#00B4D8;}.p-b{color:#E040A0;}.p-dot{color:#E8307A;}.p-rest{color:#888;}
-@media print{
-  *{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;}
-  @page{margin:12mm;size:A4;}
-  html{-webkit-print-color-adjust:exact;}
-}`;
+.p-pi{color:${BRAND.wPi};}.p-la{color:${BRAND.wLa};}.p-b{color:${BRAND.wB};}.p-dot{color:${BRAND.wDot};}.p-rest{color:#999;}
+@media print{*{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;}@page{margin:14mm 12mm;size:A4;}html{-webkit-print-color-adjust:exact;}}`;
 }
 
-function docHeader(title, refNum, division='Produced by Pilab Productions', accentColor='#C9A84C'){
-  const textColor = accentColor === '#C9A84C' ? '#8B6914' : accentColor;
+/* docHeader — legacy: docHeader(title, ref, division, accentColor)
+   nuevo:  docHeader(title, ref, {mode, sub, palette})
+   Detecta si el 3er arg es objeto (nuevo) o string (legacy). */
+function docHeader(title, refNum, divisionOrOpts, accentColor){
+  let mode='cardona', sub='Produced by Pilab Productions', P=PALETTES.venue;
+  if(divisionOrOpts && typeof divisionOrOpts==='object'){
+    mode = divisionOrOpts.mode || 'cardona';
+    sub  = divisionOrOpts.sub  || sub;
+    P    = resolvePalette(divisionOrOpts.palette || accentColor);
+  } else {
+    if(typeof divisionOrOpts==='string') sub = divisionOrOpts;  // legacy division text
+    P = resolvePalette(accentColor);
+  }
+  if(mode==='pilab'){
+    return `
+<div class="hdr">
+  <div>
+    <div class="pilab-wm"><span class="w-pi">Pi</span><span class="w-la">la</span><span class="w-b">b</span><span class="w-dot">.</span><span class="w-rest"> Productions</span></div>
+    <div class="pilab-at">at Cardona Hall · 72 Hoover Avenue, Passaic, NJ 07055</div>
+    <div class="ch-sub">${sub}</div>
+  </div>
+  <div class="doc-ref">
+    <div class="doc-title">${title}</div>
+    <div class="doc-num">${refNum}</div>
+    <div class="doc-date">Issued: ${docToday()}</div>
+  </div>
+</div>`;
+  }
   return `
 <div class="hdr">
   <div>
     <div class="ch-name">Cardona Hall</div>
     <div class="ch-addr">72 Hoover Avenue, Passaic, NJ 07055</div>
-    <div class="ch-sub">${division}</div>
+    <div class="ch-sub">${sub}</div>
   </div>
   <div class="doc-ref">
     <div class="doc-title">${title}</div>
@@ -2283,16 +2408,47 @@ function docHeader(title, refNum, division='Produced by Pilab Productions', acce
 </div>`;
 }
 
-function docFooter(division='Pilab Productions · Cardona Hall LLC · Passaic, NJ 07055'){
+/* docFooter — legacy: docFooter(divisionText)  nuevo: docFooter({mode}) */
+function docFooter(divisionOrOpts){
+  let mode='pilab', division='Pilab Productions · Cardona Hall LLC · Passaic, NJ 07055';
+  if(divisionOrOpts && typeof divisionOrOpts==='object'){
+    mode = divisionOrOpts.mode || 'pilab';
+  } else if(typeof divisionOrOpts==='string'){
+    division = divisionOrOpts;            // legacy: mantiene comportamiento viejo (footer pilab con texto)
+    mode = 'pilab';
+  }
+  const contact = `cardonahall.com &nbsp;·&nbsp; jcardona@cardonahall.com &nbsp;·&nbsp; +1 862-232-0117`;
+  if(mode==='standard'){
+    return `
+<div class="footer-bar">
+  <div class="footer-l">${contact}</div>
+  <div class="footer-std-r">CARDONA HALL</div>
+</div>`;
+  }
+  // pilab (3-dot band) — comportamiento legacy preservado
   return `
 <div class="footer-bar">
-  <div class="footer-l">cardonahall.com &nbsp;·&nbsp; jcardona@cardonahall.com &nbsp;·&nbsp; +1 862-232-0117</div>
+  <div class="footer-l">${contact}</div>
   <div class="footer-r">
-    <div style="display:flex;gap:3px"><div class="pdot" style="background:#D4A853"></div><div class="pdot" style="background:#00B4D8"></div><div class="pdot" style="background:#E040A0"></div></div>
-    <div class="pilab-txt"><span class="p-pi">Pi</span><span class="p-la">la</span><span class="p-b">b</span><span class="p-dot">.</span><span class="p-rest"> ${division}</span></div>
+    <div style="display:flex;gap:3px"><div class="pdot" style="background:${BRAND.wPi}"></div><div class="pdot" style="background:${BRAND.wLa}"></div><div class="pdot" style="background:${BRAND.wB}"></div></div>
+    <div class="pilab-txt"><span class="p-pi">Pi</span><span class="p-la">la</span><span class="p-b">b</span><span class="p-dot">.</span><span class="p-rest"> ${(typeof divisionOrOpts==='string')?divisionOrOpts:'Productions'}</span></div>
   </div>
 </div>`;
 }
+
+/* Banda repetida: envuelve el documento en una tabla cuyo thead se repite al
+   imprimir. docPageOpen abre la tabla+thead; docPageClose la cierra. */
+function docPageOpen(bandL, bandC, bandR){
+  return `<table class="page-wrap"><thead><tr><td>
+  <div class="run-band">
+    <span class="rb-l">${bandL||'CARDONA HALL'}</span>
+    <span class="rb-c">${bandC||''}</span>
+    <span class="rb-r">${bandR||''}</span>
+  </div>
+</td></tr></thead><tbody><tr><td>`;
+}
+function docPageClose(){ return `</td></tr></tbody></table>`; }
+
 
 function sigBlock(leftLabel, leftName, rightLabel='Client Signature'){
   return `
@@ -2591,20 +2747,27 @@ function generateClientContract(){
   const win=docOpen(); if(!win)return;
   const e=currentEvent;
   const copy=isCopy('contract_client');
+  const ENTITY=legalEntity('contract_client'); // CARDONA HALL LLC
+  const total=getEventTotal();
+  const received=getTotalReceived();
+  const balance=total-received;
+  const fmtBal=(received<=0)?'<span style="color:#CC2200;font-weight:600">'+fmtM(total)+' (full amount — no deposit yet)</span>':'<span style="color:'+(balance<=0?'#1E5C2E':'#CC2200')+';font-weight:600">'+fmtM(balance)+'</span>';
+  const fmtDep=(received<=0)?'<span style="color:#999">$0 — pending</span>':'<span style="color:#1E5C2E;font-weight:600">'+fmtM(received)+'</span>';
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
 <title>Service Agreement — ${e['RES#']}</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
-<style>${baseStyles('#C9A84C')}</style></head><body>
+<style>${baseStyles(PALETTES.venue)}</style></head><body>
 ${copy?copyWatermark():''}
 <div class="doc">
-${docHeader('Service Agreement',`${e['COT#']} / ${e['RES#']}`)}
+${docPageOpen('CARDONA HALL','Service Agreement',`${e['COT#']} / ${e['RES#']}`)}
+${docHeader('Service Agreement',`${e['COT#']} / ${e['RES#']}`,{mode:'cardona',sub:'Client Service Agreement'})}
 <div class="notice-bar">This contract must be signed and returned within 24 hours of issuance. After this period, the reserved date will be released and any deposit paid will be forfeited.</div>
 
 <div class="sec">
   <div class="sec-title">1. Parties</div>
-  <p style="font-size:11px;color:#555;margin-bottom:10px">This Service Agreement is entered into on ${docToday()}, between:</p>
+  <p style="font-size:12.5px;color:#555;margin-bottom:10px">This Service Agreement is entered into on ${docToday()}, between:</p>
   <div class="field-grid">
-    <div class="field-item"><div class="field-lbl">Service Provider</div><div class="field-val">Cardona Hall LLC / Pilab Productions LLC — 72 Hoover Ave, Passaic, NJ 07055</div></div>
+    <div class="field-item"><div class="field-lbl">Service Provider (Contracting Party)</div><div class="field-val">${ENTITY} — 72 Hoover Ave, Passaic, NJ 07055</div></div>
     <div class="field-item"><div class="field-lbl">Client Name</div><div class="field-val">${e['Client Name']||'—'}</div></div>
     <div class="field-item"><div class="field-lbl">Client Phone</div><div class="field-val">${e['Phone']||'—'}</div></div>
     <div class="field-item"><div class="field-lbl">Client Email</div><div class="field-val">${e['Email']||'—'}</div></div>
@@ -2624,7 +2787,7 @@ ${docHeader('Service Agreement',`${e['COT#']} / ${e['RES#']}`)}
 
 <div class="sec">
   <div class="sec-title">3. Services & Pricing</div>
-  <p style="font-size:10px;color:#777;margin-bottom:8px">All prices are final and include applicable taxes. No additional fees or surcharges apply.</p>
+  <p style="font-size:12px;color:#777;margin-bottom:8px">All prices are final and include applicable taxes. No additional fees or surcharges apply.</p>
   ${servicesTableHTML()}
 </div>
 
@@ -2632,7 +2795,8 @@ ${docHeader('Service Agreement',`${e['COT#']} / ${e['RES#']}`)}
   <div class="sec-title">4. Guest Count & Final Confirmation</div>
   <ul class="bullet-list">
     <li>Final confirmed guest count must be submitted no later than <strong>14 days before the event</strong>.</li>
-    <li>If additional guests arrive on the day of the event beyond the confirmed count, a charge of <strong>$60 per additional person</strong> will be applied and registered as an additional service.</li>
+    <li>Additional guests added <strong>15 or more days before the event</strong> are charged <strong>$45 per person</strong>. Additional guests added <strong>within 15 days of the event, or on the event day</strong>, are charged <strong>$60 per person</strong>.</li>
+    <li>Any additional person is registered as an added service and formalized through a signed Amendment.</li>
     <li>Reductions after the final confirmation date are not permitted — the guaranteed count remains the billing basis.</li>
     <li>Children age 5 and over count as adults for guest count, catering, and venue capacity purposes.</li>
   </ul>
@@ -2641,20 +2805,21 @@ ${docHeader('Service Agreement',`${e['COT#']} / ${e['RES#']}`)}
 <div class="sec">
   <div class="sec-title">5. Payment Schedule</div>
   <table class="services-table">
-    <thead><tr><th>Installment</th><th>Amount</th><th>Due Date</th><th>Method</th></tr></thead>
+    <thead><tr><th>Concept</th><th>Amount</th><th>Status / Due Date</th><th>Method</th></tr></thead>
     <tbody>
-      <tr><td style="font-weight:600">Deposit</td><td>${depositHTML()}</td><td>To confirm reservation</td><td>Cash / Zelle / Check / Card</td></tr>
-      <tr><td style="font-weight:600">Balance</td><td>[Balance amount]</td><td>8 days before event</td><td>Cash / Zelle / Check / Card</td></tr>
+      <tr><td style="font-weight:600">Deposit received to date</td><td>${fmtDep}</td><td>Reservation confirmed</td><td>Cash / Zelle / Check / Card</td></tr>
+      <tr><td style="font-weight:600">Outstanding balance</td><td>${fmtBal}</td><td>Due 8 days before event</td><td>Cash / Zelle / Check / Card</td></tr>
+      <tr class="total-row"><td>TOTAL CONTRACT VALUE</td><td>${fmtM(total)}</td><td colspan="2"></td></tr>
     </tbody>
   </table>
-  <p style="font-size:10px;color:#777;margin-top:8px">A receipt will be issued for each payment. All discounts apply exclusively to events held at Cardona Hall.</p>
-  <p style="font-size:10px;color:#CC2200;margin-top:6px;font-weight:600">Late Payment Penalty: Payments not received by the agreed due date will accrue interest at 1.5% per month on the outstanding balance, with a minimum charge of $50 per month.</p>
+  <p style="font-size:12px;color:#777;margin-top:8px">A receipt will be issued for each payment. All discounts apply exclusively to events held at Cardona Hall.</p>
+  <p style="font-size:12px;color:#CC2200;margin-top:6px;font-weight:600">Late Payment Penalty: Payments not received by the agreed due date will accrue interest at 1.5% per month on the outstanding balance, with a minimum charge of $50 per month.</p>
 </div>
 
 <div class="sec">
   <div class="sec-title">6. Security Deposit</div>
   <div class="info-box">A refundable security deposit is required no later than 8 days before the event.</div>
-  <p style="font-size:11px;color:#555;margin:8px 0 6px">Refunded within 7 business days after the event if no damage, no penalty fees, and all terms met. If damage or penalties exceed the deposit amount, the client is responsible for the balance within 7 days.</p>
+  <p style="font-size:12.5px;color:#555;margin:8px 0 6px">Refunded within 7 business days after the event if no damage, no penalty fees, and all terms met. If damage or penalties exceed the deposit amount, the client is responsible for the balance within 7 days.</p>
 </div>
 
 <div class="sec">
@@ -2670,7 +2835,7 @@ ${docHeader('Service Agreement',`${e['COT#']} / ${e['RES#']}`)}
       <tr><td>< 15 days before event</td><td style="font-weight:600">100% of total</td><td>No refund</td></tr>
     </tbody>
   </table>
-  <p style="font-size:10px;color:#777;margin-top:8px">Cancellation must be submitted in writing. See Section 14 — Force Majeure for exceptions.</p>
+  <p style="font-size:12px;color:#777;margin-top:8px">Cancellation must be submitted in writing. See Section 14 — Force Majeure for exceptions.</p>
 </div>
 
 <div class="sec">
@@ -2686,7 +2851,7 @@ ${docHeader('Service Agreement',`${e['COT#']} / ${e['RES#']}`)}
       <tr><td>< 15 days</td><td style="font-weight:600">Not permitted — treated as cancellation</td></tr>
     </tbody>
   </table>
-  <p style="font-size:10px;color:#777;margin-top:8px">New date must be available within 12 months of original event date. Only one change permitted per contract.</p>
+  <p style="font-size:12px;color:#777;margin-top:8px">New date must be available within 12 months of original event date. Only one change permitted per contract.</p>
 </div>
 
 <div class="sec">
@@ -2699,61 +2864,81 @@ ${docHeader('Service Agreement',`${e['COT#']} / ${e['RES#']}`)}
 </div>
 
 <div class="sec">
-  <div class="sec-title">10. Alcohol & Beverage Policy</div>
-  <div class="warn-box">Cardona Hall does not sell alcohol. Clients may bring their own (BYOB) subject to the conditions below.</div>
+  <div class="sec-title">10. Alcohol & Beverage Policy (BYOB)</div>
+  <div class="warn-box">Cardona Hall does not sell alcohol. Under New Jersey law (N.J.S.A. 2C:33-27), clients may bring <strong>wine and beer only</strong> — no spirits or hard liquor are permitted on the premises.</div>
   <ul class="bullet-list">
-    <li>All alcohol must be handed to Cardona Hall staff upon arrival. Staff manages all service from the bar.</li>
+    <li>All wine and beer must be handed to Cardona Hall staff upon arrival. Staff manages all service from the bar.</li>
     <li>No bottles or cans on guest tables at any time. All beverages must be served in glassware provided by Cardona Hall.</li>
     <li>The bar closes 1 hour before the agreed event end time. If the event runs into overtime, the bar remains closed — no exceptions.</li>
-    <li>All remaining alcohol is returned to the client at venue handover after the event.</li>
+    <li>All remaining wine and beer is returned to the client at venue handover after the event.</li>
     <li>The client is responsible for ensuring no person under 21 consumes alcohol. Violations are governed by the Venue Rules & Policies document.</li>
   </ul>
 </div>
 
 <div class="sec">
-  <div class="sec-title">11. External Vendor Policy</div>
+  <div class="sec-title">11. Photography & Venue Media Rules</div>
   <ul class="bullet-list">
-    <li>External vendors must be approved in writing by Pilab Productions LLC at least 14 days before the event.</li>
-    <li>Every external vendor must submit a valid Certificate of Insurance (COI) — minimum $500,000 General Liability — naming Pilab Productions LLC / Cardona Hall LLC as Additional Insured.</li>
-    <li>Vendors without a valid COI will not be permitted to enter the premises on the event date.</li>
-    <li>Pilab Productions LLC is not responsible for the performance, conduct, or failure of external vendors.</li>
+    <li>No photographs may be taken on or staged at external tables not contracted as part of the event.</li>
+    <li>No photographs or prints may be hung, taped, or mounted on the venue walls at any time.</li>
+    <li>These rules apply to all photographers, whether contracted through Pilab Productions or brought by the client.</li>
   </ul>
 </div>
 
 <div class="sec">
-  <div class="sec-title">12. Conduct & Liability</div>
+  <div class="sec-title">12. External Vendor Policy</div>
+  <ul class="bullet-list">
+    <li>External vendors must be approved in writing by ${ENTITY} at least 14 days before the event.</li>
+    <li>Every external vendor must submit a valid Certificate of Insurance (COI) — minimum $500,000 General Liability — naming ${ENTITY} as Additional Insured.</li>
+    <li>Vendors without a valid COI will not be permitted to enter the premises on the event date.</li>
+    <li>${ENTITY} is not responsible for the performance, conduct, or failure of external vendors.</li>
+  </ul>
+</div>
+
+<div class="sec">
+  <div class="sec-title">13. Conduct & Liability</div>
   <ul class="bullet-list">
     <li>The Client is responsible for the conduct of all guests. Cardona Hall may terminate the event for aggressive behavior or policy violations — no refund will be issued.</li>
-    <li>The Client shall indemnify, defend, and hold harmless Cardona Hall LLC, Pilab Productions LLC, and their staff from any claims, damages, or expenses arising from the event.</li>
+    <li>The Client shall indemnify, defend, and hold harmless ${ENTITY} and its staff from any claims, damages, or expenses arising from the event.</li>
     <li>Cardona Hall's liability to the Client shall not exceed the total amount paid under this Agreement.</li>
   </ul>
 </div>
 
 <div class="sec">
-  <div class="sec-title">13. Media, Privacy & Intellectual Property</div>
+  <div class="sec-title">14. Media, Privacy & Intellectual Property</div>
   <ul class="bullet-list">
-    <li><strong>Marketing Consent:</strong> Cardona Hall / Pilab Productions LLC may use event photos and video for marketing purposes. To opt out, notify in writing at signing.</li>
+    <li><strong>Marketing Consent:</strong> ${ENTITY} may use event photos and video for marketing purposes. To opt out, notify in writing at signing.</li>
     <li><strong>Client Recording:</strong> The client and guests may photograph/record for personal use. Commercial streaming requires prior written approval.</li>
-    <li><strong>Delivered Media:</strong> Photos and video delivered by Pilab Productions LLC are for personal, non-commercial use only.</li>
-    <li><strong>IP — Decor:</strong> All decoration designs created by Pilab Productions LLC are their intellectual property and may not be replicated without written authorization.</li>
+    <li><strong>Delivered Media:</strong> Photos and video delivered are for personal, non-commercial use only.</li>
+    <li><strong>IP — Decor:</strong> All decoration designs are intellectual property and may not be replicated without written authorization.</li>
   </ul>
 </div>
 
 <div class="sec">
-  <div class="sec-title">14. Force Majeure</div>
-  <p style="font-size:11px;color:#555">Neither party shall be liable for failure to perform due to circumstances beyond their reasonable control (natural disasters, government restrictions, public health emergencies, building damage). If Cardona Hall cancels due to force majeure, all payments will be refunded within 14 business days. Force majeure claims by the client must be supported by written documentation (medical certificate, death certificate, official report).</p>
+  <div class="sec-title">15. Force Majeure</div>
+  <p style="font-size:12.5px;color:#555">Neither party shall be liable for failure to perform due to circumstances beyond their reasonable control (natural disasters, government restrictions, public health emergencies, building damage). If Cardona Hall cancels due to force majeure, all payments will be refunded within 14 business days. Force majeure claims by the client must be supported by written documentation (medical certificate, death certificate, official report).</p>
 </div>
 
 <div class="sec">
-  <div class="sec-title">15. Governing Law & Entire Agreement</div>
-  <p style="font-size:11px;color:#555">This Agreement is governed by the laws of the State of New Jersey. Any dispute shall be submitted to mediation or arbitration in New Jersey before any legal action. This Agreement, together with the Venue Rules & Policies and any signed Amendments, constitutes the entire agreement between the parties. Cardona Hall LLC and Pilab Productions LLC are related entities operating as a single event management platform.</p>
+  <div class="sec-title">16. Governing Law & Entire Agreement</div>
+  <p style="font-size:12.5px;color:#555">This Agreement is governed by the laws of the State of New Jersey. Any dispute shall be submitted to mediation or arbitration in New Jersey before any legal action. This Agreement, together with the Venue Rules & Policies and any signed Amendments, constitutes the entire agreement between the parties.</p>
+</div>
+
+<div class="sec">
+  <div class="sec-title">17. Confidentiality</div>
+  <p style="font-size:12.5px;color:#555">Both parties agree to keep confidential the commercial terms of this Agreement, including pricing, discounts, and any non-public business information disclosed during the planning and execution of the event. This obligation survives the completion or termination of this Agreement. Disclosure is permitted only where required by law or with the other party's written consent.</p>
+</div>
+
+<div class="sec">
+  <div class="sec-title">18. Attorney's Fees</div>
+  <p style="font-size:12.5px;color:#555">In the event of any dispute, claim, or legal action arising out of or relating to this Agreement, the prevailing party shall be entitled to recover its reasonable attorney's fees, court costs, and collection expenses from the non-prevailing party, in addition to any other relief granted.</p>
 </div>
 
 <div class="sec">
   <div class="sec-title">Signatures</div>
-  ${sigBlock('Authorized — James Cardona · Cardona Hall LLC / Pilab Productions LLC','James Cardona · Cardona Hall LLC / Pilab Productions LLC')}
+  ${sigBlock('Authorized — James Cardona · '+ENTITY,'James Cardona · '+ENTITY)}
 </div>
-${docFooter('Productions LLC')}
+${docFooter({mode:'standard'})}
+${docPageClose()}
 </div>
 <script>window.onload=function(){document.title=' ';try{history.replaceState(null,'',' ');}catch(e){}setTimeout(function(){window.print();},1000);};<\/script>
 </body></html>`;
