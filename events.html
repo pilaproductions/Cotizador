@@ -243,7 +243,8 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
 
       <div class="status-section">
         <span class="status-label">Event Status:</span>
-        <button class="btn btn-blue btn-sm" onclick="generateReceipt()">⬇ Receipt PDF</button>
+        <button class="btn btn-blue btn-sm" id="btnReceipt" onclick="generateReceipt()">⬇ Receipt PDF</button>
+        <span class="alert-msg" id="receiptAlert" style="display:none">No payments yet — receipt unavailable</span>
         <button class="btn btn-green btn-sm" id="btnComplete" onclick="updateStatus('Completed')">✓ Mark as Completed</button>
         <button class="btn btn-sm" id="btnChangeDate" style="background:#D4680A;color:#fff" onclick="openDateChangeForm()">📅 Change Date</button>
         <button class="btn btn-red btn-sm" onclick="updateStatus('Cancelled')">✕ Cancel Event</button>
@@ -879,6 +880,19 @@ function renderPayments(){
   if(balance>0){completeBtn.disabled=true;completeBtn.style.opacity='0.4';alert.style.display='inline';}
   else{completeBtn.disabled=false;completeBtn.style.opacity='1';alert.style.display='none';}
 
+  // Receipt quick-access: disabled with reason when there are no payments
+  const receiptBtn=document.getElementById('btnReceipt');
+  const receiptAlert=document.getElementById('receiptAlert');
+  if(receiptBtn){
+    if(currentPayments.length===0){
+      receiptBtn.disabled=true;receiptBtn.style.opacity='0.4';receiptBtn.style.cursor='not-allowed';
+      if(receiptAlert)receiptAlert.style.display='inline';
+    } else {
+      receiptBtn.disabled=false;receiptBtn.style.opacity='1';receiptBtn.style.cursor='pointer';
+      if(receiptAlert)receiptAlert.style.display='none';
+    }
+  }
+
   if(!currentPayments.length){
     document.getElementById('paymentsBody').innerHTML='<tr><td colspan="7" class="no-data">No payments registered yet</td></tr>';
     return;
@@ -1379,6 +1393,10 @@ async function saveDateChange(){
 }
 
 function generateReceipt(){
+  if(!currentPayments||currentPayments.length===0){
+    showToast('No payments recorded — receipt unavailable','error');
+    return;
+  }
   const today=new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
   const total=getEventTotal();
   const received=getTotalReceived();
@@ -2159,16 +2177,27 @@ function etLabel(){
 function isWeekend(){const d=(currentEvent['Day of Week']||'').toLowerCase();return d==='saturday'||d==='sunday'||d==='friday';}
 function fmtTime(t){
   if(!t)return '';
-  // Handle ISO date-time string like 1899-12-31T04:00:00.000Z
-  if(typeof t==='string'&&t.includes('T')){
-    const parts=t.split('T');
-    if(parts[1]){
-      const timeParts=parts[1].split(':');
-      if(timeParts.length>=2)return `${timeParts[0].padStart(2,'0')}:${timeParts[1].padStart(2,'0')}`;
-    }
+  // Case 1: Date object (Google Sheets may return a Date for time-typed cells).
+  // Use UTC getters: Sheets stores pure times against the 1899-12-30 epoch and
+  // serializes them in UTC, so the UTC hours/minutes are the intended values.
+  if(t instanceof Date){
+    return `${String(t.getUTCHours()).padStart(2,'0')}:${String(t.getUTCMinutes()).padStart(2,'0')}`;
   }
-  // Already HH:MM format
-  if(typeof t==='string'&&t.match(/^\d{1,2}:\d{2}$/))return t;
+  if(typeof t==='string'){
+    // Case 2: Already HH:MM (or H:MM) — return normalized.
+    const hm=t.match(/^(\d{1,2}):(\d{2})$/);
+    if(hm)return `${hm[1].padStart(2,'0')}:${hm[2]}`;
+    // Case 3: ISO date-time like 1899-12-31T23:00:00.000Z (Sheets time serialization).
+    // Extract the time portion in UTC directly from the string to avoid any local
+    // timezone re-interpretation that would shift the hour.
+    if(t.includes('T')){
+      const m=t.match(/T(\d{2}):(\d{2})/);
+      if(m)return `${m[1]}:${m[2]}`;
+    }
+    // Case 4: ISO without T but with space (e.g. "1899-12-31 23:00:00")
+    const sp=t.match(/\s(\d{1,2}):(\d{2})/);
+    if(sp)return `${sp[1].padStart(2,'0')}:${sp[2]}`;
+  }
   return String(t);
 }
 
@@ -2753,6 +2782,10 @@ function generateClientContract(){
   const balance=total-received;
   const fmtBal=(received<=0)?'<span style="color:#CC2200;font-weight:600">'+fmtM(total)+' (full amount — no deposit yet)</span>':'<span style="color:'+(balance<=0?'#1E5C2E':'#CC2200')+';font-weight:600">'+fmtM(balance)+'</span>';
   const fmtDep=(received<=0)?'<span style="color:#999">$0 — pending</span>':'<span style="color:#1E5C2E;font-weight:600">'+fmtM(received)+'</span>';
+  // Payment methods: deposit row shows the REAL method(s) used; balance row shows accepted methods.
+  const ACCEPTED_METHODS='Cash / Zelle / Check / Card';
+  const paidMethods=[...new Set((currentPayments||[]).map(p=>String(p['Method']||'').trim()).filter(Boolean))];
+  const depMethod=(received<=0)?'—':(paidMethods.length?paidMethods.join(', '):ACCEPTED_METHODS);
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
 <title>Service Agreement — ${e['RES#']}</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -2807,8 +2840,8 @@ ${docHeader('Service Agreement',`${e['COT#']} / ${e['RES#']}`,{mode:'cardona',su
   <table class="services-table">
     <thead><tr><th>Concept</th><th>Amount</th><th>Status / Due Date</th><th>Method</th></tr></thead>
     <tbody>
-      <tr><td style="font-weight:600">Deposit received to date</td><td>${fmtDep}</td><td>Reservation confirmed</td><td>Cash / Zelle / Check / Card</td></tr>
-      <tr><td style="font-weight:600">Outstanding balance</td><td>${fmtBal}</td><td>Due 8 days before event</td><td>Cash / Zelle / Check / Card</td></tr>
+      <tr><td style="font-weight:600">Deposit received to date</td><td>${fmtDep}</td><td>Reservation confirmed</td><td>${depMethod}</td></tr>
+      <tr><td style="font-weight:600">Outstanding balance</td><td>${fmtBal}</td><td>Due 8 days before event</td><td>${ACCEPTED_METHODS}</td></tr>
       <tr class="total-row"><td>TOTAL CONTRACT VALUE</td><td>${fmtM(total)}</td><td colspan="2"></td></tr>
     </tbody>
   </table>
@@ -4594,8 +4627,8 @@ function showOpsForm(opId=null){
       const sel=document.getElementById('opsAssignedRole');
       const match=(currentServices||[]).find(s=>(s['Provider Name']||'')===(op['Provider Name']||''));
       if(match){sel.value=match['Detail ID'];onOpsAssignedRoleSelect();}
-      document.getElementById('opsArrival').value=op['Arrival Time']?String(op['Arrival Time']).split('T')[1]?.slice(0,5)||op['Arrival Time']:'';
-      document.getElementById('opsDeparture').value=op['Departure Time']?String(op['Departure Time']).split('T')[1]?.slice(0,5)||op['Departure Time']:'';
+      document.getElementById('opsArrival').value=fmtTime(op['Arrival Time'])||'';
+      document.getElementById('opsDeparture').value=fmtTime(op['Departure Time'])||'';
       document.getElementById('opsStatus').value=op['Status']||'Pending';
       document.getElementById('opsNotes').value=op['Notes']||'';
     }
