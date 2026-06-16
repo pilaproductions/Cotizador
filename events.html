@@ -3886,7 +3886,7 @@ ${docHeader('Venue Staff Sheet',`${e['RES#']}`,{mode:'cardona',sub:'INTERNAL —
     <div class="field-item"><div class="field-lbl">Event Date</div><div class="field-val">${fmtDateDoc(e['Event Date'])}</div></div>
     <div class="field-item"><div class="field-lbl">Event Type</div><div class="field-val">${etLabel()}</div></div>
     <div class="field-item"><div class="field-lbl">Guests / Tables</div><div class="field-val">${e['Guests']||'—'} guests · ${e['Tables']||'—'} tables</div></div>
-    <div class="field-item"><div class="field-lbl">Venue Plan</div><div class="field-val">${e['Venue Tier']||'—'} · ${e['Full Package']&&e['Full Package']!=='na'?'Full Package':'A la carte'}</div></div>
+    <div class="field-item"><div class="field-lbl">Venue Plan</div><div class="field-val">${e['Venue Tier']||'—'}</div></div>
     <div class="field-item"><div class="field-lbl">Schedule</div><div class="field-val">${scheduleInfo()}</div></div>
     <div class="field-item"><div class="field-lbl">Special Conditions</div><div class="field-val">${e['Special Conditions']||'None'}</div></div>
     <div class="field-item"><div class="field-lbl">Reservation #</div><div class="field-val">${e['RES#']||'—'}</div></div>
@@ -3933,76 +3933,71 @@ ${docHeader('Venue Staff Sheet',`${e['RES#']}`,{mode:'cardona',sub:'INTERNAL —
   })()}
 </div>
 <div class="sec">
-  <div class="sec-title">3. Event Timeline & Tasks</div>
-  ${(()=>{
-    const taskOps=currentOperations.filter(op=>op['Task Name']&&String(op['Task Name']).trim());
-    if(!taskOps.length) return `<p style="font-size:11px;color:#AAA;font-style:italic;padding:8px 0">No tasks assigned in Operations tab.</p>`;
-    // Group by category
-    const cats={};
-    taskOps.forEach(op=>{
-      const cat=op['Category']||'Other';
-      if(!cats[cat])cats[cat]=[];
-      cats[cat].push(op);
-    });
-    const catColors={Staff:'#8B6914',Entertainment:'#9C1060',Decor:'#7A5C10',Photo:'#006B82',Catering:'#1A5C2E',Other:'#555'};
-    return Object.entries(cats).map(([cat,tasks])=>{
-      const color=catColors[cat]||'#555';
-      return `<div style="margin-bottom:14px">
-        <div style="font-size:9px;font-weight:700;color:${color};letter-spacing:2px;text-transform:uppercase;padding:4px 0;border-bottom:2px solid ${color};margin-bottom:6px">${cat}</div>
-        <table class="staff-table" style="margin-top:0">
-          <thead><tr><th>Task</th><th>Assigned To</th><th>Role</th><th>Duration</th></tr></thead>
-          <tbody>
-            ${tasks.map(op=>`<tr>
-              <td style="font-weight:500">${op['Task Name']||'—'}</td>
-              <td>${op['Provider Name']||'—'}</td>
-              <td style="font-size:10px;color:#777">${op['Role']||'—'}</td>
-              <td style="font-size:11px;color:#777">${op['Task Start Time']||'—'}</td>
-            </tr>`).join('')}
-          </tbody>
-        </table>
-      </div>`;
-    }).join('');
-  })()}
-</div>
-<div class="sec">
-  <div class="sec-title">4. Setup Checklist</div>
+  <div class="sec-title">3. Event Timeline & Setup Tasks</div>
   <table class="staff-table">
-    <thead><tr><th>Item</th><th>Qty / Status</th><th>Spec</th><th>Notes</th><th style="text-align:center">✓</th></tr></thead>
+    <thead><tr><th>Task</th><th>Assigned</th><th>Role</th><th>Duration</th><th>Details</th><th style="text-align:center;width:34px">✓</th></tr></thead>
     <tbody>
-      ${[
-        ['Tables',e['Tables']||'—','Round','See sitting chart'],
-        ['Chairs','—','Gray / White / Chiavari',''],
-        ['Chair Covers','—','White',''],
-        ['Table Linens','—','White',''],
-        ['Table Runner','—','Gold',''],
-        ['Centerpieces','—','Per decor plan','Decor provider installs'],
-        ['Napkins','—','White cloth',''],
-        ['Plates & Utensils','—','Porcelain set',''],
-        ['Glassware','—','Bar + water glasses',''],
-        ['Buffet Station','—','8 trays + warmers','Coordinate catering'],
-        ['Bar Setup','—','Ice, cups, mixers',''],
-        ['Dry Ice Machine','—','~$50 cost','If contracted'],
-        ['Sound System','—','Full CH system',''],
-        ['Lighting','—','',''],
-      ].map(([item,qty,spec,notes],i)=>`<tr><td style="font-weight:500">${item}</td><td>${qty}</td><td style="font-size:10px;color:#777">${spec}</td><td style="font-size:10px;color:#888">${notes}</td><td style="text-align:center">□</td></tr>`).join('')}
+      ${(()=>{
+        const taskOps=currentOperations.filter(op=>op['Task Name']&&String(op['Task Name']).trim());
+        const taskRows=taskOps.map(op=>`<tr>
+          <td style="font-weight:500">${op['Task Name']||'—'}</td>
+          <td>${op['Provider Name']||'—'}</td>
+          <td style="font-size:10px;color:#777">${op['Role']||'—'}</td>
+          <td style="font-size:11px;color:#777">${op['Task Start Time']||'—'}</td>
+          <td style="border-bottom:1px solid #DDD"></td>
+          <td style="text-align:center">□</td>
+        </tr>`).join('');
+        // 5 blank manual rows for tasks/setup items not registered in the system
+        const blankRows=Array.from({length:5}).map(()=>`<tr>
+          <td style="border-bottom:1px solid #DDD;height:24px"></td>
+          <td style="border-bottom:1px solid #DDD"></td>
+          <td style="border-bottom:1px solid #DDD"></td>
+          <td style="border-bottom:1px solid #DDD"></td>
+          <td style="border-bottom:1px solid #DDD"></td>
+          <td style="text-align:center">□</td>
+        </tr>`).join('');
+        return taskRows+blankRows;
+      })()}
     </tbody>
   </table>
 </div>
 <div class="sec">
-  <div class="sec-title">5. Services Contracted</div>
+  <div class="sec-title">4. Services Contracted</div>
   <table class="staff-table">
-    <thead><tr><th>Division</th><th>Plan</th><th>Provider</th><th>Schedule</th></tr></thead>
+    <thead><tr><th>Division</th><th>Plan</th><th>Provider</th><th>Document</th></tr></thead>
     <tbody>
-      <tr><td style="font-weight:600">Venue & Host</td><td>${e['Venue Tier']||'—'}</td><td>James Cardona</td><td>${fmtTime(e['Event Start Time'])||'—'} – ${fmtTime(e['Event End Time'])||'—'}</td></tr>
-      <tr><td style="font-weight:600">Catering</td><td>${e['Catering Plan']||e['Catering Line']||'—'}</td><td>Noches de Colombia</td><td>Per BEO</td></tr>
-      <tr><td style="font-weight:600">Design & Decor</td><td>${e['Decor Plan']||'N/A'}</td><td>___________________</td><td>___________</td></tr>
-      <tr><td style="font-weight:600">Entertainment</td><td>${e['Entertainment Plan']||'N/A'}</td><td>___________________</td><td>___________</td></tr>
-      <tr><td style="font-weight:600">Photo & Video</td><td>${e['Photo Plan']||'N/A'}</td><td>___________________</td><td>___________</td></tr>
+      ${(()=>{
+        // Provider(s) per category from Expenses. Internal -> list provider names; External/Client -> "External".
+        const provFor=(cat)=>{
+          const exps=(currentExpenses||[]).filter(ex=>(ex['Category']||'').toLowerCase()===cat.toLowerCase());
+          if(!exps.length)return '—';
+          const internal=exps.filter(ex=>(ex['Provider Type']||'Internal').toLowerCase()==='internal');
+          const nonInternal=exps.filter(ex=>(ex['Provider Type']||'Internal').toLowerCase()!=='internal');
+          const names=[...new Set(internal.map(ex=>ex['Provider Name']).filter(Boolean))];
+          if(names.length)return names.join(', ');
+          if(nonInternal.length)return 'External';
+          return '—';
+        };
+        const cateringPlan=['collection','luxury'].includes((e['Catering Line']||'').toLowerCase())?(e['Catering Plan']||e['Catering Line']):'';
+        const rows=[
+          ['Venue & Host', e['Venue Tier']||'', 'James Cardona', 'Venue Rules'],
+          ['Catering', cateringPlan, provFor('Catering'), 'Menu Selection'],
+          ['Design & Decor', e['Decor Plan']&&e['Decor Plan']!=='na'?e['Decor Plan']:'', provFor('Decor'), 'Decor Requirements'],
+          ['Entertainment', e['Entertainment Plan']&&e['Entertainment Plan']!=='na'?e['Entertainment Plan']:'', provFor('Entertainment'), 'Music & Program Request'],
+          ['Photo & Video', e['Photo Plan']&&e['Photo Plan']!=='na'?e['Photo Plan']:(e['Photo Tier']&&e['Photo Tier']!=='na'?e['Photo Tier']:''), provFor('Photo'), 'Event Coverage / Photo Shoot Session'],
+        ];
+        return rows.map(([div,plan,prov,doc])=>`<tr>
+          <td style="font-weight:600">${div}</td>
+          <td>${plan||'N/A'}</td>
+          <td>${prov||'—'}</td>
+          <td style="font-size:10px;color:#777">${doc}</td>
+        </tr>`).join('');
+      })()}
     </tbody>
   </table>
 </div>
 <div class="sec">
-  <div class="sec-title">6. Manager Notes</div>
+  <div class="sec-title">5. Manager Notes</div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
     ${['Pre-event notes','During event','Post-event','Incidents / Overtime'].map(l=>`<div><div style="font-size:9px;font-weight:700;color:#888;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px">${l}</div><div style="border-bottom:1px solid #DDD;height:32px;margin-bottom:8px"></div><div style="border-bottom:1px solid #DDD;height:32px"></div></div>`).join('')}
   </div>
