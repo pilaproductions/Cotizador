@@ -987,12 +987,20 @@ function renderServices(){
         const provCell=pending
           ? `<span style="font-size:11px;color:#C99000;font-style:italic">Pending assignment</span>`
           : `<span style="font-size:12px">${provName}</span>`;
+        const isVenueCat=(cat.key||'').toLowerCase()==='venue';
+        const isOther=(s['Item']||'').toLowerCase()==='other';
+        // Venue: show a document button ONLY for an "Other" role (Provider Agreement).
+        // Other categories: always show the button -> category doc (or Provider Agreement if Other).
+        const showDocBtn = isVenueCat ? isOther : true;
+        const docBtn = showDocBtn
+          ? `<button class="btn btn-outline btn-sm" onclick="generateRoleDocFromRole('${s['Detail ID']}')">⬇ Document</button>`
+          : '';
         html+=`<tr>
           <td style="font-weight:500">${s['Item']||'—'} ${typeBadge(s['Provider Type'])}</td>
           <td>${provCell}</td>
           <td style="font-size:11px;color:#888">${s['Notes']||'—'}</td>
           <td style="text-align:right;white-space:nowrap">
-            ${pending?`<button class="btn btn-outline btn-sm" onclick="openAssignProviderToRole('${s['Detail ID']}')">Assign</button>`:`<button class="btn btn-outline btn-sm" onclick="generateProviderAgreementFromRole('${s['Detail ID']}')">⬇ Contract</button>`}
+            ${pending?`<button class="btn btn-outline btn-sm" onclick="openAssignProviderToRole('${s['Detail ID']}')">Assign</button>`:docBtn}
             <button class="btn btn-red btn-sm" onclick="removeService('${s['Detail ID']}','${(s['Item']||'').replace(/'/g,'')}')">✕</button>
           </td>
         </tr>`;
@@ -1095,6 +1103,30 @@ function generateProviderAgreementFromRole(detailId){
     'Agreed Amount':0,'Amount Paid':0,'Method':''
   };
   generateProviderAgreement(null,pseudoExp);
+}
+
+// Document linked to a role's button in Services. Rule: if the role is "Other"
+// (custom), the document is ONLY the Provider Agreement, regardless of category.
+// Otherwise, generate the category's own document:
+//   Catering -> Catering BEO · Decor -> Decor Requirements
+//   Entertainment -> Music & Program Request · Photo -> Event Coverage
+// Venue has no category document (handled outside via Staff Summary); only an
+// "Other" Venue role gets the Provider Agreement.
+function isOtherRole(s){
+  return (s['Item']||'').toLowerCase()==='other';
+}
+function generateRoleDocFromRole(detailId){
+  const s=currentServices.find(x=>x['Detail ID']===detailId);
+  if(!s){showToast('Role not found','error');return;}
+  if(isOtherRole(s)){ generateProviderAgreementFromRole(detailId); return; }
+  const cat=(s['Division']||'').toLowerCase();
+  switch(cat){
+    case 'catering':      generateCateringBEO(); break;
+    case 'decor':         generateDecorRequirements(); break;
+    case 'entertainment': generateMusicProgram(); break;
+    case 'photo':         generatePhotoSession(); break;
+    default: /* venue and others: no category document */ break;
+  }
 }
 
 async function removeService(detailId,itemName){
