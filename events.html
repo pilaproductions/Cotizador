@@ -1405,9 +1405,20 @@ function generateReceipt(){
   const extrasTotal=currentServices.reduce((s,sv)=>s+(parseFloat(sv['Price'])||0),0);
   const fmtM=n=>'$'+(parseFloat(n)||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});
 
-  // Build services rows
-  const svcRows=currentServices.map(s=>`
+  // Build services rows — CLIENT RECEIPT shows ONLY what the client contracted/pays:
+  // contracted services (exclude staff/venue operational roles). Staff never appears.
+  const contractedSvc=(currentServices||[]).filter(s=>{
+    const div=(s['Division']||'').toLowerCase();
+    return div!=='staff' && div!=='venue';
+  });
+  const svcRows=contractedSvc.map(s=>`
     <tr><td style="padding:6px 0;font-size:12px;color:#555">${s['Item']||'—'}</td><td style="padding:6px 0;text-align:right;font-weight:600;font-size:12px">${fmtM(s['Price'])}</td></tr>
+  `).join('');
+
+  // Charges for date changes, cancellations, penalties, clauses, overtime, etc.
+  const extraCharges=getExtraIncome();
+  const extraRows=extraCharges.map(p=>`
+    <tr><td style="padding:6px 0;font-size:12px;color:#555">${p['Type']||'Additional Charge'}${p['Notes']?' — '+p['Notes']:''}</td><td style="padding:6px 0;text-align:right;font-weight:600;font-size:12px">${fmtM(p['Amount'])}</td></tr>
   `).join('');
 
   // Build payments rows
@@ -1488,6 +1499,7 @@ html,body{background:#fff;width:210mm;font-family:'Montserrat',sans-serif;font-s
   <table class="concept-table">
     <tr><td style="color:#555">Event Services Package</td><td style="text-align:right;font-weight:600">${fmtM(base)}</td></tr>
     ${svcRows}
+    ${extraRows}
     <tr><td colspan="2"><div class="divider"></div></td></tr>
     <tr><td style="font-weight:700;font-size:13px">Total</td><td style="text-align:right;font-weight:700;font-size:14px;color:#C9A84C">${fmtM(total)}</td></tr>
   </table>
@@ -2984,13 +2996,15 @@ function generateVenueRules(){
   const e=currentEvent;
   const copy=isCopy('venue_rules');
   const wknd=isWeekend();
+  const ENTITY=legalEntity('venue_rules'); // CARDONA HALL LLC
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
 <title>Venue Rules & Policies — ${e['RES#']}</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
-<style>${baseStyles('#C9A84C')}</style></head><body>
+<style>${baseStyles(PALETTES.venue)}</style></head><body>
 ${copy?copyWatermark():''}
 <div class="doc">
-${docHeader('Venue Rules & Policies',`REF: ${e['RES#']}`,'Venue & Host Services — Cardona Hall LLC')}
+${docPageOpen('CARDONA HALL','Venue Rules & Policies',`REF: ${e['RES#']}`)}
+${docHeader('Venue Rules & Policies',`REF: ${e['RES#']}`,{mode:'cardona',sub:'Venue & Host Services'})}
 <div class="notice-bar">Please read this document carefully. By signing, you confirm that you and all your guests agree to abide by these rules.</div>
 <div class="sec">
   <div class="field-grid">
@@ -3001,7 +3015,15 @@ ${docHeader('Venue Rules & Policies',`REF: ${e['RES#']}`,'Venue & Host Services 
   </div>
 </div>
 <div class="sec">
-  <div class="sec-title">1. Alcohol Policy</div>
+  <div class="sec-title">1. Venue Capacity</div>
+  <ul class="bullet-list">
+    <li>The maximum capacity for this event is governed by the guest count agreed in the signed Service Agreement.</li>
+    <li>Children under the age of 5 do not count toward the guest count. Children age 5 and over count as adults for guest count, catering, and capacity purposes.</li>
+    <li>Any additional person beyond the agreed count is charged according to the established parameters: <strong>$45 per person</strong> if added 15 or more days before the event, and <strong>$60 per person</strong> if added within 15 days of the event or on the event day. Each additional person is formalized through a signed Amendment.</li>
+  </ul>
+</div>
+<div class="sec">
+  <div class="sec-title">2. Alcohol Policy</div>
   <div class="warn-box">STRICT POLICY: No person under the age of 21 may consume or be served alcoholic beverages. NO exceptions.</div>
   <ul class="bullet-list">
     <li>It is the Client's sole responsibility to ensure no minors consume alcohol at any time.</li>
@@ -3013,7 +3035,7 @@ ${docHeader('Venue Rules & Policies',`REF: ${e['RES#']}`,'Venue & Host Services 
   </ul>
 </div>
 <div class="sec">
-  <div class="sec-title">2. Anti-Violence & Conduct Policy</div>
+  <div class="sec-title">3. Anti-Violence & Conduct Policy</div>
   <div class="warn-box">Zero-tolerance: any aggressive conduct, harassment, or physical altercation results in immediate event termination.</div>
   <ul class="bullet-list">
     <li>Any physical altercation or aggressive behavior results in immediate event termination.</li>
@@ -3023,7 +3045,15 @@ ${docHeader('Venue Rules & Policies',`REF: ${e['RES#']}`,'Venue & Host Services 
   </ul>
 </div>
 <div class="sec">
-  <div class="sec-title">3. Event Timing & Overtime</div>
+  <div class="sec-title">4. Supervision of Minors</div>
+  <ul class="bullet-list">
+    <li>Minors must be supervised by a responsible adult at all times during the event.</li>
+    <li>Cardona Hall is not responsible for unsupervised minors on the premises.</li>
+    <li>Minors are not permitted in the bar area at any time.</li>
+  </ul>
+</div>
+<div class="sec">
+  <div class="sec-title">5. Event Timing & Overtime</div>
   <ul class="bullet-list">
     <li>Events must begin and end at the agreed times stated in the Service Agreement.</li>
     <li>Music and entertainment must conclude <strong>30 minutes before</strong> the event end time.</li>
@@ -3034,16 +3064,15 @@ ${docHeader('Venue Rules & Policies',`REF: ${e['RES#']}`,'Venue & Host Services 
   </ul>
 </div>
 <div class="sec">
-  <div class="sec-title">4. Decorations & Setup</div>
+  <div class="sec-title">6. Decorations & Setup</div>
   <ul class="bullet-list">
     <li>All decorations must be approved in advance by Cardona Hall management.</li>
     <li>No staples, nails, screws, tacks, or adhesive tape on walls, ceilings, columns, or light fixtures.</li>
-
     <li>Violations may result in partial or full forfeiture of the security deposit.</li>
   </ul>
 </div>
 <div class="sec">
-  <div class="sec-title">5. Security</div>
+  <div class="sec-title">7. Security</div>
   <ul class="bullet-list">
     ${wknd?'<li>Cardona Hall staff includes security personnel assigned to every weekend event.</li>':'<li>Security coverage for weekday events is provided upon request or as required by event type.</li>'}
     <li>External security personnel may not be brought without prior written approval.</li>
@@ -3051,7 +3080,7 @@ ${docHeader('Venue Rules & Policies',`REF: ${e['RES#']}`,'Venue & Host Services 
   </ul>
 </div>
 <div class="sec">
-  <div class="sec-title">6. Vendor Policy</div>
+  <div class="sec-title">8. Vendor Policy</div>
   <ul class="bullet-list">
     <li>All vendors must coordinate arrival and access times with Cardona Hall management in advance.</li>
     <li>Vendors may not use Cardona Hall waste containers. All waste must be removed at the event conclusion.</li>
@@ -3061,7 +3090,23 @@ ${docHeader('Venue Rules & Policies',`REF: ${e['RES#']}`,'Venue & Host Services 
   </ul>
 </div>
 <div class="sec">
-  <div class="sec-title">7. Damage Policy</div>
+  <div class="sec-title">9. Parking</div>
+  <ul class="bullet-list">
+    <li>Cardona Hall provides a private parking lot with <strong>8 spaces</strong>, available on a first-come basis.</li>
+    <li>A public parking lot is located adjacent to the venue. Parking in the public lot is <strong>free after 6:00 PM</strong>.</li>
+    <li>Cardona Hall is not responsible for vehicles or their contents parked on or off the premises.</li>
+  </ul>
+</div>
+<div class="sec">
+  <div class="sec-title">10. Emergency & Safety</div>
+  <ul class="bullet-list">
+    <li>The premises are equipped with a designated emergency exit, which must remain unobstructed and accessible at all times.</li>
+    <li>In the event of an emergency, guests must follow staff instructions and proceed to the emergency exit in a calm and orderly manner.</li>
+    <li>Tampering with fire safety equipment, emergency exits, or alarm systems is strictly prohibited and may result in penalties and event termination.</li>
+  </ul>
+</div>
+<div class="sec">
+  <div class="sec-title">11. Damage Policy</div>
   <ul class="bullet-list">
     <li>The Client assumes full financial responsibility for any damage caused by guests or vendors.</li>
     <li>Damage costs will be deducted from the security deposit. If costs exceed the deposit amount, the Client is responsible for the difference within 7 days.</li>
@@ -3069,24 +3114,23 @@ ${docHeader('Venue Rules & Policies',`REF: ${e['RES#']}`,'Venue & Host Services 
   </ul>
 </div>
 <div class="sec">
-  <div class="sec-title">8. Smoke-Free Premises</div>
+  <div class="sec-title">12. Smoke-Free Premises</div>
   <ul class="bullet-list">
     <li>Cardona Hall is a 100% smoke-free facility. Smoking, vaping, and e-cigarettes are prohibited inside and within 25 feet of any entrance.</li>
     <li>Violation may result in event termination and full forfeiture of the security deposit.</li>
   </ul>
 </div>
 <div class="sec">
-  <div class="sec-title">9. General Restrictions</div>
+  <div class="sec-title">13. General Restrictions</div>
   <ul class="bullet-list">
     <li>No cans or bottles on guest tables. Beverages must be served in glassware provided by Cardona Hall.</li>
     <li>Outside food or beverages are not permitted without prior written approval.</li>
     <li>Firearms, weapons, and illegal substances are strictly prohibited.</li>
-    <li>Children age 5 and over count as adults for guest count, catering, and capacity purposes.</li>
-    <li>Cardona Hall LLC / Pilab Productions LLC is not responsible for personal belongings left at the venue.</li>
+    <li>${ENTITY} is not responsible for personal belongings left at the venue.</li>
   </ul>
 </div>
 <div class="sec">
-  <div class="sec-title">10. Penalty Summary</div>
+  <div class="sec-title">14. Penalty Summary</div>
   <table class="cancel-table">
     <thead><tr><th style="text-align:left">Violation</th><th style="text-align:left">Penalty</th></tr></thead>
     <tbody>
@@ -3100,15 +3144,16 @@ ${docHeader('Venue Rules & Policies',`REF: ${e['RES#']}`,'Venue & Host Services 
   </table>
 </div>
 <div class="sec">
-  <div class="sec-title">11. Acknowledgment</div>
-  <p style="font-size:11px;color:#555;margin-bottom:14px">By signing below, the Client confirms they have read, understood, and agreed to all rules and policies in this document, and will communicate them to all guests and vendors.</p>
+  <div class="sec-title">15. Acknowledgment</div>
+  <p style="font-size:12.5px;color:#555;margin-bottom:14px">By signing below, the Client confirms they have read, understood, and agreed to all rules and policies in this document, and will communicate them to all guests and vendors.</p>
   <div class="field-grid" style="margin-bottom:16px">
     <div class="field-item"><div class="field-lbl">Client Name</div><div class="field-val">${e['Client Name']||'—'}</div></div>
     <div class="field-item"><div class="field-lbl">Event Date</div><div class="field-val">${fmtDateDoc(e['Event Date'])}</div></div>
   </div>
-  ${sigBlock('Authorized — James Cardona · Cardona Hall LLC / Pilab Productions LLC','James Cardona · Cardona Hall LLC / Pilab Productions LLC')}
+  ${sigBlock('Authorized — James Cardona · '+ENTITY,'James Cardona · '+ENTITY)}
 </div>
-${docFooter('Productions LLC')}
+${docFooter({mode:'standard'})}
+${docPageClose()}
 </div>
 <script>window.onload=function(){document.title=' ';try{history.replaceState(null,'',' ');}catch(e){}setTimeout(function(){window.print();},1000);};<\/script>
 </body></html>`;
@@ -3821,17 +3866,18 @@ function generateVenueStaff(){
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
 <title>Staff Sheet — ${e['RES#']}</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
-<style>${baseStyles('#C9A84C')}
+<style>${baseStyles(PALETTES.venue)}
 .internal-bar{background:#1A0000;border-left:4px solid #CC0000;border-top:1px solid #CC0000;border-bottom:1px solid #CC0000;padding:8px 14px;margin:10px 0;font-size:11px;font-weight:700;color:#FF6666;letter-spacing:1px;}
 .staff-table{width:100%;border-collapse:collapse;margin-top:8px;}
-.staff-table th{background:#1A1A1A;color:#C9A84C;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:8px 10px;text-align:left;}
-.staff-table td{padding:9px 10px;border-bottom:1px solid #F0F0F0;font-size:11px;}
+.staff-table th{background:#1A1A1A;color:#C9A84C;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:8px 10px;text-align:left;}
+.staff-table td{padding:9px 10px;border-bottom:1px solid #F0F0F0;font-size:12px;}
 .staff-table tr:nth-child(even) td{background:#FAFAFA;}
 .check-box{display:inline-block;width:14px;height:14px;border:1.5px solid #CCCCCC;margin-right:6px;vertical-align:middle;}
 </style></head><body>
 ${copy?copyWatermark():''}
 <div class="doc">
-${docHeader('Venue Staff Sheet',`${e['RES#']}`,'INTERNAL — Manager Copy')}
+${docPageOpen('CARDONA HALL','Venue Staff Sheet — INTERNAL',`REF: ${e['RES#']}`)}
+${docHeader('Venue Staff Sheet',`${e['RES#']}`,{mode:'cardona',sub:'INTERNAL — Manager Copy'})}
 <div class="internal-bar">INTERNAL DOCUMENT — NOT FOR CLIENT DISTRIBUTION · Manager briefing — print and bring to event</div>
 <div class="sec">
   <div class="sec-title">1. Event Overview</div>
@@ -3961,7 +4007,8 @@ ${docHeader('Venue Staff Sheet',`${e['RES#']}`,'INTERNAL — Manager Copy')}
     ${['Pre-event notes','During event','Post-event','Incidents / Overtime'].map(l=>`<div><div style="font-size:9px;font-weight:700;color:#888;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px">${l}</div><div style="border-bottom:1px solid #DDD;height:32px;margin-bottom:8px"></div><div style="border-bottom:1px solid #DDD;height:32px"></div></div>`).join('')}
   </div>
 </div>
-${docFooter('Productions LLC')}
+${docFooter({mode:'standard'})}
+${docPageClose()}
 </div>
 <script>window.onload=function(){document.title=' ';try{history.replaceState(null,'',' ');}catch(e){}setTimeout(function(){window.print();},1000);};<\/script>
 </body></html>`;
@@ -5305,6 +5352,8 @@ function generateProviderAgreement(expenseId,directExp){
   const category=exp['Category']||'';
   const catColors={Entertainment:'#E040A0',Decor:'#D4A853',Photo:'#00B4D8',Staff:'#C9A84C',Catering:'#1A7A3C'};
   const accent=catColors[category]||'#C9A84C';
+  const catPalette={Entertainment:PALETTES.ent,Decor:PALETTES.decor,Photo:PALETTES.photo,Staff:PALETTES.venue,Catering:PALETTES.venue};
+  const accentPalette=catPalette[category]||PALETTES.venue;
   const agreed=parseFloat(exp['Agreed Amount'])||0;
   const paid=parseFloat(exp['Amount Paid'])||0;
   const balance=agreed-paid;
@@ -5322,19 +5371,21 @@ function generateProviderAgreement(expenseId,directExp){
     'The provider may not sublet, transfer, or assign their role to a third party without written authorization from Pilab Productions / Cardona Hall.',
     'The provider must conduct themselves professionally and respectfully toward guests, staff, and other providers. Use of alcohol or illegal substances while on duty is strictly prohibited.',
     'The provider is responsible for the safe handling of their electrical connections and equipment, and must carry their own equipment insurance.',
+    'The provider must carry valid General Liability insurance with a minimum coverage of $500,000, and must provide a Certificate of Insurance (COI) naming Cardona Hall LLC as Additional Insured upon request. The provider operates as an independent contractor and is solely responsible for their own insurance, taxes, and licensing.',
     'Open flames, pyrotechnics, confetti cannons, glitter, or any material that may damage the venue require prior written approval from Cardona Hall.'
   ];
 
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
 <title>Provider Agreement — ${exp['Provider Name']||''}</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
-<style>${baseStyles(accent)}
+<style>${baseStyles(accentPalette)}
 .cond-list{margin:8px 0 0 0;padding:0;list-style:none;counter-reset:c;}
 .cond-list li{counter-increment:c;font-size:11px;color:#444;line-height:1.55;padding:6px 0 6px 26px;position:relative;border-bottom:0.5px solid #F0F0F0;}
 .cond-list li::before{content:counter(c);position:absolute;left:0;top:6px;width:18px;height:18px;background:${accent};color:#fff;border-radius:50%;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;}
 .mode-bar{padding:8px 14px;margin:10px 0;font-size:11px;font-weight:700;letter-spacing:1px;border-radius:3px;}
 </style></head><body><div class="doc">
-${docHeader('Provider Agreement',`PRV-${e['RES#']||''}`,'Produced by Pilab Productions',accent)}
+${docPageOpen('PILAB PRODUCTIONS','Provider Agreement',`PRV-${e['RES#']||''}`)}
+${docHeader('Provider Agreement',`PRV-${e['RES#']||''}`,{mode:'pilab',sub:'Produced by Pilab Productions',palette:accentPalette})}
 <div class="mode-bar" style="background:${isExternal?'#FFF1E0':'#EAF4ED'};color:${isExternal?'#B5560A':'#1E5C2E'};border-left:4px solid ${isExternal?'#D4680A':'#1E7A3C'}">
   ${isExternal?'EXTERNAL PROVIDER — Brought by the client. This agreement covers venue rules and conditions only.':'CONTRACTED PROVIDER — Service agreement and venue conditions.'}
 </div>
@@ -5379,10 +5430,11 @@ ${isExternal?'':`<div class="sec">
 </div>
 <div class="sec">
   <div class="sec-title">${isExternal?'4':'5'}. Acknowledgment & Signature</div>
-  <p style="font-size:11px;color:#555;margin-bottom:14px">The provider confirms they have read, understood, and agree to ${isExternal?'the venue conditions stated above':'the service terms and venue conditions stated above'}. This agreement is between the provider and Pilab Productions / Cardona Hall LLC.</p>
-  ${sigBlock('Authorized — James Cardona · Pilab Productions LLC','James Cardona · Pilab Productions LLC','Provider Signature')}
+  <p style="font-size:11px;color:#555;margin-bottom:14px">The provider confirms they have read, understood, and agree to ${isExternal?'the venue conditions stated above':'the service terms and venue conditions stated above'}. This agreement is between the provider and CARDONA HALL LLC.</p>
+  ${sigBlock('Authorized — James Cardona · CARDONA HALL LLC','James Cardona · CARDONA HALL LLC','Provider Signature')}
 </div>
-${docFooter('Pilab Productions LLC')}
+${docFooter({mode:'pilab'})}
+${docPageClose()}
 </div>
 <script>window.onload=function(){document.title=' ';try{history.replaceState(null,'',' ');}catch(e){}setTimeout(function(){window.print();},1000);};<\/script>
 </body></html>`;
@@ -5417,14 +5469,15 @@ function generateStaffSummary(){
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
 <title></title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
-<style>${baseStyles('#C9A84C')}
+<style>${baseStyles(PALETTES.venue)}
 .staff-table{width:100%;border-collapse:collapse;margin-top:8px;}
-.staff-table th{background:#1A1A1A;color:#C9A84C;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:8px 10px;text-align:left;}
-.staff-table td{padding:9px 10px;border-bottom:1px solid #F0F0F0;font-size:11px;vertical-align:middle;}
+.staff-table th{background:#1A1A1A;color:#C9A84C;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:8px 8px;text-align:left;}
+.staff-table td{padding:8px 8px;border-bottom:1px solid #F0F0F0;font-size:11px;vertical-align:middle;}
 .staff-table tr:nth-child(even) td{background:#FAFAFA;}
-.sig-mini{border-bottom:1px solid #444;height:28px;min-width:120px;display:inline-block;}
+.sig-mini{border-bottom:1px solid #444;height:28px;min-width:90px;display:inline-block;}
 </style></head><body><div class="doc">
-${docHeader('Venue Staff Summary',e['RES#'],'INTERNAL — Payment Summary')}
+${docPageOpen('CARDONA HALL','Venue Staff Summary — INTERNAL',`REF: ${e['RES#']}`)}
+${docHeader('Venue Staff Summary',e['RES#'],{mode:'cardona',sub:'INTERNAL — Payment Summary'})}
 <div class="sec">
   <div class="field-grid">
     <div class="field-item"><div class="field-lbl">Client Name</div><div class="field-val">${e['Client Name']||'—'}</div></div>
@@ -5436,7 +5489,7 @@ ${docHeader('Venue Staff Summary',e['RES#'],'INTERNAL — Payment Summary')}
 <div class="sec">
   <div class="sec-title">Staff Assignment & Payment</div>
   <table class="staff-table">
-    <thead><tr><th>Name</th><th>Role</th><th>Phone</th><th>Arrival</th><th>Departure</th><th style="text-align:right">Agreed</th><th style="text-align:right">Paid</th><th style="text-align:right">Balance</th><th>Signature</th></tr></thead>
+    <thead><tr><th>Name</th><th>Role</th><th>Arrival</th><th>Departure</th><th style="text-align:right">Agreed</th><th style="text-align:right">Paid</th><th style="text-align:right">Balance</th><th>Method</th><th>Pay Date</th><th>Signature</th></tr></thead>
     <tbody>
       ${staffRows.length?staffRows.map((op,i)=>{
         const exp=staffExpenses.find(ex=>ex['Provider ID']===op['Provider ID']||ex['Provider Name']===op['Provider Name']);
@@ -5444,34 +5497,38 @@ ${docHeader('Venue Staff Summary',e['RES#'],'INTERNAL — Payment Summary')}
         const paid=exp?parseFloat(exp['Amount Paid'])||0:0;
         const balance=agreed-paid;
         const phone=getPhone(op['Provider ID']);
+        const method=exp?(exp['Method']||''):'';
+        const payDate=exp?(exp['Payment Date']||''):'';
         return `<tr>
           <td style="font-weight:600">${op['Provider Name']||'—'}</td>
           <td>${op['Role']||'—'}${op['Description']?' · '+op['Description']:''}</td>
-          <td style="font-size:10px;color:#777">${phone||'—'}</td>
           <td style="text-align:center">${fmtTime(op['Arrival Time'])||'—'}</td>
           <td style="text-align:center">${fmtTime(op['Departure Time'])||'—'}</td>
           <td style="text-align:right">${agreed?fmtM(agreed):'—'}</td>
           <td style="text-align:right;color:#1E5C2E;font-weight:600">${paid?fmtM(paid):'—'}</td>
           <td style="text-align:right;color:${balance>0?'#CC2200':'#1E5C2E'};font-weight:600">${agreed?fmtM(balance):'—'}</td>
+          <td style="font-size:10px;color:#555">${method||'—'}</td>
+          <td style="font-size:10px;color:#555">${payDate?fmtDate(payDate):'—'}</td>
           <td><div class="sig-mini"></div></td>
         </tr>`;
-      }).join(''):`<tr><td colspan="9" style="text-align:center;color:#AAA;padding:20px">No staff assigned in Operations tab</td></tr>`}
+      }).join(''):`<tr><td colspan="10" style="text-align:center;color:#AAA;padding:20px">No staff assigned in Operations tab</td></tr>`}
     </tbody>
     ${staffRows.length?`<tfoot><tr style="background:#1A1A1A">
-      <td colspan="5" style="padding:8px 10px;color:#C9A84C;font-weight:700;font-size:11px">TOTALS</td>
-      <td style="text-align:right;padding:8px 10px;color:#C9A84C;font-weight:700">${fmtM(staffExpenses.reduce((s,ex)=>s+(parseFloat(ex['Agreed Amount'])||0),0))}</td>
-      <td style="text-align:right;padding:8px 10px;color:#6EC98A;font-weight:700">${fmtM(staffExpenses.reduce((s,ex)=>s+(parseFloat(ex['Amount Paid'])||0),0))}</td>
-      <td style="text-align:right;padding:8px 10px;color:#FF8888;font-weight:700">${fmtM(staffExpenses.reduce((s,ex)=>s+Math.max(0,(parseFloat(ex['Agreed Amount'])||0)-(parseFloat(ex['Amount Paid'])||0)),0))}</td>
-      <td></td>
+      <td colspan="4" style="padding:8px 8px;color:#C9A84C;font-weight:700;font-size:11px">TOTALS</td>
+      <td style="text-align:right;padding:8px 8px;color:#C9A84C;font-weight:700">${fmtM(staffExpenses.reduce((s,ex)=>s+(parseFloat(ex['Agreed Amount'])||0),0))}</td>
+      <td style="text-align:right;padding:8px 8px;color:#6EC98A;font-weight:700">${fmtM(staffExpenses.reduce((s,ex)=>s+(parseFloat(ex['Amount Paid'])||0),0))}</td>
+      <td style="text-align:right;padding:8px 8px;color:#FF8888;font-weight:700">${fmtM(staffExpenses.reduce((s,ex)=>s+Math.max(0,(parseFloat(ex['Agreed Amount'])||0)-(parseFloat(ex['Amount Paid'])||0)),0))}</td>
+      <td colspan="3"></td>
     </tr></tfoot>`:''}
   </table>
 </div>
 <div class="sec">
   <div class="sec-title">Authorization</div>
   <p style="font-size:11px;color:#555;margin-bottom:14px">This summary confirms the staff assignments and payments for the event referenced above. Each staff member acknowledges receipt of payment by signing next to their name.</p>
-  ${sigBlock('Authorized — James Cardona · Cardona Hall LLC / Pilab Productions LLC','James Cardona · Pilab Productions LLC','Event Manager Signature')}
+  ${sigBlock('Authorized — James Cardona · CARDONA HALL LLC','James Cardona · CARDONA HALL LLC','Event Manager Signature')}
 </div>
-${docFooter('Productions LLC')}
+${docFooter({mode:'standard'})}
+${docPageClose()}
 </div>
 <script>window.onload=function(){document.title=' ';try{history.replaceState(null,'',' ');}catch(e){}setTimeout(function(){window.print();},1000);};<\/script>
 </body></html>`;
