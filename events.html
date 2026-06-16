@@ -3978,19 +3978,34 @@ ${docHeader('Venue Staff Sheet',`${e['RES#']}`,{mode:'cardona',sub:'INTERNAL —
           if(nonInternal.length)return 'External';
           return '—';
         };
+        // A category has an "Other" (custom) role if any of its services/operations carry one.
+        const hasOtherRole=(cat)=>{
+          const list=(currentServices||[]).filter(s=>(s['Division']||'').toLowerCase()===cat.toLowerCase());
+          return list.some(s=>(s['Item']||'').toLowerCase()==='other'||(s['Is Custom']==='true'));
+        };
+        // Document per category — only shown if the category is contracted (has a plan).
+        // RULE: if a role is "Other", its document is ONLY the Provider Agreement.
         const cateringPlan=['collection','luxury'].includes((e['Catering Line']||'').toLowerCase())?(e['Catering Plan']||e['Catering Line']):'';
+        const decorPlan=(e['Decor Plan']&&e['Decor Plan']!=='na')?e['Decor Plan']:'';
+        const entPlan=(e['Entertainment Plan']&&e['Entertainment Plan']!=='na')?e['Entertainment Plan']:'';
+        const photoPlan=(e['Photo Plan']&&e['Photo Plan']!=='na')?e['Photo Plan']:((e['Photo Tier']&&e['Photo Tier']!=='na')?e['Photo Tier']:'');
+        const docFor=(cat,plan,reqDoc)=>{
+          if(hasOtherRole(cat))return 'Provider Agreement';
+          if(!plan)return '';                 // not contracted -> no document
+          return reqDoc;
+        };
         const rows=[
-          ['Venue & Host', e['Venue Tier']||'', 'James Cardona', 'Venue Rules'],
-          ['Catering', cateringPlan, provFor('Catering'), 'Menu Selection'],
-          ['Design & Decor', e['Decor Plan']&&e['Decor Plan']!=='na'?e['Decor Plan']:'', provFor('Decor'), 'Decor Requirements'],
-          ['Entertainment', e['Entertainment Plan']&&e['Entertainment Plan']!=='na'?e['Entertainment Plan']:'', provFor('Entertainment'), 'Music & Program Request'],
-          ['Photo & Video', e['Photo Plan']&&e['Photo Plan']!=='na'?e['Photo Plan']:(e['Photo Tier']&&e['Photo Tier']!=='na'?e['Photo Tier']:''), provFor('Photo'), 'Event Coverage / Photo Shoot Session'],
+          ['Venue & Host', e['Venue Tier']||'', 'James Cardona', hasOtherRole('Venue')?'Provider Agreement':''],
+          ['Catering', cateringPlan, provFor('Catering'), docFor('Catering',cateringPlan,'Catering BEO')],
+          ['Design & Decor', decorPlan, provFor('Decor'), docFor('Decor',decorPlan,'Decor Requirements')],
+          ['Entertainment', entPlan, provFor('Entertainment'), docFor('Entertainment',entPlan,'Music & Program Request')],
+          ['Photo & Video', photoPlan, provFor('Photo'), docFor('Photo',photoPlan,'Event Coverage / Photo Shoot Session')],
         ];
         return rows.map(([div,plan,prov,doc])=>`<tr>
           <td style="font-weight:600">${div}</td>
           <td>${plan||'N/A'}</td>
           <td>${prov||'—'}</td>
-          <td style="font-size:10px;color:#777">${doc}</td>
+          <td style="font-size:10px;color:#777">${doc||'—'}</td>
         </tr>`).join('');
       })()}
     </tbody>
@@ -5484,36 +5499,30 @@ ${docHeader('Venue Staff Summary',e['RES#'],{mode:'cardona',sub:'INTERNAL — Pa
 <div class="sec">
   <div class="sec-title">Staff Assignment & Payment</div>
   <table class="staff-table">
-    <thead><tr><th>Name</th><th>Role</th><th>Arrival</th><th>Departure</th><th style="text-align:right">Agreed</th><th style="text-align:right">Paid</th><th style="text-align:right">Balance</th><th>Method</th><th>Pay Date</th><th>Signature</th></tr></thead>
+    <thead><tr><th>Name</th><th>Role</th><th>Arrival</th><th>Departure</th><th style="text-align:right">Agreed</th><th>Method</th><th>Pay Date</th><th style="text-align:right">Paid</th><th>Signature</th></tr></thead>
     <tbody>
       ${staffRows.length?staffRows.map((op,i)=>{
         const exp=staffExpenses.find(ex=>ex['Provider ID']===op['Provider ID']||ex['Provider Name']===op['Provider Name']);
         const agreed=exp?parseFloat(exp['Agreed Amount'])||0:0;
-        const paid=exp?parseFloat(exp['Amount Paid'])||0:0;
-        const balance=agreed-paid;
-        const phone=getPhone(op['Provider ID']);
         const method=exp?(exp['Method']||''):'';
         const payDate=exp?(exp['Payment Date']||''):'';
         return `<tr>
-          <td style="font-weight:600">${op['Provider Name']||'—'}</td>
+          <td style="font-weight:600;height:48px">${op['Provider Name']||'—'}</td>
           <td>${op['Role']||'—'}${op['Description']?' · '+op['Description']:''}</td>
           <td style="text-align:center">${fmtTime(op['Arrival Time'])||'—'}</td>
           <td style="text-align:center">${fmtTime(op['Departure Time'])||'—'}</td>
           <td style="text-align:right">${agreed?fmtM(agreed):'—'}</td>
-          <td style="text-align:right;color:#1E5C2E;font-weight:600">${paid?fmtM(paid):'—'}</td>
-          <td style="text-align:right;color:${balance>0?'#CC2200':'#1E5C2E'};font-weight:600">${agreed?fmtM(balance):'—'}</td>
           <td style="font-size:10px;color:#555">${method||'—'}</td>
           <td style="font-size:10px;color:#555">${payDate?fmtDate(payDate):'—'}</td>
+          <td style="border-bottom:1px solid #999;min-width:70px"></td>
           <td><div class="sig-mini"></div></td>
         </tr>`;
-      }).join(''):`<tr><td colspan="10" style="text-align:center;color:#AAA;padding:20px">No staff assigned in Operations tab</td></tr>`}
+      }).join(''):`<tr><td colspan="9" style="text-align:center;color:#AAA;padding:20px">No staff assigned in Operations tab</td></tr>`}
     </tbody>
     ${staffRows.length?`<tfoot><tr style="background:#1A1A1A">
-      <td colspan="4" style="padding:8px 8px;color:#C9A84C;font-weight:700;font-size:11px">TOTALS</td>
+      <td colspan="4" style="padding:8px 8px;color:#C9A84C;font-weight:700;font-size:11px">TOTAL AGREED</td>
       <td style="text-align:right;padding:8px 8px;color:#C9A84C;font-weight:700">${fmtM(staffExpenses.reduce((s,ex)=>s+(parseFloat(ex['Agreed Amount'])||0),0))}</td>
-      <td style="text-align:right;padding:8px 8px;color:#6EC98A;font-weight:700">${fmtM(staffExpenses.reduce((s,ex)=>s+(parseFloat(ex['Amount Paid'])||0),0))}</td>
-      <td style="text-align:right;padding:8px 8px;color:#FF8888;font-weight:700">${fmtM(staffExpenses.reduce((s,ex)=>s+Math.max(0,(parseFloat(ex['Agreed Amount'])||0)-(parseFloat(ex['Amount Paid'])||0)),0))}</td>
-      <td colspan="3"></td>
+      <td colspan="4"></td>
     </tr></tfoot>`:''}
   </table>
 </div>
