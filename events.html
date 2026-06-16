@@ -926,7 +926,6 @@ function populateSvcRoleDropdown(){
   (currentRoles||[]).filter(r=>(r['Category']||'')===cat).forEach(r=>{
     html+=`<option value="${r['Role Name']}">${r['Role Name']}</option>`;
   });
-  html+='<option value="Other">Other (custom)</option>';
   sel.innerHTML=html;
   onSvcRoleChange();
   populateSvcProviderDropdown();
@@ -934,7 +933,7 @@ function populateSvcRoleDropdown(){
 function onSvcRoleChange(){
   const v=document.getElementById('svcRole').value;
   const row=document.getElementById('svcCustomRow');
-  if(row)row.style.display=(v==='Other')?'flex':'none';
+  if(row)row.style.display=((v||'').toLowerCase()==='other')?'flex':'none';
 }
 function onSvcTypeChange(){
   // Internal => pick from directory; External/Client => free-text name
@@ -989,6 +988,8 @@ function renderServices(){
           : `<span style="font-size:12px">${provName}</span>`;
         const isVenueCat=(cat.key||'').toLowerCase()==='venue';
         const isOther=(s['Item']||'').toLowerCase()==='other';
+        // For an "Other" role, show the specific name (Description) e.g. "Mariachi".
+        const roleLabel=isOther?(s['Description']||'Other'):(s['Item']||'—');
         // Venue: show a document button ONLY for an "Other" role (Provider Agreement).
         // Other categories: always show the button -> category doc (or Provider Agreement if Other).
         const showDocBtn = isVenueCat ? isOther : true;
@@ -996,12 +997,12 @@ function renderServices(){
           ? `<button class="btn btn-outline btn-sm" onclick="generateRoleDocFromRole('${s['Detail ID']}')">⬇ Document</button>`
           : '';
         html+=`<tr>
-          <td style="font-weight:500">${s['Item']||'—'} ${typeBadge(s['Provider Type'])}</td>
+          <td style="font-weight:500">${roleLabel} ${typeBadge(s['Provider Type'])}</td>
           <td>${provCell}</td>
           <td style="font-size:11px;color:#888">${s['Notes']||'—'}</td>
           <td style="text-align:right;white-space:nowrap">
             ${pending?`<button class="btn btn-outline btn-sm" onclick="openAssignProviderToRole('${s['Detail ID']}')">Assign</button>`:docBtn}
-            <button class="btn btn-red btn-sm" onclick="removeService('${s['Detail ID']}','${(s['Item']||'').replace(/'/g,'')}')">✕</button>
+            <button class="btn btn-red btn-sm" onclick="removeService('${s['Detail ID']}','${(roleLabel||'').replace(/'/g,'')}')">✕</button>
           </td>
         </tr>`;
       });
@@ -1092,14 +1093,16 @@ async function updateRoleProvider(detailId,provId,provName){
 function generateProviderAgreementFromRole(detailId){
   const s=currentServices.find(x=>x['Detail ID']===detailId);
   if(!s){showToast('Role not found','error');return;}
+  // For an "Other" role, the specific role name lives in Description.
+  const roleName=((s['Item']||'').toLowerCase()==='other')?(s['Description']||s['Item']):(s['Item']||'');
   const pseudoExp={
     'Expense ID':s['Detail ID'],
     'Provider Type':s['Provider Type']||'Internal',
     'Category':s['Division']||'',
     'Provider ID':s['Provider ID']||'',
     'Provider Name':s['Provider Name']||'',
-    'Role':s['Item']||'',
-    'Description':s['Item']||'',
+    'Role':roleName,
+    'Description':roleName,
     'Agreed Amount':0,'Amount Paid':0,'Method':''
   };
   generateProviderAgreement(null,pseudoExp);
@@ -1205,9 +1208,13 @@ async function savePayment(){
 async function saveService(){
   const role=document.getElementById('svcRole').value;
   const customName=document.getElementById('svcName').value.trim();
-  const name=(role==='Other')?customName:role;
+  const isOther=(role||'').toLowerCase()==='other';
   if(!role){showToast('Select a role','error');return;}
-  if(role==='Other'&&!customName){showToast('Enter the custom role name','error');return;}
+  if(isOther&&!customName){showToast('Enter the custom role name','error');return;}
+  // For an "Other" role: Item stays "Other" (used to detect custom roles), and the
+  // specific role name (e.g. "Mariachi") is stored in Description so documents can show it.
+  const item=isOther?'Other':role;
+  const description=isOther?customName:role;
   const category=document.getElementById('svcCategory').value||'Other';
   const type=document.getElementById('svcType').value||'Internal';
   // Provider is optional (can be assigned later)
@@ -1227,8 +1234,8 @@ async function saveService(){
     'Event Date':currentEvent['Event Date'],
     'Division':category,
     'Type':'Role',
-    'Item':name,
-    'Description':name,
+    'Item':item,
+    'Description':description,
     'Price':0,
     'Notes':document.getElementById('svcNotes').value,
     'Provider Type':type,
@@ -1250,8 +1257,8 @@ async function saveService(){
         'Provider ID':provId,
         'Provider Name':provName,
         'Category':category,
-        'Role':name,
-        'Description':name,
+        'Role':description,
+        'Description':description,
         'Agreed Amount':0,'Amount Paid':0,
         'Payment Date':'','Method':'','Type':'Pago Único',
         'Status':'Pending','Notes':'',
