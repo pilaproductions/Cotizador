@@ -711,6 +711,65 @@ const SCRIPT_URL='https://script.google.com/macros/s/AKfycbyUAKZyuX8xcdSTXNkJoag
 const ET_LABELS={wedding:'Wedding',quinceanera:'Quinceañera',sweet16:'Sweet 16',baby_shower:'Baby Shower',kids_party:'Kids Party',birthday:'Birthday Party',special_social:'Special Event',special_corporate:'Corporate',bautizo:'Bautizo',graduacion:'Graduation',primera_comunion:'Primera Comunión'};
 let allEvents=[],currentEvent=null,currentPayments=[],currentServices=[];
 
+// ── CATERING DATA (lazy + cached) ────────────────────────────────────────────
+// Loaded only when a catering document (#9/#10) is generated AND the event has
+// food. Cached for the session so a second catering doc doesn't refetch.
+let _cateringCache=null;
+async function loadCateringData(){
+  if(_cateringCache)return _cateringCache;
+  const get=async(sheet)=>{
+    try{
+      const r=await fetch(SCRIPT_URL+'?sheet='+encodeURIComponent(sheet)+'&nocache='+Date.now());
+      const d=await r.json();
+      return Array.isArray(d)?d:[];
+    }catch(e){return [];}
+  };
+  const [tiers,quantities,ranges,catalog]=await Promise.all([
+    get('Catering_Tiers'),get('Catering_Quantities'),get('Catering_Ranges'),get('Menu_Catalog')
+  ]);
+  _cateringCache={tiers,quantities,ranges,catalog};
+  return _cateringCache;
+}
+// Resolve guest-count range key (XS/S/M/L) from Catering_Ranges.
+function resolveCateringRange(guests,ranges){
+  const g=parseInt(guests)||0;
+  for(const r of (ranges||[])){
+    const min=parseInt(r['Min']),max=parseInt(r['Max']);
+    if(g>=min&&g<=max)return r['Range'];
+  }
+  // Fallback: clamp to nearest edge
+  if(ranges&&ranges.length){
+    const sorted=[...ranges].sort((a,b)=>parseInt(a['Min'])-parseInt(b['Min']));
+    if(g<parseInt(sorted[0]['Min']))return sorted[0]['Range'];
+    return sorted[sorted.length-1]['Range'];
+  }
+  return 'M';
+}
+// Rows of {category,count} for a tier, in sheet order, using the resolved range.
+function cateringCategoriesFor(tier,rangeKey,quantities){
+  return (quantities||[])
+    .filter(q=>(q['Tier']||'')===tier)
+    .map(q=>({category:q['Category'],count:parseInt(q[rangeKey])||0}))
+    .filter(x=>x.count>0);
+}
+// Tier meta (line, includes, model, cost unit) from Catering_Tiers.
+function cateringTierMeta(tier,tiers){
+  return (tiers||[]).find(t=>(t['Tier']||'')===tier)||null;
+}
+// Fixed dishes from Menu_Catalog for a given line (Classic), grouped by category.
+function catalogDishesForLine(line,catalog){
+  const byCat={};
+  (catalog||[]).forEach(d=>{
+    if(!d['Dish_ID'])return; // skip note/blank rows
+    const lines=(d['Available_Lines']||'').split(',').map(x=>x.trim());
+    if((d['Active']||'').toUpperCase()!=='NO' && lines.includes(line)){
+      const c=d['Category']||'Other';
+      (byCat[c]=byCat[c]||[]).push(d);
+    }
+  });
+  return byCat;
+}
+
 function fmtMoney(n){return '$'+(parseFloat(n)||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});}
 function fmtDate(d){if(!d)return'—';try{const dt=new Date(d);if(isNaN(dt))return String(d);return dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});}catch{return String(d);}}
 function genID(prefix){return prefix+'-'+Date.now();}
@@ -3628,70 +3687,95 @@ ${docFooter('Productions · Photo & Video')}
 }
 
 // ── 6a. MENU SELECTION FORM (Client-facing) ───────────────────────────────────
-function generateMenuSelection(){
-  const win=docOpen();if(!win)return;
+async function generateMenuSelection(){
   const e=currentEvent;
-  const copy=isCopy('menu_selection');
-  const tier=e['Catering Plan']||'Essential';
+  const line=(e['Catering Line']||'').toLowerCase();
+  const cLineRaw=e['Catering Line']||'';
+  // Determine the line label and the tier
+  const isClassic=(cLineRaw==='classic'||line==='classic');
+  const tier=e['Catering Plan']||(isClassic?'Traditional':'Essential');
   const guests=parseInt(e['Guests'])||0;
-  const range=e['Guest Range']||'Medium';
-  const isEssential=tier==='Essential';
-  const isElegant=tier==='Elegant';
-  const isPrestige=tier==='Prestige';
-  const isLuxury=e['Catering Line']==='luxury';
+  showLoading();
+  let data;
+  try{ data=await loadCateringData(); }catch(err){ data={tiers:[],quantities:[],ranges:[],catalog:[]}; }
+  hideLoading();
+  const win=docOpen();if(!win)return;
+  const copy=isCopy('menu_selection');
+  const ENTITY=legalEntity('menu_selection'); // CARDONA HALL LLC
 
-  // Slot counts by tier and range
-  const ri=['Small','Medium','Large','XL'].indexOf(
-    range.replace('Extra Small','Small').replace('Extra Large','XL')
-  );
-  const idx=ri>=0?Math.min(ri,3):1;
-  const slots={
-    Essential: {mc:[2,2,3,3],sal:[1,1,2,2],side:[1,2,2,3]},
-    Elegant:   {mc:[2,3,4,4],sal:[1,2,2,3],side:[2,2,3,3]},
-    Prestige:  {mc:[2,3,4,5],sal:[1,2,3,3],side:[2,3,3,3]},
+  const meta=cateringTierMeta(tier,data.tiers);
+  const lineName=meta?meta['Line']:(isClassic?'Classic':'Collection');
+  const model=meta?(meta['Model']||'choice'):'choice';
+  const includes=meta?(meta['Includes']||''):'';
+  const isFixed=(model==='fixed');
+  const rangeKey=resolveCateringRange(guests,data.ranges);
+  const cats=cateringCategoriesFor(tier,rangeKey,data.quantities);
+  const fixedDishes=isFixed?catalogDishesForLine(lineName,data.catalog):{};
+
+  // Section rows: for a fixed (Classic) tier, pre-fill the catalog dishes;
+  // otherwise leave blank numbered rows for the client to write in.
+  const sectionRows=(category,count)=>{
+    if(isFixed){
+      const dishes=fixedDishes[category]||[];
+      if(dishes.length) return dishes.map((d,i)=>`
+        <tr>
+          <td style="color:#AAA;font-size:10px;width:28px;text-align:center">${i+1}</td>
+          <td style="border-bottom:1px solid #EEEEEE;padding:8px 10px;font-weight:500">${d['Dish_Name']||''}</td>
+          <td style="border-bottom:1px solid #EEEEEE;padding:8px 10px;font-size:10px;color:#777">${d['Cuisine']||''}</td>
+          <td style="border-bottom:1px solid #EEEEEE;padding:8px 10px"></td>
+        </tr>`).join('');
+    }
+    return Array.from({length:count},(_,i)=>`
+      <tr>
+        <td style="color:#AAA;font-size:10px;width:28px;text-align:center">${i+1}</td>
+        <td style="border-bottom:1px solid #EEEEEE;padding:8px 10px"></td>
+        <td style="border-bottom:1px solid #EEEEEE;padding:8px 10px;font-size:10px;color:#AAA"></td>
+        <td style="border-bottom:1px solid #EEEEEE;padding:8px 10px"></td>
+      </tr>`).join('');
   };
-  const s=slots[tier]||slots['Elegant'];
-  const mcCount=s.mc[idx], salCount=s.sal[idx], sideCount=s.side[idx];
 
-  // Plan summary card content
-  const planCards={
-    Essential:`Main Course: ${mcCount} · Salads: ${salCount} · Sides: ${sideCount} · No softdrinks, dessert, or jugo included.`,
-    Elegant:`Main Course: ${mcCount} · Salads: ${salCount} · Sides: ${sideCount} · Softdrinks included. No dessert or jugo.`,
-    Prestige:`Main Course: ${mcCount} · Salads: ${salCount} · Sides: ${sideCount} · Softdrinks + Dessert (1/guest) + Jugo Natural + Café included.`,
-    Legacy:`Full service. Appetizers (table service) · Main Course · Full Salad Bar · Sides · Dessert Station · Jugos · Softdrinks · Café · Special Dish for honor table.`,
-  };
+  // Build the plan summary line from the resolved categories + includes.
+  const planSummary=cats.map(c=>`${c.category}: ${c.count}`).join(' · ')+(includes?` · Includes: ${includes}`:'');
 
-  const writeRows=(label,count)=>Array.from({length:count},(_,i)=>`
-    <tr>
-      <td style="color:#AAA;font-size:10px;width:28px;text-align:center">${i+1}</td>
-      <td style="border-bottom:1px solid #EEEEEE;padding:8px 10px"></td>
-      <td style="border-bottom:1px solid #EEEEEE;padding:8px 10px;font-size:10px;color:#AAA"></td>
-      <td style="border-bottom:1px solid #EEEEEE;padding:8px 10px"></td>
-    </tr>`).join('');
+  // Section title labels per category (for the column header naming)
+  const colName={'Main Course':'Dish Name','Salads':'Salad Name','Salad Bar':'Salad Name','Sides':'Side Dish Name','Dessert':'Dessert Name','Jugo Natural':'Juice Flavor','Appetizers':'Appetizer Name','Special Dish':'Special Dish'};
+
+  const sectionsHtml=cats.map(c=>{
+    const cn=colName[c.category]||'Item';
+    const optTxt=isFixed?'included':`${c.count} option${c.count>1?'s':''}`;
+    return `<div class="sec">
+      <div class="sec-title">${c.category} — ${optTxt}</div>
+      ${c.category==='Main Course'?`<p style="font-size:10px;color:#777;margin-bottom:8px">Write the dish name as it appears in your Menu Guide. Include the cuisine section (Colombian, Caribbean, Italian, etc.).</p>`:''}
+      <table class="sel-table">
+        <thead><tr><th>#</th><th>${cn}</th><th>Cuisine / Section</th><th>Notes</th></tr></thead>
+        <tbody>${sectionRows(c.category,c.count)}</tbody>
+      </table>
+    </div>`;
+  }).join('');
 
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
 <title>Menu Selection — ${e['RES#']}</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
-<style>${baseStyles('#C9A84C')}
+<style>${baseStyles(PALETTES.venue)}
 .plan-card{background:#FBF5E6;border-left:4px solid #C9A84C;border-top:1px solid #C9A84C;border-bottom:1px solid #C9A84C;padding:12px 16px;margin:10px 0;}
 .plan-name{font-size:16px;font-weight:700;color:#8B6914;font-family:'Cormorant Garamond',serif;margin-bottom:4px;}
 .plan-detail{font-size:11px;color:#555;}
 .sel-table{width:100%;border-collapse:collapse;margin-top:8px;}
 .sel-table th{background:#1A1A1A;color:#C9A84C;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:8px 10px;text-align:left;}
 .sel-table td{vertical-align:middle;}
-.sel-cat{font-size:11px;font-weight:700;color:#333;padding:10px 0 6px;border-bottom:2px solid #E8E0CC;margin-top:14px;}
 </style></head><body>
 ${copy?copyWatermark():''}
 <div class="doc">
-${docHeader('Menu Selection Form',e['RES#'],'Catering by Noches de Colombia')}
-<div class="notice-bar">Use the Cardona Hall Menu Guide to choose your dishes, then write your selections below. Return this completed form at least 14 days before your event.</div>
+${docPageOpen('CARDONA HALL','Menu Selection Form',`REF: ${e['RES#']}`)}
+${docHeader('Menu Selection Form',e['RES#'],{mode:'cardona',sub:'Catering by Noches de Colombia'})}
+<div class="notice-bar">${isFixed?'This is a fixed menu — the dishes below are included with your plan. Return this form at least 14 days before your event to confirm.':'Use the Cardona Hall Menu Guide to choose your dishes, then write your selections below. Return this completed form at least 14 days before your event.'}</div>
 
 <div class="sec">
   <div class="field-grid">
     <div class="field-item"><div class="field-lbl">Client Name</div><div class="field-val">${e['Client Name']||'—'}</div></div>
     <div class="field-item"><div class="field-lbl">Event Date</div><div class="field-val">${fmtDateDoc(e['Event Date'])}</div></div>
-    <div class="field-item"><div class="field-lbl">Guests</div><div class="field-val">${guests} · ${range}</div></div>
-    <div class="field-item"><div class="field-lbl">Catering Plan</div><div class="field-val">${isLuxury?'Legacy — Luxury Collection':tier+' Collection'}</div></div>
+    <div class="field-item"><div class="field-lbl">Guests</div><div class="field-val">${guests} · ${rangeKey}</div></div>
+    <div class="field-item"><div class="field-lbl">Catering Plan</div><div class="field-val">${tier} ${lineName}</div></div>
     <div class="field-item"><div class="field-lbl">Buffet Open Time</div><div class="field-val" style="border-bottom:1px solid #CCC;padding-bottom:3px">___________ (your choice)</div></div>
   </div>
 </div>
@@ -3699,70 +3783,14 @@ ${docHeader('Menu Selection Form',e['RES#'],'Catering by Noches de Colombia')}
 <div class="sec">
   <div class="sec-title">Your Plan</div>
   <div class="plan-card">
-    <div class="plan-name">${isLuxury?'Legacy — Luxury Collection':tier+' Collection'} · ${range}</div>
-    <div class="plan-detail">${planCards[isLuxury?'Legacy':tier]||planCards['Elegant']}</div>
+    <div class="plan-name">${tier} ${lineName} · ${rangeKey}</div>
+    <div class="plan-detail">${planSummary||'—'}</div>
   </div>
 </div>
 
-<div class="sec">
-  <div class="sec-title">Main Course Selections — ${mcCount} option${mcCount>1?'s':''}</div>
-  <p style="font-size:10px;color:#777;margin-bottom:8px">Write the dish name as it appears in your Menu Guide. Include the cuisine section (Colombian, Caribbean, Italian, etc.).</p>
-  <table class="sel-table">
-    <thead><tr><th>#</th><th>Dish Name</th><th>Cuisine / Section</th><th>Notes</th></tr></thead>
-    <tbody>${writeRows('Main Course',mcCount)}</tbody>
-  </table>
-  <p style="font-size:10px;color:#777;margin-top:6px">Special requests / substitutions: _______________________________________________</p>
-</div>
+${sectionsHtml}
 
-<div class="sec">
-  <div class="sec-title">Salad Selections — ${salCount} option${salCount>1?'s':''}</div>
-  <table class="sel-table">
-    <thead><tr><th>#</th><th>Salad Name</th><th>Section</th><th>Notes</th></tr></thead>
-    <tbody>${writeRows('Salad',salCount)}</tbody>
-  </table>
-</div>
-
-<div class="sec">
-  <div class="sec-title">Side Dish Selections — ${sideCount} option${sideCount>1?'s':''}</div>
-  <table class="sel-table">
-    <thead><tr><th>#</th><th>Side Dish Name</th><th>Section</th><th>Notes</th></tr></thead>
-    <tbody>${writeRows('Side',sideCount)}</tbody>
-  </table>
-</div>
-
-${isPrestige||isLuxury?`<div class="sec">
-  <div class="sec-title">Dessert — 1 option (individual per guest)</div>
-  <table class="sel-table">
-    <thead><tr><th>#</th><th>Dessert Name</th><th>Section</th><th>Notes</th></tr></thead>
-    <tbody>${writeRows('Dessert',1)}</tbody>
-  </table>
-</div>`:''}
-
-${isPrestige||isLuxury?`<div class="sec">
-  <div class="sec-title">Jugo Natural — 1 flavor</div>
-  <table class="sel-table">
-    <thead><tr><th>#</th><th>Juice Flavor</th><th>Section</th><th>Notes</th></tr></thead>
-    <tbody>${writeRows('Jugo',1)}</tbody>
-  </table>
-</div>`:''}
-
-${isLuxury?`<div class="sec">
-  <div class="sec-title">Appetizers — 3 options (table service)</div>
-  <table class="sel-table">
-    <thead><tr><th>#</th><th>Appetizer Name</th><th>Section</th><th>Notes</th></tr></thead>
-    <tbody>${writeRows('Appetizer',3)}</tbody>
-  </table>
-</div>
-<div class="sec">
-  <div class="sec-title">Special Dish — Legacy Only (Honor Table)</div>
-  <p style="font-size:11px;color:#555;margin-bottom:8px">Served as individual table service exclusively for the guest(s) of honor.</p>
-  <div class="field-grid">
-    <div class="field-item"><div class="field-lbl">Special Dish</div><div class="field-val" style="border-bottom:1px solid #CCC;padding-bottom:3px;min-height:18px"></div></div>
-    <div class="field-item"><div class="field-lbl">For (guest of honor)</div><div class="field-val" style="border-bottom:1px solid #CCC;padding-bottom:3px;min-height:18px"></div></div>
-  </div>
-</div>`:''}
-
-<div class="sec">
+${isFixed?'':`<div class="sec">
   <div class="sec-title">Celebration Cake — Optional</div>
   <div class="field-grid">
     <div class="field-item"><div class="field-lbl">Cake requested</div><div class="field-val" style="font-size:11px">□ Yes &nbsp;&nbsp; □ No</div></div>
@@ -3770,7 +3798,7 @@ ${isLuxury?`<div class="sec">
     <div class="field-item"><div class="field-lbl">Filling</div><div class="field-val" style="border-bottom:1px solid #CCC;padding-bottom:3px;min-height:18px"></div></div>
     <div class="field-item"><div class="field-lbl">Decoration / Theme</div><div class="field-val" style="border-bottom:1px solid #CCC;padding-bottom:3px;min-height:18px"></div></div>
   </div>
-</div>
+</div>`}
 
 <div class="sec">
   <div class="sec-title">Additional Notes</div>
@@ -3781,13 +3809,15 @@ ${isLuxury?`<div class="sec">
 <div class="sec">
   <div class="sec-title">Acknowledgment</div>
   <p style="font-size:11px;color:#555;margin-bottom:14px">By signing below, I confirm that the menu selections above are final. Changes after submission are subject to availability and must be approved by Cardona Hall at least 7 days before the event.</p>
-  ${sigBlock('Authorized — James Cardona · Cardona Hall LLC / Pilab Productions LLC','James Cardona · Cardona Hall LLC / Pilab Productions LLC')}
+  ${sigBlock('Authorized — James Cardona · '+ENTITY,'James Cardona · '+ENTITY)}
 </div>
-${docFooter('Productions LLC · Catering by Noches de Colombia')}
+${docFooter({mode:'standard'})}
+${docPageClose()}
 </div>
 <script>window.onload=function(){document.title=' ';try{history.replaceState(null,'',' ');}catch(e){}setTimeout(function(){window.print();},1000);};<\/script>
 </body></html>`;
   docWrite(win,html);
+  logDocGenerated('menu_selection');
 }
 
 // ── 6b. CATERING BEO ──────────────────────────────────────────────────────────
