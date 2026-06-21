@@ -3709,8 +3709,12 @@ async function generateMenuSelection(){
   const includes=meta?(meta['Includes']||''):'';
   const isFixed=(model==='fixed');
   const rangeKey=resolveCateringRange(guests,data.ranges);
-  const cats=cateringCategoriesFor(tier,rangeKey,data.quantities);
   const fixedDishes=isFixed?catalogDishesForLine(lineName,data.catalog):{};
+  // Fixed (Classic) tiers have no tray quantities — derive categories from the
+  // catalog dishes. Choice tiers read categories/counts from Catering_Quantities.
+  const cats=isFixed
+    ? Object.keys(fixedDishes).map(c=>({category:c,count:fixedDishes[c].length}))
+    : cateringCategoriesFor(tier,rangeKey,data.quantities);
 
   // Section rows: for a fixed (Classic) tier, pre-fill the catalog dishes;
   // otherwise leave blank numbered rows for the client to write in.
@@ -3821,30 +3825,76 @@ ${docPageClose()}
 }
 
 // ── 6b. CATERING BEO ──────────────────────────────────────────────────────────
-function generateCateringBEO(){
-  const win=docOpen();if(!win)return;
+async function generateCateringBEO(){
   const e=currentEvent;
-  const copy=isCopy('catering_beo');
-  const tier=e['Catering Plan']||e['Catering Line']||'—';
+  const cLineRaw=e['Catering Line']||'';
+  const line=cLineRaw.toLowerCase();
+  const isClassic=(line==='classic');
+  const tier=e['Catering Plan']||(isClassic?'Traditional':'Essential');
   const guests=parseInt(e['Guests'])||0;
-  const range=e['Guest Range']||'—';
-  // Tray estimates by tier and range
-  const trays={
-    'Essential':{mc:[2,2,3,3],sal:[1,1,2,2],side:[1,2,2,3]},
-    'Elegant':  {mc:[2,3,4,4],sal:[1,2,2,3],side:[2,2,3,3]},
-    'Prestige': {mc:[2,3,4,5],sal:[1,2,3,3],side:[2,3,3,3]},
-  };
-  const ri=['Small','Medium','Large','XL'].indexOf(range.replace('Extra Small','Small').replace('Extra Large','XL'));
-  const t=trays[tier]||trays['Elegant'];
-  const mc=ri>=0?t.mc[Math.min(ri,3)]:t.mc[1];
-  const sal=ri>=0?t.sal[Math.min(ri,3)]:t.sal[1];
-  const side=ri>=0?t.side[Math.min(ri,3)]:t.side[1];
-  const isLuxury=e['Catering Line']==='luxury';
-  const isPrestige=tier==='Prestige'||isLuxury;
+  showLoading();
+  let data;
+  try{ data=await loadCateringData(); }catch(err){ data={tiers:[],quantities:[],ranges:[],catalog:[]}; }
+  hideLoading();
+  const win=docOpen();if(!win)return;
+  const copy=isCopy('catering_beo');
+  const ENTITY=legalEntity('catering_beo'); // CARDONA HALL LLC
+
+  const meta=cateringTierMeta(tier,data.tiers);
+  const lineName=meta?meta['Line']:(isClassic?'Classic':'Collection');
+  const model=meta?(meta['Model']||'choice'):'choice';
+  const includes=meta?(meta['Includes']||''):'';
+  const isFixed=(model==='fixed');
+  const rangeKey=resolveCateringRange(guests,data.ranges);
+  const fixedDishes=isFixed?catalogDishesForLine(lineName,data.catalog):{};
+  // For a fixed (Classic) tier there are no tray quantities — derive the categories
+  // (and their dish counts) from the catalog dishes themselves. For choice tiers,
+  // categories and counts come from Catering_Quantities by range.
+  const cats=isFixed
+    ? Object.keys(fixedDishes).map(c=>({category:c,count:fixedDishes[c].length}))
+    : cateringCategoriesFor(tier,rangeKey,data.quantities);
+  const PORTIONS_PER_TRAY=40;
+
+  // Tray order summary — quantities interpreted as trays to prepare.
+  // Classic is per_portion (no trays) — shows by guest count instead.
+  const traySummaryRows=cats.map(c=>{
+    if(isFixed){
+      return `<tr><td style="font-weight:600">${c.category}</td><td class="tray-num">—</td><td style="text-align:center">${guests}</td><td>Per portion · fixed menu</td></tr>`;
+    }
+    return `<tr><td style="font-weight:600">${c.category}</td><td class="tray-num">${c.count}</td><td style="text-align:center">${c.count*PORTIONS_PER_TRAY}</td><td>~${PORTIONS_PER_TRAY} portions/tray</td></tr>`;
+  }).join('');
+
+  // Non-choice inclusions (Softdrinks, Cafe) shown by guest count.
+  const inclRows=(includes||'').split(',').map(x=>x.trim()).filter(Boolean).map(inc=>
+    `<tr><td style="font-weight:600">${inc}</td><td class="tray-num">—</td><td style="text-align:center">${guests}</td><td>Included</td></tr>`
+  ).join('');
+
+  // Dish selection rows: one row per tray/dish the client chooses.
+  // Designed as if auto-filled (Option B): Classic pre-fills catalog dishes;
+  // Collection/Legacy render the exact number of rows BLANK, ready to be filled
+  // (by hand today, automatically once the upload module exists).
+  const selectionRows=cats.map(c=>{
+    if(isFixed){
+      const dishes=fixedDishes[c.category]||[];
+      return dishes.map((d,i)=>`<tr>
+        <td style="color:#AAA;font-size:10px;text-align:center">${i+1}</td>
+        <td>${c.category}</td>
+        <td style="font-weight:500">${d['Dish_Name']||''}</td>
+        <td style="font-size:10px;color:#777">${d['Cuisine']||''}</td>
+      </tr>`).join('');
+    }
+    return Array.from({length:c.count},(_,i)=>`<tr>
+      <td style="color:#AAA;font-size:10px;text-align:center">${i+1}</td>
+      <td>${c.category}</td>
+      <td style="border-bottom:1px solid #DDD"></td>
+      <td></td>
+    </tr>`).join('');
+  }).join('');
+
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
 <title>BEO — ${e['RES#']}</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
-<style>${baseStyles('#C9A84C')}
+<style>${baseStyles(PALETTES.venue)}
 .internal-bar{background:#1A0000;border-left:4px solid #CC0000;border-top:1px solid #CC0000;border-bottom:1px solid #CC0000;padding:8px 14px;margin:10px 0;font-size:11px;font-weight:700;color:#FF6666;letter-spacing:1px;}
 .tray-table{width:100%;border-collapse:collapse;margin-top:8px;}
 .tray-table th{background:#1A1A1A;color:#C9A84C;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:8px 10px;text-align:left;}
@@ -3854,8 +3904,10 @@ function generateCateringBEO(){
 </style></head><body>
 ${copy?copyWatermark():''}
 <div class="doc">
-${docHeader('Banquet Event Order',`BEO-${e['RES#']}`,'Catering & Hospitality — Noches de Colombia')}
+${docPageOpen('CARDONA HALL','Banquet Event Order',`BEO: ${e['RES#']}`)}
+${docHeader('Banquet Event Order',`BEO-${e['RES#']}`,{mode:'cardona',sub:'Catering & Hospitality — Noches de Colombia'})}
 <div class="internal-bar">⚠ INTERNAL DOCUMENT — NOT FOR CLIENT DISTRIBUTION · Kitchen Order for Noches de Colombia</div>
+
 <div class="sec">
   <div class="sec-title">Event Details</div>
   <div class="field-grid">
@@ -3863,10 +3915,11 @@ ${docHeader('Banquet Event Order',`BEO-${e['RES#']}`,'Catering & Hospitality —
     <div class="field-item"><div class="field-lbl">Event Date</div><div class="field-val">${fmtDateDoc(e['Event Date'])}</div></div>
     <div class="field-item"><div class="field-lbl">Event Type</div><div class="field-val">${etLabel()}</div></div>
     <div class="field-item"><div class="field-lbl">Guests / Tables</div><div class="field-val">${guests} guests · ${e['Tables']||'—'} tables</div></div>
-    <div class="field-item"><div class="field-lbl">Catering Plan</div><div class="field-val">${tier} · ${range}</div></div>
+    <div class="field-item"><div class="field-lbl">Catering Plan</div><div class="field-val">${tier} ${lineName} · ${rangeKey}</div></div>
     <div class="field-item"><div class="field-lbl">Event Schedule</div><div class="field-val">${scheduleInfo()}</div></div>
   </div>
 </div>
+
 <div class="sec">
   <div class="sec-title">Kitchen Schedule — INTERNAL</div>
   <table class="tray-table">
@@ -3880,51 +3933,49 @@ ${docHeader('Banquet Event Order',`BEO-${e['RES#']}`,'Catering & Hospitality —
     </tbody>
   </table>
 </div>
+
 <div class="sec">
-  <div class="sec-title">Tray Order Summary</div>
+  <div class="sec-title">Tray Order Summary${isFixed?' — Fixed Menu (per portion)':''}</div>
   <table class="tray-table">
-    <thead><tr><th>Category</th><th style="text-align:center">Trays</th><th style="text-align:center">Est. Portions</th><th>Notes</th></tr></thead>
+    <thead><tr><th>Category</th><th style="text-align:center">${isFixed?'—':'Trays'}</th><th style="text-align:center">Est. Portions</th><th>Notes</th></tr></thead>
     <tbody>
-      <tr><td style="font-weight:600">Main Course (Plato Fuerte)</td><td class="tray-num">${mc}</td><td style="text-align:center">${mc*40}</td><td>~40 portions/tray</td></tr>
-      <tr><td style="font-weight:600">Salads (Ensaladas)</td><td class="tray-num">${sal}</td><td style="text-align:center">${sal*40}</td><td>~40 portions/tray</td></tr>
-      <tr><td style="font-weight:600">Sides / Accompaniments</td><td class="tray-num">${side}</td><td style="text-align:center">${side*40}</td><td>~40 portions/tray</td></tr>
-      ${isPrestige||isLuxury?`<tr><td style="font-weight:600">Dessert (individual)</td><td class="tray-num">—</td><td style="text-align:center">${guests}</td><td>1 per guest</td></tr>`:''}
-      ${isLuxury?`<tr><td style="font-weight:600">Appetizers (table service)</td><td class="tray-num">—</td><td style="text-align:center">3 options</td><td>Legacy — served at tables</td></tr>`:''}
-      <tr><td style="font-weight:600">Softdrinks</td><td class="tray-num">—</td><td style="text-align:center">${guests}</td><td>${tier==='Essential'?'Not included':'Included — $1/person'}</td></tr>
-      ${isPrestige||isLuxury?`<tr><td style="font-weight:600">Jugo Natural</td><td class="tray-num">—</td><td style="text-align:center">${guests}</td><td>1 flavor — $1/person</td></tr>`:''}
-      ${isPrestige||isLuxury?`<tr><td style="font-weight:600">Café</td><td class="tray-num">—</td><td style="text-align:center">${guests}</td><td>~$0.50/person</td></tr>`:''}
+      ${traySummaryRows}
+      ${inclRows}
     </tbody>
   </table>
 </div>
+
 <div class="sec">
-  <div class="sec-title">Client Menu Selections — From Selection Form</div>
+  <div class="sec-title">Client Menu Selections${isFixed?' — Fixed Menu':' — From Selection Form'}</div>
+  ${isFixed?'<p style="font-size:10px;color:#777;margin-bottom:8px">Fixed menu — dishes below are set by the plan.</p>':'<p style="font-size:10px;color:#777;margin-bottom:8px">One row per dish the client selected. To be filled from the client Menu Selection Form.</p>'}
   <table class="tray-table">
-    <thead><tr><th>#</th><th>Category</th><th>Dish Selected</th><th>Notes</th></tr></thead>
+    <thead><tr><th>#</th><th>Category</th><th>Dish Selected</th><th>Cuisine / Notes</th></tr></thead>
     <tbody>
-      ${Array.from({length:mc+sal+side},(_,i)=>`<tr><td style="color:#AAA;font-size:10px">${i+1}</td><td>${i<mc?'Main Course':i<mc+sal?'Salad':'Side'}</td><td>___________________________________</td><td></td></tr>`).join('')}
-      ${isPrestige||isLuxury?'<tr><td style="color:#AAA;font-size:10px">★</td><td>Dessert</td><td>___________________________________</td><td>Individual per guest</td></tr>':''}
-      ${isPrestige||isLuxury?'<tr><td style="color:#AAA;font-size:10px">★</td><td>Jugo Natural</td><td>___________________________________</td><td>1 flavor</td></tr>':''}
-      ${isLuxury?'<tr><td style="color:#AAA;font-size:10px">★</td><td>Special Dish</td><td>___________________________________</td><td>Honor table only</td></tr>':''}
+      ${selectionRows}
     </tbody>
   </table>
 </div>
+
 <div class="sec">
   <div class="sec-title">Special Instructions</div>
   <div class="field-grid">
-    <div class="field-item"><div class="field-lbl">Cake (if contracted)</div><div class="field-val">___________________________________</div></div>
-    <div class="field-item"><div class="field-lbl">Special requests</div><div class="field-val">___________________________________</div></div>
+    <div class="field-item"><div class="field-lbl">Cake (if contracted)</div><div class="field-val" style="border-bottom:1px solid #CCC;min-height:18px"></div></div>
+    <div class="field-item"><div class="field-lbl">Special requests</div><div class="field-val" style="border-bottom:1px solid #CCC;min-height:18px"></div></div>
   </div>
 </div>
+
 <div class="sec">
   <div class="sec-title">Confirmation</div>
   <p style="font-size:11px;color:#555;margin-bottom:14px">This BEO has been reviewed and confirmed. Changes must be submitted in writing no later than 7 days before the event.</p>
-  ${sigBlock('Authorized — James Cardona / Cardona Hall','James Cardona · Cardona Hall LLC','Noches de Colombia — Kitchen')}
+  ${sigBlock('Authorized — James Cardona · '+ENTITY, 'James Cardona · '+ENTITY, 'Noches de Colombia — Kitchen')}
 </div>
-${docFooter('Productions LLC · Catering by Noches de Colombia')}
+${docFooter({mode:'standard'})}
+${docPageClose()}
 </div>
 <script>window.onload=function(){document.title=' ';try{history.replaceState(null,'',' ');}catch(e){}setTimeout(function(){window.print();},1000);};<\/script>
 </body></html>`;
   docWrite(win,html);
+  logDocGenerated('catering_beo');
 }
 
 // ── 7. VENUE STAFF SHEET ──────────────────────────────────────────────────────
