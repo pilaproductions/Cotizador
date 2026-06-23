@@ -131,9 +131,6 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
 .dst-printed{color:var(--blue);border-color:#BFD0F0;background:#EEF3FF;}
 .dst-delivered{color:var(--green);border-color:#A8D5B5;background:#EAF4ED;}
 .dst-na{color:#CCC;border-color:#EEE;background:#FAFAFA;}
-.service-total-bar{background:var(--dark);padding:10px 16px;display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;border-left:3px solid var(--gold);}
-.service-total-lbl{font-size:10px;color:#888;letter-spacing:2px;text-transform:uppercase;}
-.service-total-val{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:700;color:var(--gold);}
 </style>
 </head>
 <body>
@@ -254,13 +251,13 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
 
     <!-- SERVICES TAB -->
     <div class="tab-content" id="tab-services">
-      <div class="service-total-bar">
-        <div class="service-total-lbl">Additional Services Total</div>
-        <div class="service-total-val" id="servicesTotalVal">$0</div>
+      <div class="svc-actions-bar" style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+        <button class="btn btn-gold btn-disabled" id="btnAddPackage" disabled title="Coming soon — auto-derives roles from the contracted package" style="opacity:0.5;cursor:not-allowed;">+ Add package by category</button>
+        <button class="btn btn-outline" id="btnAddManual" onclick="toggleManualServiceForm()">+ Add manual service</button>
       </div>
 
-      <div class="add-form">
-        <div class="add-form-title">+ Add Role to Event</div>
+      <div class="add-form" id="manualServiceForm" style="display:none">
+        <div class="add-form-title">+ Add Manual Service</div>
         <div class="form-row form-row-3">
           <div class="form-field"><div class="form-lbl">Category</div>
             <select class="form-select" id="svcCategory" onchange="populateSvcRoleDropdown()">
@@ -977,6 +974,13 @@ const SVC_CATEGORIES=[
   {key:'Photo',label:'Photo & Video'}
 ];
 
+function toggleManualServiceForm(){
+  const f=document.getElementById('manualServiceForm');
+  if(!f)return;
+  const show=f.style.display==='none';
+  f.style.display=show?'block':'none';
+  if(show)populateSvcRoleDropdown();
+}
 function populateSvcRoleDropdown(){
   const sel=document.getElementById('svcRole');
   if(!sel)return;
@@ -1013,7 +1017,6 @@ function populateSvcProviderDropdown(){
 }
 
 function renderServices(){
-  document.getElementById('servicesTotalVal').textContent=fmtMoney(getEventTotal());
   document.getElementById('dTotal').textContent=fmtMoney(getEventTotal());
   document.getElementById('sumTotal').textContent=fmtMoney(getEventTotal());
   const received=getTotalReceived();
@@ -1045,22 +1048,25 @@ function renderServices(){
         const provCell=pending
           ? `<span style="font-size:11px;color:#C99000;font-style:italic">Pending assignment</span>`
           : `<span style="font-size:12px">${provName}</span>`;
-        const isVenueCat=(cat.key||'').toLowerCase()==='venue';
         const isOther=(s['Item']||'').toLowerCase()==='other';
         // For an "Other" role, show the specific name (Description) e.g. "Mariachi".
-        const roleLabel=isOther?(s['Description']||'Other'):(s['Item']||'—');
-        // Venue: show a document button ONLY for an "Other" role (Provider Agreement).
-        // Other categories: always show the button -> category doc (or Provider Agreement if Other).
-        const showDocBtn = isVenueCat ? isOther : true;
-        const docBtn = showDocBtn
-          ? `<button class="btn btn-outline btn-sm" onclick="generateRoleDocFromRole('${s['Detail ID']}')">⬇ Document</button>`
-          : '';
+        // For a derived Decor role, Description carries the subdivision (Honor Table,
+        // Dining, etc.) so identical roles (e.g. multiple Event Designers) are told apart.
+        const baseLabel=isOther?(s['Description']||'Other'):(s['Item']||'—');
+        const sub=(!isOther && s['Description'] && s['Description']!==s['Item']) ? s['Description'] : '';
+        const roleLabel = sub ? `${baseLabel} — ${sub}` : baseLabel;
+        // Document buttons removed from Services: documents are generated from their
+        // proper places (Documents tab, Staff Summary, BEO). When a provider is already
+        // assigned, offer Reassign (a role must always end with an assignment).
+        const actionBtn = pending
+          ? `<button class="btn btn-outline btn-sm" onclick="openAssignProviderToRole('${s['Detail ID']}')">Assign</button>`
+          : `<button class="btn btn-outline btn-sm" onclick="openAssignProviderToRole('${s['Detail ID']}')">Reassign</button>`;
         html+=`<tr>
           <td style="font-weight:500">${roleLabel} ${typeBadge(s['Provider Type'])}</td>
           <td>${provCell}</td>
           <td style="font-size:11px;color:#888">${s['Notes']||'—'}</td>
           <td style="text-align:right;white-space:nowrap">
-            ${pending?`<button class="btn btn-outline btn-sm" onclick="openAssignProviderToRole('${s['Detail ID']}')">Assign</button>`:docBtn}
+            ${actionBtn}
             <button class="btn btn-red btn-sm" onclick="removeService('${s['Detail ID']}','${(roleLabel||'').replace(/'/g,'')}')">✕</button>
           </td>
         </tr>`;
@@ -1300,7 +1306,8 @@ async function saveService(){
     'Provider Type':type,
     'Provider ID':provId,
     'Provider Name':provName,
-    'Assign Status':provName?'Assigned':'Pending'
+    'Assign Status':provName?'Assigned':'Pending',
+    'Source':'manual'
   };
   showLoading();
   try{
@@ -1330,6 +1337,7 @@ async function saveService(){
     document.getElementById('svcProviderCustom').value='';
     document.getElementById('svcNotes').value='';
     document.getElementById('svcCustomRow').style.display='none';
+    const mf=document.getElementById('manualServiceForm');if(mf)mf.style.display='none';
     showToast('Role added','success');
     await new Promise(r=>setTimeout(r,1400));
     await loadServices();
