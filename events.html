@@ -198,6 +198,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
       <div class="tab" onclick="switchTab('operations',this)">Operations</div>
       <div class="tab" onclick="switchTab('pandl',this)">P&amp;L</div>
       <div class="tab" onclick="switchTab('documents',this)">Documents</div>
+      <div class="tab" onclick="switchTab('catalogs',this)">Catalogs</div>
     </div>
 
     <!-- PAYMENTS TAB -->
@@ -351,13 +352,8 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
     <!-- OPERATIONS TAB -->
     <div class="tab-content" id="tab-operations">
 
-      <!-- VIEW SWITCHER -->
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 0 10px;border-bottom:1px solid #F0F0F0;margin-bottom:14px">
-        <div style="display:flex;gap:8px">
-          <button class="btn btn-outline btn-sm" id="opsViewOps" onclick="switchOpsView('operations')" style="font-weight:700">Operations</button>
-          <button class="btn btn-ghost btn-sm" id="opsViewTmpl" onclick="switchOpsView('templates')">Task Templates</button>
-          <button class="btn btn-ghost btn-sm" id="opsViewRolesBtn" onclick="switchOpsView('roles')">Roles</button>
-        </div>
+      <!-- ACTIONS BAR -->
+      <div style="display:flex;justify-content:flex-end;align-items:center;padding:14px 0 10px;border-bottom:1px solid #F0F0F0;margin-bottom:14px">
         <div style="display:flex;gap:8px">
           <button class="btn btn-outline btn-sm" onclick="generateVenueStaffFromOps()">⬇ Staff Sheet</button>
           <button class="btn btn-outline btn-sm" onclick="generateStaffSummary()">⬇ Staff Summary</button>
@@ -462,9 +458,21 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
         <!-- OPERATIONS LIST -->
         <div id="opsList"><div class="loading">Loading operations...</div></div>
       </div>
+    </div>
+
+    <!-- CATALOGS TAB (admin: Task Templates + Roles) -->
+    <div class="tab-content" id="tab-catalogs">
+
+      <!-- VIEW SWITCHER -->
+      <div style="display:flex;align-items:center;padding:14px 0 10px;border-bottom:1px solid #F0F0F0;margin-bottom:14px">
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-outline btn-sm" id="catViewTmplBtn" onclick="switchCatView('templates')" style="font-weight:700">Task Templates</button>
+          <button class="btn btn-ghost btn-sm" id="catViewRolesBtn" onclick="switchCatView('roles')">Roles</button>
+        </div>
+      </div>
 
       <!-- ── TASK TEMPLATES VIEW ── -->
-      <div id="opsViewTemplates" style="display:none">
+      <div id="catViewTemplates">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
           <div style="font-size:12px;color:#777">Manage predefined tasks loaded when assigning providers.</div>
           <button class="btn btn-gold btn-sm" onclick="showTemplateForm()">+ Add Template</button>
@@ -503,7 +511,8 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
         <div id="tmplList"><div class="loading">Loading templates...</div></div>
       </div>
 
-      <div id="opsViewRoles" style="display:none">
+      <!-- ── ROLES VIEW ── -->
+      <div id="catViewRoles" style="display:none">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
           <div style="font-size:12px;color:#777">Manage the role catalog used in Services and Operations.</div>
           <button class="btn btn-gold btn-sm" onclick="showRoleForm()">+ Add Role</button>
@@ -893,6 +902,7 @@ function switchTab(name,el){
   if(name==='expenses')loadExpenses();
   if(name==='documents')loadDocuments();
   if(name==='operations')loadOperations();
+  if(name==='catalogs')loadCatalogs();
 }
 
 async function loadPayments(){
@@ -1040,7 +1050,7 @@ function renderServices(){
     if(!list.length){
       html+='<div style="font-size:11px;color:#BBB;font-style:italic;padding:4px 0 8px">No roles in this category</div>';
     }else{
-      html+='<table class="data-table"><tbody>';
+      html+='<table class="data-table" style="table-layout:fixed"><colgroup><col style="width:34%"><col style="width:24%"><col style="width:22%"><col style="width:20%"></colgroup><tbody>';
       list.forEach(o=>{
         const s=o.s;
         const provName=s['Provider Name']||'';
@@ -1062,9 +1072,9 @@ function renderServices(){
           ? `<button class="btn btn-outline btn-sm" onclick="openAssignProviderToRole('${s['Detail ID']}')">Assign</button>`
           : `<button class="btn btn-outline btn-sm" onclick="openAssignProviderToRole('${s['Detail ID']}')">Reassign</button>`;
         html+=`<tr>
-          <td style="font-weight:500">${roleLabel} ${typeBadge(s['Provider Type'])}</td>
-          <td>${provCell}</td>
-          <td style="font-size:11px;color:#888">${s['Notes']||'—'}</td>
+          <td style="font-weight:500;word-wrap:break-word;overflow-wrap:break-word">${roleLabel} ${typeBadge(s['Provider Type'])}</td>
+          <td style="word-wrap:break-word;overflow-wrap:break-word">${provCell}</td>
+          <td style="font-size:11px;color:#888;word-wrap:break-word;overflow-wrap:break-word">${s['Notes']||'—'}</td>
           <td style="text-align:right;white-space:nowrap">
             ${actionBtn}
             <button class="btn btn-red btn-sm" onclick="removeService('${s['Detail ID']}','${(roleLabel||'').replace(/'/g,'')}')">✕</button>
@@ -4677,13 +4687,13 @@ async function deleteRole(roleId,roleName){
 // (Deprecated) Operations role is now read-only, filled from the assigned role.
 function populateOpsRoleDropdown(){ /* no-op: role comes from Services assignment */ }
 
-function switchOpsView(view){
-  const views={operations:'opsViewOperations',templates:'opsViewTemplates',roles:'opsViewRoles'};
+function switchCatView(view){
+  const views={templates:'catViewTemplates',roles:'catViewRoles'};
   Object.keys(views).forEach(k=>{
     const el=document.getElementById(views[k]);
     if(el)el.style.display=(k===view)?'block':'none';
   });
-  const btns={operations:'opsViewOps',templates:'opsViewTmpl',roles:'opsViewRolesBtn'};
+  const btns={templates:'catViewTmplBtn',roles:'catViewRolesBtn'};
   Object.keys(btns).forEach(k=>{
     const b=document.getElementById(btns[k]);
     if(!b)return;
@@ -4691,7 +4701,24 @@ function switchOpsView(view){
     b.className=active?'btn btn-outline btn-sm':'btn btn-ghost btn-sm';
     b.style.fontWeight=active?'700':'400';
   });
+  if(view==='templates')renderTaskTemplates();
   if(view==='roles')renderRoles();
+}
+
+// Loads the admin catalogs (Roles + Task Templates) for the Catalogs tab.
+async function loadCatalogs(){
+  try{
+    const [tmplRes, rolesRes] = await Promise.all([
+      fetch(`${SCRIPT_URL}?sheet=Task%20Templates&nocache=`+Date.now()),
+      fetch(`${SCRIPT_URL}?sheet=Roles&nocache=`+Date.now())
+    ]);
+    const tmpl = await tmplRes.json();
+    const roles = await rolesRes.json();
+    currentTaskTemplates = Array.isArray(tmpl)?tmpl:[];
+    currentRoles = Array.isArray(roles)?roles:[];
+  }catch(e){ /* keep existing values on error */ }
+  renderTaskTemplates();
+  renderRoles();
 }
 
 // ── PROVIDER SEARCH (Expenses style) ─────────────────────────────────────────
