@@ -736,6 +736,189 @@ async function loadCateringData(){
   _cateringCache={tiers,quantities,ranges,catalog};
   return _cateringCache;
 }
+// ── PACKAGE ROLES ENGINE (derive + freeze) ───────────────────────────────────
+// Loads Package_Roles (and Service_Catalog) once per session, then derives the
+// operational roles a contracted package brings and FREEZES them into Event
+// Services Detail on the first time an event is opened. Frozen rows are a
+// snapshot: later catalog changes never alter past events.
+let _packageRolesCache=null;
+async function loadPackageRoles(){
+  if(_packageRolesCache)return _packageRolesCache;
+  const get=async(sheet)=>{
+    try{
+      const r=await fetch(SCRIPT_URL+'?sheet='+encodeURIComponent(sheet)+'&nocache='+Date.now());
+      const d=await r.json();
+      return Array.isArray(d)?d:[];
+    }catch(e){return [];}
+  };
+  const [pkgRoles,catalog]=await Promise.all([
+    get('Package_Roles'), get('Service_Catalog')
+  ]);
+  _packageRolesCache={pkgRoles,catalog};
+  return _packageRolesCache;
+}
+
+// Maps the quotation guest-range value to the Venue Modifier (XS/S/M/L).
+function mapGuestRangeToModifier(gr){
+  const v=String(gr||'').toLowerCase().trim();
+  if(v==='extra_small'||v==='extrasmall'||v==='xs')return 'XS';
+  if(v==='small'||v==='s')return 'S';
+  if(v==='medium'||v==='m')return 'M';
+  if(v==='large'||v==='l')return 'L';
+  return '';
+}
+// Normalizes a tier string from the quotation to a short code (ESS/ELE/PRE/LEG).
+function mapTierToCode(t){
+  const v=String(t||'').toLowerCase().trim();
+  if(!v)return '';
+  if(v.indexOf('legacy')>-1||v==='leg')return 'LEG';
+  if(v.indexOf('essential')>-1||v==='ess')return 'ESS';
+  if(v.indexOf('elegant')>-1||v==='ele')return 'ELE';
+  if(v.indexOf('prestige')>-1||v==='pre')return 'PRE';
+  return '';
+}
+
+// Builds the list of contracted Service_IDs (and their Tier_Key for role lookup)
+// by reading the quotation fields stored in currentEvent. Returns an array of
+// {serviceId, tierKey, division, subLabel}. subLabel differentiates otherwise
+// identical derived roles (e.g. Decor subdivisions).
+function deriveContractedServiceIds(ev){
+  const out=[];
+  const push=(serviceId,tierKey,division,subLabel)=>{
+    out.push({serviceId,tierKey,division,subLabel:subLabel||''});
+  };
+
+  // VENUE: tier + guest range. Price uses full Service_ID (VEN-PRE-L); roles
+  // use Tier_Key (VEN-PRE) since staff doesn't change by range.
+  const venTier=mapTierToCode(ev['Venue Tier']);
+  if(venTier){
+    const mod=mapGuestRangeToModifier(ev['Guest Range']);
+    const sid=mod?`VEN-${venTier}-${mod}`:`VEN-${venTier}`;
+    push(sid,`VEN-${venTier}`,'Venue','');
+  }
+
+  // CATERING: any contracted line derives Chef x1 (variant/sub-tier only matter
+  // for price/menu, not roles). Tier_Key = full Service_ID.
+  const catLine=String(ev['Catering Line']||'').toLowerCase().trim();
+  if(catLine){
+    let catSid='';
+    if(catLine.indexOf('classic')>-1){
+      catSid = (catLine.indexOf('international')>-1) ? 'CAT-CLA-INT' : 'CAT-CLA-TRA';
+    }else if(catLine.indexOf('collection')>-1){
+      const sub=mapTierToCode(ev['Catering Plan']);
+      catSid = sub?('CAT-COL-'+sub):'CAT-COL-ESS';
+    }else if(catLine.indexOf('luxury')>-1||catLine.indexOf('legacy')>-1){
+      catSid='CAT-LEG';
+    }
+    if(catSid)push(catSid,catSid,'Catering','');
+  }
+
+  // DECOR: 4 independent subdivisions. Role depends on subdivision AND tier:
+  // Legacy -> Event Designer; else -> the subdivision's decorator.
+  const decSubs=[
+    {field:'Decor Honor Tier', sub:'HON', label:'Honor Table'},
+    {field:'Decor Dining Tier',sub:'DIN', label:'Dining'},
+    {field:'Decor CP Tier',    sub:'CEN', label:'Centerpiece'},
+    {field:'Decor Extras Tier',sub:'EXT', label:'Extras'}
+  ];
+  decSubs.forEach(d=>{
+    const code=mapTierToCode(ev[d.field]);
+    if(!code)return;
+    const sid=`DEC-${code}-${d.sub}`;
+    push(sid,sid,'Decor',d.label);
+  });
+
+  // ENTERTAINMENT: Sound line (SND/SNDP) + main plan (ESS/ELE/PRE/LEG).
+  const soundPlan=String(ev['Sound Plan']||'').toLowerCase().trim();
+  if(soundPlan){
+    const sid = soundPlan.indexOf('plus')>-1 ? 'ENT-SNDP' : 'ENT-SND';
+    push(sid,sid,'Entertainment','');
+  }
+  const entCode=mapTierToCode(ev['Entertainment Plan']);
+  if(entCode)push('ENT-'+entCode,'ENT-'+entCode,'Entertainment','');
+
+  // PHOTO: coverage tier + shoot + prints.
+  const phoCode=mapTierToCode(ev['Photo Tier']);
+  if(phoCode)push('PHO-'+phoCode,'PHO-'+phoCode,'Photo','');
+  const shoot=String(ev['Photo Shoot']||'').toLowerCase().trim();
+  if(shoot){
+    const sid = shoot.indexOf('full')>-1 ? 'PHO-SHOOT-FULL' : 'PHO-SHOOT-ESS';
+    push(sid,sid,'Photo','Shoot');
+  }
+  const prints=String(ev['Photo Prints']||'').toLowerCase().trim();
+  if(prints)push('PHO-PRINT','PHO-PRINT','Photo','Prints');
+
+  return out;
+}
+
+// Derives + freezes roles for the current event if not already frozen.
+// Idempotent: if ANY frozen row already exists for this event, does nothing.
+// Writes all rows in a SINGLE batch call (saveServiceDetailBatch).
+async function deriveAndFreezeRoles(){
+  if(!currentEvent)return;
+  const hasFrozen=(currentServices||[]).some(s=>{
+    const f=String(s['Frozen']||'').toLowerCase();
+    return f==='true'||f==='1'||f==='yes';
+  });
+  if(hasFrozen)return;
+
+  const contracted=deriveContractedServiceIds(currentEvent);
+  if(!contracted.length)return;
+
+  const pr=await loadPackageRoles();
+  const pkgRoles=pr.pkgRoles||[];
+  const catalog=pr.catalog||[];
+  const catById={};
+  catalog.forEach(c=>{ if(c['Service_ID'])catById[c['Service_ID']]=c; });
+
+  const ev=currentEvent;
+  const rows=[];
+  const stamp=Date.now();
+  let seq=0;
+  contracted.forEach(item=>{
+    const cat=catById[item.serviceId];
+    const salePrice=(cat&&cat['Price']!==undefined&&cat['Price']!=='')?cat['Price']:'';
+    const roles=pkgRoles.filter(r=>{
+      const active=String(r['Active']).toLowerCase();
+      return String(r['Tier_Key'])===String(item.tierKey) && (active==='true'||active==='1'||active==='');
+    });
+    roles.forEach(r=>{
+      const qty=parseInt(r['Default_Qty'])||1;
+      for(let n=1;n<=qty;n++){
+        seq++;
+        let desc=item.subLabel||'';
+        if(qty>1)desc = desc ? `${desc} ${n}` : String(n);
+        rows.push({
+          'Detail ID': 'SVC-'+stamp+'-'+seq,
+          'RES#': ev['RES#'],
+          'COT#': ev['COT#']||'',
+          'Event Date': ev['Event Date']||'',
+          'Division': item.division,
+          'Type': 'Package',
+          'Item': r['Role'],
+          'Description': desc,
+          'Price': 0,
+          'Notes': '',
+          'Provider Type': r['Provider_Default']||'Internal',
+          'Provider ID': '',
+          'Provider Name': '',
+          'Assign Status': 'Pending',
+          'Service_ID': item.serviceId,
+          'Sale_Price': salePrice,
+          'Frozen': 'TRUE',
+          'Source': 'derived'
+        });
+      }
+    });
+  });
+
+  if(!rows.length)return;
+  try{
+    await fetch(SCRIPT_URL,{method:'POST',body:JSON.stringify({action:'saveServiceDetailBatch',rows:rows})});
+    await loadServices();
+  }catch(e){ /* leave as-is on failure; retries next open since nothing froze */ }
+}
+
 // Resolve guest-count range key (XS/S/M/L) from Catering_Ranges.
 function resolveCateringRange(guests,ranges){
   const g=parseInt(guests)||0;
@@ -880,9 +1063,21 @@ async function openEvent(resNum){
   dv.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===0));
   dv.querySelectorAll('.tab-content').forEach((t,i)=>t.classList.toggle('active',i===0));
   showLoading();
-  await Promise.all([loadPayments(),loadServices(),loadExpenses(),loadDocuments()]);
-  await loadDirectoryProviders();
-  await loadOperations();
+  // Parallel load: everything that doesn't depend on another fetch goes together.
+  // (Previously providers + operations ran sequentially after this block, and
+  //  loadOperations re-loaded Services a second time — the real cause of the lag.)
+  await Promise.all([
+    loadPayments(),
+    loadServices(),
+    loadExpenses(),
+    loadDocuments(),
+    loadDirectoryProviders()
+  ]);
+  // First-open freeze: derive package roles into the event if not already frozen.
+  // Runs after Services is loaded (needs currentServices to check idempotency).
+  await deriveAndFreezeRoles();
+  // Operations last: it consumes the (now loaded & possibly frozen) Services.
+  await loadOperations(true);
   hideLoading();
 }
 
@@ -4576,7 +4771,7 @@ let currentTaskTemplates=[];
 let currentRoles=[];
 let opsPendingTasks=[]; // tasks built in the form before saving
 
-async function loadOperations(){
+async function loadOperations(skipServices){
   try{
     const [opsRes, tmplRes, rolesRes] = await Promise.all([
       fetch(`${SCRIPT_URL}?sheet=Event%20Operations&filterKey=RES%23&filterVal=${encodeURIComponent(currentEvent['RES#'])}`),
@@ -4589,9 +4784,10 @@ async function loadOperations(){
     if(!Array.isArray(currentOperations)) currentOperations=[];
     if(!Array.isArray(currentTaskTemplates)) currentTaskTemplates=[];
     if(!Array.isArray(currentRoles)) currentRoles=[];
-    // Ensure Services (assigned roles) are loaded for the day-of selector
-    // Always refresh Services so newly assigned providers show up here
-    await loadServices();
+    // Refresh Services so newly assigned providers show up in the day-of selector.
+    // Skipped during initial openEvent (Services was just loaded there) to avoid
+    // a redundant second fetch — the main source of open lag.
+    if(!skipServices){ await loadServices(); }
     renderOperations();
     renderTaskTemplates();
     populateOpsAssignedRoles();
