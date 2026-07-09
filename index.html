@@ -495,6 +495,133 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
 <script>
 const SCRIPT_URL='https://script.google.com/macros/s/AKfycbyUAKZyuX8xcdSTXNkJoagPlaW4fumRWnrDuuARiMntpS76sx_6I-6TYxUpjkhjVIADAQ/exec';
 
+// ── CATALOG LOADER (Q3-T1) ─────────────────────────────────
+// Loads pricing + rules from Sheets and rebuilds the in-memory price
+// structures the calc functions expect. Prices are NO LONGER hardcoded —
+// they come from Service_Catalog / Catering_Tiers / Business_Rules.
+const catalog={
+  loaded:false,
+  service:{},        // Service_ID -> {price, discountPct, active, tier, division, modifier}
+  businessRules:{},  // group -> {key -> value}
+  addons:[],         // array of addon rows
+  cateringPPX:{},    // tierKey -> price/person
+  // rebuilt price structures (same shape the old constants had)
+  VENUE:{}, HONOR:{}, DINING:{}, CP:{}, EXTRAS:{}, SOUND:{}, ENT:{}, PHOTO:{},
+  GUEST_TABLES:{}, guestRanges:[]
+};
+
+async function loadCatalogs(){
+  if(catalog.loaded)return catalog;
+  const get=async(sheet)=>{
+    try{
+      const r=await fetch(SCRIPT_URL+'?sheet='+encodeURIComponent(sheet)+'&nocache='+Date.now());
+      const d=await r.json();
+      return Array.isArray(d)?d:[];
+    }catch(e){return [];}
+  };
+  const [svc,rules,addons,catTiers]=await Promise.all([
+    get('Service_Catalog'), get('Business_Rules'), get('Addon_Catalog'), get('Catering_Tiers')
+  ]);
+
+  // --- index Service_Catalog ---
+  svc.forEach(r=>{
+    const id=r['Service_ID']; if(!id)return;
+    catalog.service[id]={
+      price: num(r['Price']),
+      discountPct: num(r['Category_Discount_Pct']),
+      active: String(r['Active']).toLowerCase()==='true',
+      tier: r['Tier'], division: r['Division'], modifier: r['Modifier']
+    };
+  });
+
+  // --- index Business_Rules by group ---
+  rules.forEach(r=>{
+    const g=r['Rule_Group'], k=String(r['Rule_Key']), v=r['Rule_Value'];
+    if(!g)return;
+    (catalog.businessRules[g]=catalog.businessRules[g]||{})[k]=v;
+  });
+
+  // --- addons ---
+  catalog.addons=addons;
+
+  // --- catering price/person (tierKey uses Service_ID mapping) ---
+  // Catering_Tiers: Line, Tier, Price_Person
+  const catMap={ 'Classic|Traditional':'traditional','Classic|International':'international',
+    'Collection|Essential':'essential','Collection|Elegant':'elegant','Collection|Prestige':'prestige',
+    'Legacy|Legacy':'legacy' };
+  catTiers.forEach(r=>{
+    const key=(r['Line']||'')+'|'+(r['Tier']||'');
+    const short=catMap[key];
+    if(short)catalog.cateringPPX[short]=num(r['Price_Person']);
+  });
+
+  rebuildPriceStructures();
+  catalog.loaded=true;
+  return catalog;
+}
+
+function num(v){ if(v===null||v===undefined||v==='')return 0; const n=parseFloat(v); return isNaN(n)?0:n; }
+
+// Rebuild the exact structures the calc functions read, but from Sheet data.
+function rebuildPriceStructures(){
+  const S=catalog.service;
+  const price=(id)=> (S[id]?S[id].price:0);
+
+  // VENUE: tier -> {range -> price}. Ranges map long<->short.
+  const rMap={XS:'extra_small',S:'small',M:'medium',L:'large'};
+  ['ESS','ELE','PRE'].forEach(t=>{
+    const tierName={ESS:'essential',ELE:'elegant',PRE:'prestige'}[t];
+    catalog.VENUE[tierName]={extra_small:null,small:null,medium:null,large:null};
+    ['XS','S','M','L'].forEach(rg=>{
+      const p=price('VEN-'+t+'-'+rg);
+      catalog.VENUE[tierName][rMap[rg]] = p||null;
+    });
+  });
+
+  // DECOR — Honor by tier×type, Dining per table, CP by tier×type, Extras.
+  const tierMap={ESS:'essential',ELE:'elegant',PRE:'prestige'};
+  catalog.HONOR={}; catalog.DINING={}; catalog.CP={}; catalog.EXTRAS={};
+  Object.entries(tierMap).forEach(([code,name])=>{
+    catalog.HONOR[name]={ flowers:price('DEC-'+code+'-HON-F'), balloons:price('DEC-'+code+'-HON-B') };
+    catalog.DINING[name]=price('DEC-'+code+'-DIN');
+    catalog.CP[name]={ flowers:price('DEC-'+code+'-CEN-F'), balloons:price('DEC-'+code+'-CEN-B'), others:price('DEC-'+code+'-CEN-O') };
+    catalog.EXTRAS[name]=price('DEC-'+code+'-EXT');
+  });
+  catalog.HONOR.legacy={flowers:0,balloons:0};
+  catalog.EXTRAS.legacy=0;
+
+  // SOUND — new values sound_system/sound_lighting + old keys for compat.
+  catalog.SOUND={
+    sound_system:price('ENT-SND'), sound_lighting:price('ENT-SNDP'),
+    soundlighting:price('ENT-SND'), soundlightingplus:price('ENT-SNDP') // compat
+  };
+
+  // ENTERTAINMENT collection line
+  catalog.ENT={ essential:price('ENT-ESS'), elegant:price('ENT-ELE'), prestige:price('ENT-PRE'), legacy:price('ENT-LEG') };
+
+  // PHOTO coverage + shoot + prints(from addons)
+  const gallery=(catalog.addons.find(a=>a['Addon_ID']==='PHO-ADDON-GALLERY')||{})['Price'];
+  const frame=(catalog.addons.find(a=>a['Addon_ID']==='PHO-ADDON-FRAME')||{})['Price'];
+  catalog.PHOTO={
+    photography:{ essential:price('PHO-ESS'), elegant:price('PHO-ELE'), prestige:price('PHO-PRE'), legacy:price('PHO-LEG') },
+    shoot:{ essential:price('PHO-SHOOT-ESS'), full:price('PHO-SHOOT-FULL') },
+    prints:{ gallery:num(gallery), frames_per_table:num(frame) }
+  };
+
+  // GUEST_TABLES from Business_Rules.tables
+  const t=catalog.businessRules.tables||{};
+  catalog.GUEST_TABLES={};
+  Object.keys(t).forEach(k=>{ catalog.GUEST_TABLES[parseInt(k)]=parseInt(t[k]); });
+
+  // guest ranges from Business_Rules.guest_range ("0-49" etc.)
+  const gr=catalog.businessRules.guest_range||{};
+  catalog.guestRanges=[];
+  ['XS','S','M','L'].forEach(code=>{
+    if(gr[code]){ const [mn,mx]=String(gr[code]).split('-').map(Number);
+      catalog.guestRanges.push({code,min:mn,max:mx,long:rMap[code]}); }
+  });
+}
+
 // ── STATE ──────────────────────────────────────────────────
 const state={
   cotNumber:null,resNumber:null,status:'new',isLoaded:false,loadedSnapshot:null,
@@ -508,30 +635,29 @@ const state={
   discounts:{venue:0,decor:0,entertainment:0,photo:0,fullPackage:0}
 };
 
-// ── PRICE TABLES ───────────────────────────────────────────
-const VENUE_PRICES={
-  essential:{extra_small:1000,small:1000,medium:1200,large:null},
-  elegant:{extra_small:1500,small:1600,medium:1800,large:2000},
-  prestige:{extra_small:2300,small:2300,medium:2500,large:2800}
-};
+// ── PRICE TABLES (Q3-T1: now read from Sheets via catalog) ─────────
+// These are getters that proxy to the loaded catalog. If catalog isn't
+// loaded yet they fall back to empty (calc guards against that).
+Object.defineProperty(window,'VENUE_PRICES',{get:()=>catalog.VENUE});
 
-// Guest range → tables lookup
-const GUEST_TABLES={30:5,40:6,50:7,60:8,70:9,80:10,90:10,100:11,110:12,120:13};
 function guestsToTables(g){
-  // Find highest bracket <= g
-  const brackets=Object.keys(GUEST_TABLES).map(Number).sort((a,b)=>a-b);
-  let t=5;
-  for(const b of brackets){if(g>=b)t=GUEST_TABLES[b];}
+  const GT=catalog.GUEST_TABLES||{};
+  const brackets=Object.keys(GT).map(Number).sort((a,b)=>a-b);
+  let t=brackets.length?GT[brackets[0]]:5;
+  for(const b of brackets){if(g>=b)t=GT[b];}
   return t;
 }
 function guestsToRange(g){
+  // Use ranges from Business_Rules; fall back to fixed cuts if not loaded.
+  const R=catalog.guestRanges||[];
+  for(const r of R){ if(g>=r.min && g<=r.max) return r.long; }
   if(g<=49)return 'extra_small';
   if(g<=69)return 'small';
   if(g<=89)return 'medium';
   return 'large';
 }
 
-const CATERING_PPX={traditional:20,international:25,essential:30,elegant:40,prestige:45,legacy:70};
+Object.defineProperty(window,'CATERING_PPX',{get:()=>catalog.cateringPPX});
 const CATERING_TRAYS={
   essential:{extra_small:{mc:2,sal:1,sid:1},small:{mc:2,sal:1,sid:2},medium:{mc:3,sal:2,sid:2},large:{mc:3,sal:2,sid:3}},
   elegant:{extra_small:{mc:2,sal:1,sid:2},small:{mc:3,sal:2,sid:2},medium:{mc:4,sal:2,sid:3},large:{mc:4,sal:3,sid:3}},
@@ -542,9 +668,9 @@ const DECOR_PRICES={
   elegant:{flowers:{5:1200,6:1250,7:1350,8:1400,9:1450,10:1500,11:1550,12:1600,13:1700},balloons:{5:950,6:1000,7:1000,8:1050,9:1100,10:1150,11:1200,12:1250,13:1300},others:{5:950,6:1000,7:1000,8:1050,9:1100,10:1150,11:1200,12:1250,13:1300}},
   prestige:{flowers:{5:1600,6:1700,7:1750,8:1800,9:1850,10:1900,11:2000,12:2050,13:2100},balloons:{5:1400,6:1450,7:1500,8:1550,9:1600,10:1650,11:1700,12:1750,13:1800},others:{5:1560,6:1600,7:1650,8:1700,9:1750,10:1800,11:1860,12:1900,13:1950}}
 };
-const SOUND_PRICES={soundlighting:400,soundlightingplus:600};
-const ENT_PRICES={essential:900,elegant:1400,prestige:1600,legacy:3000};
-const PHOTO_PRICES={photography:{essential:600,elegant:1200,prestige:2400,legacy:2800},shoot:{essential:600,full:750},prints:{gallery:650,frames_per_table:50}};
+Object.defineProperty(window,'SOUND_PRICES',{get:()=>catalog.SOUND});
+Object.defineProperty(window,'ENT_PRICES',{get:()=>catalog.ENT});
+Object.defineProperty(window,'PHOTO_PRICES',{get:()=>catalog.PHOTO});
 const PHOTO_BUNDLE_DISC={elegant:0.10,prestige:0.15,legacy:0.20};
 const PHOTO_BUNDLE_INCLUDES={
   elegant:{photo:'elegant',shoot:'',prints:'frames'},
@@ -569,6 +695,7 @@ function fmtMoney(n){return n?'$'+Math.round(n).toLocaleString():'—';}
 window.onload=async()=>{
   document.getElementById('createdDate').textContent=new Date().toLocaleDateString('en-US');
   showLoading('Connecting to database...');
+  await loadCatalogs();
   await loadAllQuotations();
   await generateCotNumber();
   hideLoading();
@@ -974,19 +1101,10 @@ function setDecorPlanInternal(tier,skipValueOverwrite){
 }
 
 // ── DECOR PRICING TABLES (from Pilab_DesignDecor_Precios_v1.xlsx) ──
-const HONOR_PRICES={
-  essential:{flowers:400,balloons:400},
-  elegant:{flowers:500,balloons:450},
-  prestige:{flowers:700,balloons:650},
-  legacy:{flowers:0,balloons:0}// custom price
-};
-const DINING_PPM={essential:40,elegant:50,prestige:80};// per table
-const CP_PPM={
-  essential:{flowers:30,balloons:30,others:30},
-  elegant:{flowers:30,balloons:20,others:25},
-  prestige:{flowers:45,balloons:30,others:40}
-};
-const EXTRAS_PRICE={essential:0,elegant:150,prestige:350,legacy:0};// legacy=custom
+Object.defineProperty(window,'HONOR_PRICES',{get:()=>catalog.HONOR});
+Object.defineProperty(window,'DINING_PPM',{get:()=>catalog.DINING});
+Object.defineProperty(window,'CP_PPM',{get:()=>catalog.CP});
+Object.defineProperty(window,'EXTRAS_PRICE',{get:()=>catalog.EXTRAS});
 
 function calcDecorPrice(){
   const honorTier=document.getElementById('decorHonorTier').value;
