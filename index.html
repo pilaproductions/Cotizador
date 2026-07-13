@@ -1663,7 +1663,7 @@ function renderResults(results){
 function loadQuotation(cotNum){
   const rec=allLoadedQuotations.find(r=>r['COT#']===cotNum);
   if(!rec){showToast('Not found','error');return;}
-  console.log('LOAD START',{decorPlan:rec['Decor Plan'],honorTier:rec['Decor Honor Tier'],diningTier:rec['Decor Dining Tier'],cpTier:rec['Decor CP Tier'],cpType:rec['Decor CP Type']});
+  // (load start)
   // Close modal immediately
   closeModal();
 
@@ -1835,8 +1835,13 @@ function loadQuotation(cotNum){
 
   // ── Step 12: Single calcTotal at the end ──
   calcTotal();
-  state.isLoaded=false;
-  console.log('LOAD END',{decorPlan:state.decorPlan,honorTier:document.getElementById('decorHonorTier').value,diningTier:document.getElementById('decorDiningTier').value,cpTier:document.getElementById('decorCPTier').value,cpType:document.getElementById('decorCPType').value,honorType:document.getElementById('decorHonorType').value,numTables:state.numTables});
+  // isLoaded MUST stay true: a loaded quotation is "loaded" so that reserving
+  // without changes takes Path A (same COT#). (Was being reset to false here,
+  // which forced Path B and spawned duplicate COT#s.)
+  state.isLoaded=true;
+  // refresh the snapshot AFTER final calc so hasChanges() compares against the
+  // fully-rendered state (avoids false positives from recalculated fields).
+  state.loadedSnapshot={...collectData()};
   document.getElementById('btnExportPDF').style.display='inline-flex';
   showToast('Loaded '+rec['COT#']+' — '+rec['Client Name'],'warn');
 }
