@@ -773,6 +773,7 @@ async function saveToSheets(data){
 // COT# in place (fills RES# + Status + Reservation Details). COT# not duplicated.
 async function reserveExistingQuotation(payload){
   const body={action:'reserveInPlace',...payload};
+  console.log('[reserve] reserveInPlace payload:',JSON.stringify(body));
   await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(body),headers:{'Content-Type':'text/plain'}});
 }
 
@@ -1857,6 +1858,7 @@ async function confirmReservation(){
   //  B) New quotation, or loaded + quotation CHANGED → generate a NEW COT#,
   //     save it as a new quotation, then reserve that one.
   const reserveOnSame = state.isLoaded && !hasChanges();
+  console.log('[reserve] isLoaded:',state.isLoaded,'| hasChanges:',hasChanges(),'| path:',reserveOnSame?'A (reserveInPlace, same COT#)':'B (new COT#)');
 
   showConfirm('Confirm Reservation','Confirm reservation for '+document.getElementById('clientName').value+'? This cannot be undone.',async()=>{
     showLoading('Confirming reservation...');
