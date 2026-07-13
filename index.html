@@ -363,7 +363,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
         <div class="sub-content">
           <div class="grid-2">
             <div class="field"><div class="field-label">Tier</div><select class="field-select" id="decorHonorTier" onchange="onDecorHonorTierChange()"><option value="">Not Applicable</option><option value="essential">Essential</option><option value="elegant">Elegant</option><option value="prestige">Prestige</option><option value="legacy">Legacy</option></select></div>
-            <div class="field"><div class="field-label">Type</div><select class="field-select" id="decorHonorType" onchange="calcDecorPrice();calcTotal()" disabled><option value="">— Select —</option><option value="flowers">Flowers</option><option value="balloons">Balloons</option></select></div>
+            <div class="field"><div class="field-label">Type</div><select class="field-select" id="decorHonorType" onchange="markEdited();calcDecorPrice();calcTotal()" disabled><option value="">— Select —</option><option value="flowers">Flowers</option><option value="balloons">Balloons</option></select></div>
           </div>
         </div>
       </div>
@@ -371,7 +371,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
         <div class="sub-header"><div class="sub-title">Dining Setup</div><div class="sub-price" id="dining-price"></div></div>
         <div class="sub-content">
           <div class="grid-2">
-            <div class="field"><div class="field-label">Tier</div><select class="field-select" id="decorDiningTier" onchange="calcDecorPrice();calcTotal()"><option value="">Not Applicable</option><option value="essential">Essential</option><option value="elegant">Elegant</option><option value="prestige">Prestige</option><option value="legacy">Legacy</option></select></div>
+            <div class="field"><div class="field-label">Tier</div><select class="field-select" id="decorDiningTier" onchange="markEdited();calcDecorPrice();calcTotal()"><option value="">Not Applicable</option><option value="essential">Essential</option><option value="elegant">Elegant</option><option value="prestige">Prestige</option><option value="legacy">Legacy</option></select></div>
             <div class="field"><div class="field-label">Tables (auto)</div><span class="field-auto highlight" id="decorDiningTablesDisplay">—</span></div>
           </div>
         </div>
@@ -381,14 +381,14 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
         <div class="sub-content">
           <div class="grid-2">
             <div class="field"><div class="field-label">Tier</div><select class="field-select" id="decorCPTier" onchange="onDecorCPTierChange()"><option value="">Not Applicable</option><option value="essential">Essential</option><option value="elegant">Elegant</option><option value="prestige">Prestige</option><option value="legacy">Legacy</option></select></div>
-            <div class="field"><div class="field-label">Type</div><select class="field-select" id="decorCPType" onchange="calcDecorPrice();calcTotal()" disabled><option value="">— Select —</option><option value="flowers">Flowers</option><option value="balloons">Balloons</option><option value="others">Others</option></select></div>
+            <div class="field"><div class="field-label">Type</div><select class="field-select" id="decorCPType" onchange="markEdited();calcDecorPrice();calcTotal()" disabled><option value="">— Select —</option><option value="flowers">Flowers</option><option value="balloons">Balloons</option><option value="others">Others</option></select></div>
           </div>
           <div class="field"><div class="field-label">Tables (auto)</div><span class="field-auto highlight" id="decorCPTablesDisplay">—</span></div>
         </div>
       </div>
       <div class="sub-block">
         <div class="sub-header"><div class="sub-title">Extras</div><div class="sub-price" id="extras-price"></div></div>
-        <div class="sub-content"><div class="field"><div class="field-label">Tier</div><select class="field-select" id="decorExtrasTier" onchange="calcDecorPrice();calcTotal()"><option value="">Not Applicable</option><option value="elegant">Elegant</option><option value="prestige">Prestige</option><option value="legacy">Legacy</option></select><span class="info-badge gold" id="extrasInfo" style="display:none"></span></div></div>
+        <div class="sub-content"><div class="field"><div class="field-label">Tier</div><select class="field-select" id="decorExtrasTier" onchange="markEdited();calcDecorPrice();calcTotal()"><option value="">Not Applicable</option><option value="elegant">Elegant</option><option value="prestige">Prestige</option><option value="legacy">Legacy</option></select><span class="info-badge gold" id="extrasInfo" style="display:none"></span></div></div>
       </div>
     </div>
     <div class="field" style="margin-top:6px"><div class="field-label">Decor Total</div><span class="field-auto highlight" id="decorTotalDisplay" style="display:none"></span></div>
@@ -441,7 +441,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
     <div class="sub-block" style="margin-top:8px">
       <div class="sub-header"><div class="sub-title">Photography &amp; Videography</div><div class="sub-price" id="photog-price"></div></div>
       <div class="sub-content"><div class="field"><div class="field-label">Tier</div>
-        <select class="field-select" id="photoTier" onchange="calcTotal()">
+        <select class="field-select" id="photoTier" onchange="markEdited();calcTotal()">
           <option value="">Not Applicable</option>
           <option value="essential">Essential — $600 (not Sat)</option>
           <option value="elegant">Elegant — $1,200</option>
@@ -453,7 +453,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
     <div class="sub-block">
       <div class="sub-header"><div class="sub-title">Photo Shoot</div><div class="sub-price" id="shoot-price"></div></div>
       <div class="sub-content"><div class="field"><div class="field-label">Plan</div>
-        <select class="field-select" id="photoShootPlan" onchange="calcTotal()">
+        <select class="field-select" id="photoShootPlan" onchange="markEdited();calcTotal()">
           <option value="">Not Applicable</option>
           <option value="essential">Essential — Up to 2 people ($600)</option>
           <option value="full">Full — Up to 4 people + Reel ($750)</option>
@@ -1034,10 +1034,10 @@ function updateVenueDisplay(base,discPct,discAmt,reasons){
   } else {el.style.display='none';discEl.style.display='none';hdrPrice.textContent='';hdrDisc.textContent='';}
 }
 
-function onVenueTierChange(){calcVenuePrice();updateCateringRules();calcTotal();}
+function onVenueTierChange(){markEdited();calcVenuePrice();updateCateringRules();calcTotal();}
 
 // ── CATERING ───────────────────────────────────────────────
-function onCateringLineChange(){
+function onCateringLineChange(){markEdited();
   const line=document.getElementById('cateringLine').value;
   const planSel=document.getElementById('cateringPlan');
   planSel.innerHTML='<option value="">— Select Plan —</option>';planSel.disabled=!line;
@@ -1059,7 +1059,7 @@ function updateCateringRules(){
   else hideAlert('cateringAlert');
 }
 
-function onCateringPlanChange(){
+function onCateringPlanChange(){markEdited();
   const plan=document.getElementById('cateringPlan').value;
   const price=plan?(CATERING_PPX[plan]||0)*state.numGuests:0;
   state.prices.catering=price;
@@ -1078,13 +1078,13 @@ function updateCateringTrays(){
 }
 
 // ── DECOR ──────────────────────────────────────────────────
-function setDecorPlan(tier,btn){
+function setDecorPlan(tier,btn){markEdited();
   document.querySelectorAll('#decorTierBtns .tier-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   setDecorPlanInternal(tier,false);
 }
 
-function onDecorHonorTierChange(){
+function onDecorHonorTierChange(){markEdited();
   const tier=document.getElementById('decorHonorTier').value;
   const typeSelect=document.getElementById('decorHonorType');
   if(tier&&tier!=='legacy'){
@@ -1097,7 +1097,7 @@ function onDecorHonorTierChange(){
   calcDecorPrice();calcTotal();
 }
 
-function onDecorCPTierChange(){
+function onDecorCPTierChange(){markEdited();
   const tier=document.getElementById('decorCPTier').value;
   const typeSelect=document.getElementById('decorCPType');
   if(tier&&tier!=='legacy'){
@@ -1241,7 +1241,7 @@ function calcDecorPrice(){
   document.getElementById('pd-decor').textContent=decorDisc>0?`-10% (-${fmtMoney(decorDisc)})`:'';
 }
 
-function onDecorExtrasTier(){
+function onDecorExtrasTier(){markEdited();
   const tier=document.getElementById('decorExtrasTier').value;
   const badge=document.getElementById('extrasInfo');
   const map={elegant:'3 extras included',prestige:'5 extras included',legacy:'Legacy extras included'};
@@ -1261,13 +1261,20 @@ function updateSoundOptions(){
   }
 }
 
-function onSoundPlanChange(){
+function onSoundPlanChange(){markEdited();
   const val=document.getElementById('soundPlan').value;
   document.getElementById('soundDamageAlert').style.display=val?'block':'none';
   updateEntDiscounts();calcTotal();
 }
 
+// When the user changes ANY service/plan after loading a quotation, it's no
+// longer the pristine loaded quote: switch to "editing" mode so calcTotal()
+// recomputes (the if(!isLoaded) guards stop blocking) and a later reservation
+// takes Path B (new COT#). Reservation Details do NOT call this.
+function markEdited(){ if(state.isLoaded){ state.isLoaded=false; } }
+
 function onEntPlanChange(){
+  markEdited();
   const entVal=document.getElementById('entPlan').value;
   const soundSel=document.getElementById('soundPlan');
   const soundMap={essential:'soundlighting',elegant:'soundlightingplus',prestige:'soundlightingplus',legacy:'soundlightingplus'};
@@ -1322,7 +1329,7 @@ function updatePhotoSaturdayRule(){
   }
 }
 
-function setPhotoPlan(tier,btn){
+function setPhotoPlan(tier,btn){markEdited();
   document.querySelectorAll('#photoTierBtns .tier-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   setPhotoPlanInternal(tier);
@@ -1344,7 +1351,7 @@ function setPhotoPlanInternal(tier){
   onPrintsPlanChange();calcTotal();
 }
 
-function onPrintsPlanChange(){
+function onPrintsPlanChange(){markEdited();
   const prints=document.getElementById('printsPlan').value;
   if(prints==='gallery')showAlert('galleryAlert','Photo Gallery available at Cardona Hall only.','info');else hideAlert('galleryAlert');
   const framesField=document.getElementById('framesInfoField');
