@@ -1503,8 +1503,16 @@ function buildDiscountSummary(d,fpDisc,subtotal){
 function hasChanges(){
   if(!state.loadedSnapshot)return true;
   const cur=collectData();
-  const keys=['Client Name','Phone','Email','Event Date','Guests','Event Type','Full Package','Venue Tier','Catering Line','Catering Plan','Decor Plan','Decor Honor Tier','Decor Dining Tier','Decor CP Tier','Decor CP Type','Decor Extras Tier','Decor Legacy Price','Entertainment Plan','Sound Plan','Photo Plan','Photo Tier','Photo Shoot','Photo Prints','Special Conditions','Price Override','Final Total'];
-  return keys.some(k=>String(cur[k]||'').trim()!==String(state.loadedSnapshot[k]||'').trim());
+  // Compare only USER-CONTROLLED quotation fields. 'Final Total' is EXCLUDED: it
+  // is a derived/calculated value whose text format (e.g. "$12,328") differs from
+  // the stored value, which caused false "changes" and spawned duplicate COT#s.
+  // Reservation Details (Country/State/City/Home Address) are intentionally NOT
+  // here, so filling them alone never counts as a change.
+  const keys=['Client Name','Phone','Email','Event Date','Guests','Event Type','Full Package','Venue Tier','Catering Line','Catering Plan','Decor Plan','Decor Honor Tier','Decor Dining Tier','Decor CP Tier','Decor CP Type','Decor Extras Tier','Decor Legacy Price','Entertainment Plan','Sound Plan','Photo Plan','Photo Tier','Photo Shoot','Photo Prints','Special Conditions','Price Override'];
+  const norm=v=>String(v==null?'':v).trim();
+  const diff=keys.filter(k=>norm(cur[k])!==norm(state.loadedSnapshot[k]));
+  if(diff.length)console.log('[hasChanges] differing fields:',diff.map(k=>k+': "'+norm(state.loadedSnapshot[k])+'" → "'+norm(cur[k])+'"'));
+  return diff.length>0;
 }
 
 function collectData(){
