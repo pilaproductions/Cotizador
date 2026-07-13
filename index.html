@@ -769,10 +769,10 @@ async function saveToSheets(data){
   await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(payload),headers:{'Content-Type':'text/plain'}});
 }
 
-// Reserve WITHOUT changing the quotation: append-only status change on the SAME
-// COT#. Copies the last row, fills RES# + Status=reserved + Reservation Details.
+// Reserve WITHOUT changing the quotation: UPDATES the existing row of the same
+// COT# in place (fills RES# + Status + Reservation Details). COT# not duplicated.
 async function reserveExistingQuotation(payload){
-  const body={action:'updateQuotationStatus',...payload};
+  const body={action:'reserveInPlace',...payload};
   await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(body),headers:{'Content-Type':'text/plain'}});
 }
 
@@ -1510,9 +1510,7 @@ function hasChanges(){
   // here, so filling them alone never counts as a change.
   const keys=['Client Name','Phone','Email','Event Date','Guests','Event Type','Full Package','Venue Tier','Catering Line','Catering Plan','Decor Plan','Decor Honor Tier','Decor Dining Tier','Decor CP Tier','Decor CP Type','Decor Extras Tier','Decor Legacy Price','Entertainment Plan','Sound Plan','Photo Plan','Photo Tier','Photo Shoot','Photo Prints','Special Conditions','Price Override'];
   const norm=v=>String(v==null?'':v).trim();
-  const diff=keys.filter(k=>norm(cur[k])!==norm(state.loadedSnapshot[k]));
-  if(diff.length)console.log('[hasChanges] differing fields:',diff.map(k=>k+': "'+norm(state.loadedSnapshot[k])+'" → "'+norm(cur[k])+'"'));
-  return diff.length>0;
+  return keys.some(k=>norm(cur[k])!==norm(state.loadedSnapshot[k]));
 }
 
 function collectData(){
