@@ -199,14 +199,9 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
     <div class="grid-2">
       <div>
         <div class="field"><div class="field-label">Client Name <span class="req">*</span></div><input class="field-input" id="clientName" type="text" placeholder="Full name" oninput="formatTitleCase(this);clearErr('clientName')"><span class="field-error" id="err-clientName">Required</span></div>
-        <div class="field"><div class="field-label">Country of Origin</div><input class="field-input" id="country" type="text" placeholder="e.g. Colombia" oninput="onlyLettersSpaces(this)"></div>
-        <div class="field"><div class="field-label">State</div><input class="field-input" id="state" type="text" placeholder="e.g. New Jersey" oninput="onlyLettersSpaces(this)"></div>
-        <div class="field"><div class="field-label">City</div><input class="field-input" id="city" type="text" placeholder="e.g. Passaic" oninput="onlyLettersSpaces(this)"></div>
-        <div class="field"><div class="field-label">Client Type</div><select class="field-select" id="clientType" onchange="onClientTypeChange()"><option value="standard">Standard</option><option value="vip">VIP</option></select></div>
-      </div>
-      <div>
         <div class="field"><div class="field-label">Phone Number <span class="req">*</span></div><input class="field-input" id="phone" type="text" placeholder="(000) 000-0000" oninput="formatPhone(this);clearErr('phone')"><span class="field-error" id="err-phone">Required</span></div>
         <div class="field"><div class="field-label">Email</div><input class="field-input" id="email" type="text" placeholder="client@email.com" oninput="this.value=this.value.toLowerCase()" onblur="validateEmail(this)"><span class="field-error" id="err-email">Invalid email</span></div>
+        <div class="field"><div class="field-label">Client Type</div><select class="field-select" id="clientType" onchange="onClientTypeChange()"><option value="standard">Standard</option><option value="vip">VIP</option></select></div>
         <div class="field">
           <div class="field-label">Event Location <span class="req">*</span></div>
           <select class="field-select" id="eventLocation" onchange="onEventLocationChange()">
@@ -218,6 +213,8 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
           <div class="field-label">External Venue Address</div>
           <input class="field-input" id="externalVenueAddress" type="text" placeholder="Full venue address" style="max-width:280px">
         </div>
+      </div>
+      <div>
         <div class="field">
           <div class="field-label">Event Date <span class="req">*</span></div>
           <div class="date-wrapper">
@@ -231,7 +228,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
           <div class="field-label">Number of Guests <span class="req">*</span></div>
           <input class="field-input" id="numGuests" type="number" min="0" max="120" placeholder="0–120" oninput="onGuestsChange()" style="max-width:80px">
           <span class="field-auto" id="guestRange" style="display:none"></span>
-          <span class="field-error" id="err-numGuests">30–120 only</span>
+          <span class="field-error" id="err-numGuests">0–120 only</span>
         </div>
         <div class="field">
           <div class="field-label">Number of Children</div>
@@ -256,9 +253,27 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
         <div class="field" id="eventSubField" style="display:none"><div class="field-label">Specify Event</div><input class="field-input" id="eventSubType" type="text" placeholder="e.g. Graduation, First Communion..."></div>
       </div>
     </div>
+
+    <!-- B2: Reservation Details — progressive subsection, shown only when a
+         quotation is LOADED (to reserve), hidden on a new quotation. Country/
+         State/City/Home Address are metrics + contract data, not needed to quote. -->
+    <div id="reservationDetails" style="display:none;margin-top:14px;padding-top:12px;border-top:1px solid var(--gold-border)">
+      <div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--gold);margin-bottom:10px;font-weight:600">Reservation Details</div>
+      <div class="grid-2">
+        <div>
+          <div class="field"><div class="field-label">Country of Origin</div><input class="field-input" id="country" type="text" placeholder="e.g. Colombia" oninput="onlyLettersSpaces(this)"></div>
+          <div class="field"><div class="field-label">State</div><input class="field-input" id="state" type="text" placeholder="e.g. New Jersey" oninput="onlyLettersSpaces(this)"></div>
+        </div>
+        <div>
+          <div class="field"><div class="field-label">City</div><input class="field-input" id="city" type="text" placeholder="e.g. Passaic" oninput="onlyLettersSpaces(this)"></div>
+          <div class="field"><div class="field-label">Client Home Address</div><input class="field-input" id="clientHomeAddress" type="text" placeholder="Street, number, apt" style="max-width:280px"></div>
+        </div>
+      </div>
+    </div>
+
     <div id="lastMinuteAlert" class="alert alert-warn">&#x26A0; Last Minute — Event within 15 days. Expanded options unlocked.</div>
     <div id="externalEventAlert" class="alert alert-ok" style="display:none">&#x2713; External Venue — Venue block disabled ($0). Discounts still apply.</div>
-    <div id="saveDateBlockAlert" class="alert alert-error" style="display:none">&#x26D4; Date already reserved. Select another date or confirm as external event.</div>
+    <div id="saveDateBlockAlert" class="alert alert-error" style="display:none">&#x26D4; Date already has a Cardona Hall reservation. Pick another date or set Event Location to External.</div>
   </div>
 </div>
 
@@ -729,7 +744,14 @@ async function loadAllQuotations(){
     const res=await fetch(SCRIPT_URL+'?nocache='+Date.now());
     const data=await res.json();
     state.allQuotations=Array.isArray(data)?data:[];
-    state.reservedDates=state.allQuotations.filter(q=>(q['Status']||'').toLowerCase()==='reserved').map(q=>formatDateOnly(q['Event Date']));
+    // B2: only CARDONA HALL reservations block calendar dates (restriction is by
+    // salon). External reservations are saved but never block a date.
+    state.reservedDates=state.allQuotations.filter(q=>{
+      const st=(q['Status']||'').toLowerCase();
+      const loc=(q['Event Location']||'');
+      const isCH = loc==='Cardona Hall' || (loc==='' && q['Venue Tier']!=='EXTERNAL'); // fallback for old quotes
+      return st==='reserved' && isCH;
+    }).map(q=>formatDateOnly(q['Event Date']));
   }catch(e){state.allQuotations=[];state.reservedDates=[];showToast('Could not connect to database','warn');}
 }
 
@@ -779,19 +801,13 @@ function calNav(e,dir){e.stopPropagation();state.calMonth+=dir;if(state.calMonth
 
 function selectDate(e,ds,isRes){
   e.stopPropagation();
-  // B2.2 — reservation blocking depends on Event Location (chosen in the field).
-  // Cardona Hall: a reserved CH date is blocked (salon occupied).
-  // External: never blocked (multiple external events + one CH same day OK).
+  // B2 — reservation blocking depends on Event Location. Cardona Hall: a reserved
+  // CH date is blocked (simple notice, no yes/no). External: never blocked.
   const isExternal=(state.eventLocation==='external');
   if(isRes && !isExternal){
-    // Cardona Hall on a reserved date → blocked, must pick another (or switch to External).
-    showConfirm('Reserved Date','This date already has a Cardona Hall event. Pick another date, or set Event Location to External Venue to book off-site the same day.',
-      ()=>{document.getElementById('calPopup').classList.remove('show');state.calOpen=false;},
-      ()=>{document.getElementById('calPopup').classList.remove('show');state.calOpen=false;}
-    );
+    showToast('This date already has a Cardona Hall reservation. Pick another date, or set Event Location to External Venue.','warn');
     return;
   }
-  // Free date, or external event on any date → select normally.
   state.selectedDate=ds;
   document.getElementById('eventDate').value=ds;
   document.getElementById('calPopup').classList.remove('show');state.calOpen=false;
@@ -892,7 +908,7 @@ function validateRequired(){
   if(!document.getElementById('clientName').value.trim()){showErr('clientName');ok=false;}
   if(!document.getElementById('phone').value.trim()){showErr('phone');ok=false;}
   if(!document.getElementById('eventDate').value){showErr('eventDate');ok=false;}
-  const g=parseInt(document.getElementById('numGuests').value);if(isNaN(g)||g<30||g>120){showErr('numGuests');ok=false;}
+  const g=parseInt(document.getElementById('numGuests').value);if(isNaN(g)||g<0||g>120){showErr('numGuests');ok=false;}
   if(!document.getElementById('eventType').value){showErr('eventType');ok=false;}
   return ok;
 }
@@ -1537,31 +1553,46 @@ function collectData(){
     'Final Total':document.getElementById('p-final').textContent,
     'Discount Detail':buildDiscountDetail(),
     'Event Location':state.eventLocation==='external'?'External':'Cardona Hall',
-    'External Venue Address':state.eventLocation==='external'?document.getElementById('externalVenueAddress').value:''
+    'External Venue Address':state.eventLocation==='external'?document.getElementById('externalVenueAddress').value:'',
+    'Client Home Address':document.getElementById('clientHomeAddress')?document.getElementById('clientHomeAddress').value:''
   };
 }
 
 async function saveQuotation(){
   if(!validateRequired()){showToast('Please fill all required fields','error');return;}
-  if(document.getElementById('saveDateBlockAlert').style.display==='block'){showToast('Date is reserved — select another date or confirm as external event','error');return;}
   if(state.isLoaded&&!hasChanges()){showToast('No changes detected — not saved again','info');state.isLoaded=false;document.getElementById('cotNumber').textContent=state.cotNumber;document.getElementById('statusPill').textContent='QUOTED';return;}
   if(state.isLoaded&&hasChanges()){showLoading('Generating new quotation number...');await loadAllQuotations();await generateCotNumber();hideLoading();}
   showLoading('Saving quotation...');
-  try{await saveToSheets(collectData());await loadAllQuotations();showToast('✓ Saved — '+state.cotNumber,'success');document.getElementById('statusPill').textContent='QUOTED';state.status='quoted';state.isLoaded=false;state.loadedSnapshot=null;document.getElementById('btnExportPDF').style.display='inline-flex';}
-  catch(e){showToast('Error saving — try again','error');}
-  hideLoading();
+  try{
+    const savedNum=state.cotNumber;
+    await saveToSheets(collectData());
+    await loadAllQuotations();
+    hideLoading();
+    // B2: after saving, CLEAR the form (quoting is done; to reserve, load it back
+    // via Load Quotation). Show the saved number so nothing feels lost.
+    showToast('✓ Saved — '+savedNum+'. Form cleared for a new quotation.','success');
+    await resetForm();
+  }
+  catch(e){hideLoading();showToast('Error saving — try again','error');}
 }
 
 async function newQuotation(){
   if(!confirm('Start new quotation? Current form will be cleared.'))return;
+  await resetForm();
+}
+
+// Clears the whole form and prepares a fresh quotation number. Used by
+// newQuotation() (with confirm) and by saveQuotation() (auto-clear after save).
+async function resetForm(){
   document.querySelectorAll('input:not([type=button]):not([type=submit])').forEach(el=>{if(el.id!=='numChildren')el.value='';});
   document.querySelectorAll('textarea').forEach(el=>el.value=''); // fix: textarea (Special Conditions) was not cleared
   document.getElementById('numChildren').value='0';
   document.querySelectorAll('select').forEach(el=>el.selectedIndex=0);
-  // B2.2: reset Event Location to Cardona Hall + hide external address
+  // B2: reset Event Location + hide external address + hide Reservation Details
   state.eventLocation='cardona_hall';
   const locSel=document.getElementById('eventLocation'); if(locSel)locSel.value='cardona_hall';
   document.getElementById('externalAddressField').style.display='none';
+  const rd=document.getElementById('reservationDetails'); if(rd)rd.style.display='none';
   document.querySelectorAll('.tier-btn').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll('.tier-btn.na').forEach(b=>b.classList.add('active'));
   document.querySelectorAll('.alert').forEach(a=>a.className='alert');
@@ -1634,6 +1665,10 @@ function loadQuotation(cotNum){
   document.getElementById('priceOverride').value=rec['Price Override']||'';
   document.getElementById('numChildren').value=rec['Children']||0;
   document.getElementById('clientType').value=rec['Client Type']||'standard';
+  // B2: loading a quotation is the RESERVE step → reveal Reservation Details
+  // subsection (Country/State/City/Home Address) and load its values.
+  const rd=document.getElementById('reservationDetails'); if(rd)rd.style.display='block';
+  if(document.getElementById('clientHomeAddress'))document.getElementById('clientHomeAddress').value=rec['Client Home Address']||'';
 
   // ── Step 2: Guests (needed for tables before decor/photo calc) ──
   document.getElementById('numGuests').value=rec['Guests']||'';
