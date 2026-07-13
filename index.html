@@ -1833,9 +1833,11 @@ async function confirmReservation(){
   if(state.status==='reserved'){showToast('Already reserved','warn');return;}
   if(!validateRequired()){showToast('Please fill all required fields first','error');return;}
   const eventDate=document.getElementById('eventDate').value;
+  const isExternal=(state.eventLocation==='external');
+  // reservedDates already contains only Cardona Hall reservations. External
+  // events never conflict (restriction is by salon).
   const dateAlreadyReserved=state.reservedDates.includes(eventDate);
-  if(dateAlreadyReserved&&!state.isExternalEvent){showToast('Cannot reserve — this date already has a confirmed event','error');return;}
-  if(document.getElementById('saveDateBlockAlert').style.display==='block'){showToast('Cannot reserve a blocked date','error');return;}
+  if(dateAlreadyReserved && !isExternal){showToast('Cannot reserve — this date already has a Cardona Hall event','error');return;}
   showConfirm('Confirm Reservation','Confirm reservation for '+document.getElementById('clientName').value+'? This cannot be undone.',async()=>{
     if(state.isLoaded&&hasChanges()){await loadAllQuotations();await generateCotNumber();}
     const year=new Date().getFullYear();
