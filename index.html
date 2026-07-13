@@ -202,11 +202,22 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
         <div class="field"><div class="field-label">Country of Origin</div><input class="field-input" id="country" type="text" placeholder="e.g. Colombia" oninput="onlyLettersSpaces(this)"></div>
         <div class="field"><div class="field-label">State</div><input class="field-input" id="state" type="text" placeholder="e.g. New Jersey" oninput="onlyLettersSpaces(this)"></div>
         <div class="field"><div class="field-label">City</div><input class="field-input" id="city" type="text" placeholder="e.g. Passaic" oninput="onlyLettersSpaces(this)"></div>
-        <div class="field"><div class="field-label">Client Type</div><select class="field-select" id="clientType" onchange="onClientTypeChange()"><option value="standard">Standard</option><option value="returning">Returning Client</option><option value="vip">VIP</option></select></div>
+        <div class="field"><div class="field-label">Client Type</div><select class="field-select" id="clientType" onchange="onClientTypeChange()"><option value="standard">Standard</option><option value="vip">VIP</option></select></div>
       </div>
       <div>
         <div class="field"><div class="field-label">Phone Number <span class="req">*</span></div><input class="field-input" id="phone" type="text" placeholder="(000) 000-0000" oninput="formatPhone(this);clearErr('phone')"><span class="field-error" id="err-phone">Required</span></div>
         <div class="field"><div class="field-label">Email</div><input class="field-input" id="email" type="text" placeholder="client@email.com" oninput="this.value=this.value.toLowerCase()" onblur="validateEmail(this)"><span class="field-error" id="err-email">Invalid email</span></div>
+        <div class="field">
+          <div class="field-label">Event Location <span class="req">*</span></div>
+          <select class="field-select" id="eventLocation" onchange="onEventLocationChange()">
+            <option value="cardona_hall">Cardona Hall</option>
+            <option value="external">External Venue</option>
+          </select>
+        </div>
+        <div class="field" id="externalAddressField" style="display:none">
+          <div class="field-label">External Venue Address</div>
+          <input class="field-input" id="externalVenueAddress" type="text" placeholder="Full venue address" style="max-width:280px">
+        </div>
         <div class="field">
           <div class="field-label">Event Date <span class="req">*</span></div>
           <div class="date-wrapper">
@@ -218,7 +229,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
         </div>
         <div class="field">
           <div class="field-label">Number of Guests <span class="req">*</span></div>
-          <input class="field-input" id="numGuests" type="number" min="30" max="120" placeholder="30–120" oninput="onGuestsChange()" style="max-width:80px">
+          <input class="field-input" id="numGuests" type="number" min="0" max="120" placeholder="0–120" oninput="onGuestsChange()" style="max-width:80px">
           <span class="field-auto" id="guestRange" style="display:none"></span>
           <span class="field-error" id="err-numGuests">30–120 only</span>
         </div>
@@ -231,7 +242,8 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
           <div class="field-label">Event Type <span class="req">*</span></div>
           <select class="field-select" id="eventType" onchange="onEventTypeChange()">
             <option value="">— Select —</option>
-            <option value="quinceanera">Quinceañera / Sweet 16</option>
+            <option value="quinceanera">Quinceañera</option>
+            <option value="sweet16">Sweet 16</option>
             <option value="wedding">Wedding</option>
             <option value="babyshower">Baby Shower</option>
             <option value="kidsparty">Kids Party</option>
@@ -245,7 +257,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
       </div>
     </div>
     <div id="lastMinuteAlert" class="alert alert-warn">&#x26A0; Last Minute — Event within 15 days. Expanded options unlocked.</div>
-    <div id="externalEventAlert" class="alert alert-ok" style="display:none">&#x2713; External event — Venue $0. No discounts apply.</div>
+    <div id="externalEventAlert" class="alert alert-ok" style="display:none">&#x2713; External Venue — Venue block disabled ($0). Discounts still apply.</div>
     <div id="saveDateBlockAlert" class="alert alert-error" style="display:none">&#x26D4; Date already reserved. Select another date or confirm as external event.</div>
   </div>
 </div>
@@ -387,8 +399,8 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
       <div class="field-label">Sound System</div>
       <select class="field-select" id="soundPlan" onchange="onSoundPlanChange()">
         <option value="">— Select —</option>
-        <option value="soundlighting">Sound &amp; Lighting — $400</option>
-        <option value="soundlightingplus">Sound &amp; Lighting Plus — $600</option>
+        <option value="soundlighting">Sound System — $400</option>
+        <option value="soundlightingplus">Sound &amp; Lighting — $550</option>
       </select>
       <span class="field-auto green" id="soundDiscountDisplay" style="display:none"></span>
     </div>
@@ -628,6 +640,7 @@ const state={
   fullPackage:'na',decorPlan:'na',photoPlan:'na',
   isLastMinute:false,dayOfWeek:null,guestRange:null,numTables:0,numGuests:0,
   eventType:'',clientType:'standard',
+  eventLocation:'cardona_hall',
   isExternalEvent:false,calOpen:false,
   calYear:new Date().getFullYear(),calMonth:new Date().getMonth(),selectedDate:null,
   allQuotations:[],reservedDates:[],
@@ -766,14 +779,25 @@ function calNav(e,dir){e.stopPropagation();state.calMonth+=dir;if(state.calMonth
 
 function selectDate(e,ds,isRes){
   e.stopPropagation();
-  if(isRes){
-    showConfirm('Reserved Date','This date has a confirmed event. Is this an external event? (Venue $0, no discounts)',
-      ()=>{state.selectedDate=ds;state.isExternalEvent=true;document.getElementById('eventDate').value=ds;document.getElementById('calPopup').classList.remove('show');state.calOpen=false;document.getElementById('externalEventAlert').style.display='block';document.getElementById('saveDateBlockAlert').style.display='none';document.getElementById('venueTier').value='';document.getElementById('venueTier').disabled=true;state.prices.venue=0;onDateChange();renderCalendar();},
-      ()=>{state.selectedDate=ds;state.isExternalEvent=false;document.getElementById('eventDate').value=ds;document.getElementById('calPopup').classList.remove('show');state.calOpen=false;document.getElementById('saveDateBlockAlert').style.display='block';document.getElementById('externalEventAlert').style.display='none';onDateChange();renderCalendar();}
+  // B2.2 — reservation blocking depends on Event Location (chosen in the field).
+  // Cardona Hall: a reserved CH date is blocked (salon occupied).
+  // External: never blocked (multiple external events + one CH same day OK).
+  const isExternal=(state.eventLocation==='external');
+  if(isRes && !isExternal){
+    // Cardona Hall on a reserved date → blocked, must pick another (or switch to External).
+    showConfirm('Reserved Date','This date already has a Cardona Hall event. Pick another date, or set Event Location to External Venue to book off-site the same day.',
+      ()=>{document.getElementById('calPopup').classList.remove('show');state.calOpen=false;},
+      ()=>{document.getElementById('calPopup').classList.remove('show');state.calOpen=false;}
     );
-  } else {
-    state.selectedDate=ds;state.isExternalEvent=false;document.getElementById('eventDate').value=ds;document.getElementById('calPopup').classList.remove('show');state.calOpen=false;document.getElementById('venueTier').disabled=false;document.getElementById('externalEventAlert').style.display='none';document.getElementById('saveDateBlockAlert').style.display='none';onDateChange();renderCalendar();
+    return;
   }
+  // Free date, or external event on any date → select normally.
+  state.selectedDate=ds;
+  document.getElementById('eventDate').value=ds;
+  document.getElementById('calPopup').classList.remove('show');state.calOpen=false;
+  document.getElementById('saveDateBlockAlert').style.display='none';
+  document.getElementById('externalEventAlert').style.display=isExternal?'block':'none';
+  onDateChange();renderCalendar();
 }
 
 // ── FIELD HANDLERS ─────────────────────────────────────────
@@ -827,6 +851,32 @@ function onEventTypeChange(){
 
 function onClientTypeChange(){
   state.clientType=document.getElementById('clientType').value;
+  calcTotal();
+}
+
+// B2.2 — Event Location (Cardona Hall / External Venue). Replaces the old
+// isExternalEvent "date-clash patch". External => Venue block disabled ($0),
+// address field shown, discounts STILL allowed. Calendar validation by location:
+// Cardona Hall blocks dates with a CH reservation; External blocks nothing.
+function onEventLocationChange(){
+  const loc=document.getElementById('eventLocation').value;
+  state.eventLocation=loc;
+  const isExt=(loc==='external');
+  state.isExternalEvent=isExt; // kept in sync for legacy reads
+  // address field
+  document.getElementById('externalAddressField').style.display=isExt?'':'none';
+  // venue block: external => disabled, $0
+  const vt=document.getElementById('venueTier');
+  if(isExt){
+    vt.value=''; vt.disabled=true;
+    state.prices.venue=0; state.discounts.venue=0;
+    if(typeof updateVenueDisplay==='function')updateVenueDisplay();
+  } else {
+    vt.disabled=false;
+  }
+  // recompute date validity (calendar blocking depends on location) + totals
+  if(typeof renderCalendar==='function')renderCalendar();
+  if(typeof onDateChange==='function')onDateChange();
   calcTotal();
 }
 
@@ -1485,7 +1535,9 @@ function collectData(){
     'Discount FP':state.discounts.fullPackage||0,
     'Price Override':document.getElementById('priceOverride').value,
     'Final Total':document.getElementById('p-final').textContent,
-    'Discount Detail':buildDiscountDetail()
+    'Discount Detail':buildDiscountDetail(),
+    'Event Location':state.eventLocation==='external'?'External':'Cardona Hall',
+    'External Venue Address':state.eventLocation==='external'?document.getElementById('externalVenueAddress').value:''
   };
 }
 
@@ -1503,8 +1555,13 @@ async function saveQuotation(){
 async function newQuotation(){
   if(!confirm('Start new quotation? Current form will be cleared.'))return;
   document.querySelectorAll('input:not([type=button]):not([type=submit])').forEach(el=>{if(el.id!=='numChildren')el.value='';});
+  document.querySelectorAll('textarea').forEach(el=>el.value=''); // fix: textarea (Special Conditions) was not cleared
   document.getElementById('numChildren').value='0';
   document.querySelectorAll('select').forEach(el=>el.selectedIndex=0);
+  // B2.2: reset Event Location to Cardona Hall + hide external address
+  state.eventLocation='cardona_hall';
+  const locSel=document.getElementById('eventLocation'); if(locSel)locSel.value='cardona_hall';
+  document.getElementById('externalAddressField').style.display='none';
   document.querySelectorAll('.tier-btn').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll('.tier-btn.na').forEach(b=>b.classList.add('active'));
   document.querySelectorAll('.alert').forEach(a=>a.className='alert');
@@ -1610,9 +1667,14 @@ function loadQuotation(cotNum){
     }
   }
 
-  // ── Step 5: External event / venue ──
-  const isExt=rec['Venue Tier']==='EXTERNAL';
+  // ── Step 5: External event / venue (B2.2: read Event Location; fallback to
+  // old Venue Tier==='EXTERNAL' for quotes saved before this change) ──
+  const isExt=(rec['Event Location']==='External') || (rec['Venue Tier']==='EXTERNAL');
   state.isExternalEvent=isExt;
+  state.eventLocation=isExt?'external':'cardona_hall';
+  const locSel=document.getElementById('eventLocation'); if(locSel)locSel.value=state.eventLocation;
+  document.getElementById('externalAddressField').style.display=isExt?'':'none';
+  if(document.getElementById('externalVenueAddress'))document.getElementById('externalVenueAddress').value=rec['External Venue Address']||'';
   document.getElementById('externalEventAlert').style.display=isExt?'block':'none';
   if(isExt){
     document.getElementById('venueTier').value='';
