@@ -769,6 +769,13 @@ async function saveToSheets(data){
   await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(payload),headers:{'Content-Type':'text/plain'}});
 }
 
+// Reserve WITHOUT changing the quotation: append-only status change on the SAME
+// COT#. Copies the last row, fills RES# + Status=reserved + Reservation Details.
+async function reserveExistingQuotation(payload){
+  const body={action:'updateQuotationStatus',...payload};
+  await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(body),headers:{'Content-Type':'text/plain'}});
+}
+
 // ── CALENDAR ───────────────────────────────────────────────
 function toggleCalendar(e){
   e.stopPropagation();
@@ -1834,19 +1841,48 @@ async function confirmReservation(){
   if(!validateRequired()){showToast('Please fill all required fields first','error');return;}
   const eventDate=document.getElementById('eventDate').value;
   const isExternal=(state.eventLocation==='external');
-  // reservedDates already contains only Cardona Hall reservations. External
-  // events never conflict (restriction is by salon).
   const dateAlreadyReserved=state.reservedDates.includes(eventDate);
   if(dateAlreadyReserved && !isExternal){showToast('Cannot reserve — this date already has a Cardona Hall event','error');return;}
+
+  // Two paths (COT# behaves as a consecutive; a reservation is the SAME record
+  // with RES# filled, not a new COT#):
+  //  A) Loaded quotation with NO quotation changes → reserve on the SAME COT#
+  //     via append-only status change (fills RES# + Reservation Details).
+  //  B) New quotation, or loaded + quotation CHANGED → generate a NEW COT#,
+  //     save it as a new quotation, then reserve that one.
+  const reserveOnSame = state.isLoaded && !hasChanges();
+
   showConfirm('Confirm Reservation','Confirm reservation for '+document.getElementById('clientName').value+'? This cannot be undone.',async()=>{
-    if(state.isLoaded&&hasChanges()){await loadAllQuotations();await generateCotNumber();}
+    showLoading('Confirming reservation...');
+    // fresh data to compute next RES#
+    await loadAllQuotations();
     const year=new Date().getFullYear();
     const yr=state.allQuotations.filter(q=>(q['RES#']||'').startsWith('RES-'+year));
     let maxR=0;yr.forEach(q=>{const n=parseInt((q['RES#']||'').split('-')[2]||0);if(n>maxR)maxR=n;});
-    state.resNumber=`RES-${year}-${String(maxR+1).padStart(3,'0')}`;state.status='reserved';
-    showLoading('Confirming reservation...');
-    const data=collectData();data['Status']='reserved';data['RES#']=state.resNumber;
-    await saveToSheets(data);await loadAllQuotations();hideLoading();
+    state.resNumber=`RES-${year}-${String(maxR+1).padStart(3,'0')}`;
+    state.status='reserved';
+
+    if(reserveOnSame){
+      // PATH A — same COT#, append-only status change + Reservation Details.
+      await reserveExistingQuotation({
+        'COT#':state.cotNumber,
+        'RES#':state.resNumber,
+        'Status':'reserved',
+        'Country':document.getElementById('country').value||'',
+        'State':document.getElementById('state').value||'',
+        'City':document.getElementById('city').value||'',
+        'Client Home Address':document.getElementById('clientHomeAddress')?document.getElementById('clientHomeAddress').value:'',
+        'External Venue Address':isExternal&&document.getElementById('externalVenueAddress')?document.getElementById('externalVenueAddress').value:'',
+        'Event Location':isExternal?'External':'Cardona Hall'
+      });
+    } else {
+      // PATH B — quotation changed (or brand new) → new COT#, save as new quote reserved.
+      if(state.isLoaded&&hasChanges()){await generateCotNumber();}
+      const data=collectData();data['Status']='reserved';data['RES#']=state.resNumber;
+      await saveToSheets(data);
+    }
+
+    await loadAllQuotations();hideLoading();
     state.isLoaded=false;state.loadedSnapshot=null;
     document.getElementById('statusPill').textContent='RESERVED';
     document.getElementById('cotNumber').textContent=state.cotNumber+' · '+state.resNumber;
