@@ -656,6 +656,7 @@ const state={
   isLastMinute:false,dayOfWeek:null,guestRange:null,numTables:0,numGuests:0,
   eventType:'',clientType:'standard',
   eventLocation:'cardona_hall',
+  wasLoaded:false,
   isExternalEvent:false,calOpen:false,
   calYear:new Date().getFullYear(),calMonth:new Date().getMonth(),selectedDate:null,
   allQuotations:[],reservedDates:[],
@@ -1581,8 +1582,8 @@ function collectData(){
 
 async function saveQuotation(){
   if(!validateRequired()){showToast('Please fill all required fields','error');return;}
-  if(state.isLoaded&&!hasChanges()){showToast('No changes detected — not saved again','info');state.isLoaded=false;document.getElementById('cotNumber').textContent=state.cotNumber;document.getElementById('statusPill').textContent='QUOTED';return;}
-  if(state.isLoaded&&hasChanges()){showLoading('Generating new quotation number...');await loadAllQuotations();await generateCotNumber();hideLoading();}
+  if(state.wasLoaded&&!hasChanges()){showToast('No changes detected — not saved again','info');document.getElementById('cotNumber').textContent=state.cotNumber;document.getElementById('statusPill').textContent='QUOTED';return;}
+  if(state.wasLoaded&&hasChanges()){showLoading('Generating new quotation number...');await loadAllQuotations();await generateCotNumber();hideLoading();}
   showLoading('Saving quotation...');
   try{
     const savedNum=state.cotNumber;
@@ -1611,6 +1612,7 @@ async function resetForm(){
   document.querySelectorAll('select').forEach(el=>el.selectedIndex=0);
   // B2: reset Event Location + hide external address + hide Reservation Details
   state.eventLocation='cardona_hall';
+  state.wasLoaded=false;
   const locSel=document.getElementById('eventLocation'); if(locSel)locSel.value='cardona_hall';
   document.getElementById('externalAddressField').style.display='none';
   const rd=document.getElementById('reservationDetails'); if(rd)rd.style.display='none';
@@ -1745,6 +1747,7 @@ function loadQuotation(cotNum){
 
   // ── Set isLoaded and saved prices BEFORE any calc-triggering steps ──
   state.isLoaded=true;
+  state.wasLoaded=true;
   state.prices.venue=parseFloat(rec['Price Venue'])||0;
   state.prices.catering=parseFloat(rec['Price Catering'])||0;
   state.prices.decor=parseFloat(rec['Price Decor'])||0;
@@ -1897,7 +1900,9 @@ async function confirmReservation(){
       });
     } else {
       // PATH B — quotation changed (or brand new) → new COT#, save as new quote reserved.
-      if(state.isLoaded&&hasChanges()){await generateCotNumber();}
+      // Use wasLoaded (survives markEdited) so an EDITED loaded quote still gets a
+      // fresh COT# instead of overwriting the original.
+      if(state.wasLoaded){await generateCotNumber();}
       const data=collectData();data['Status']='reserved';data['RES#']=state.resNumber;
       await saveToSheets(data);
     }
