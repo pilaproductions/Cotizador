@@ -1571,6 +1571,8 @@ function calcTotal(){
   document.getElementById('p-entertainment').textContent=p.entertainment?fmtMoney(p.entertainment):'—';
   document.getElementById('p-photo').textContent=p.photo?fmtMoney(p.photo):'—';
   document.getElementById('photo-header-price').textContent=p.photo?fmtMoney(p.photo):'';
+  // block headers reflect the category total INCLUDING add-ons
+  document.getElementById('ent-header-price').textContent=p.entertainment?fmtMoney(p.entertainment):'';
 
   // 3) Compute discount eligibility + amounts (does not auto-apply).
   computeDiscounts();
