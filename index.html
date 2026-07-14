@@ -1296,7 +1296,7 @@ function onEntPlanChange(){
     soundSel.value='';
     soundSel.disabled=false;
   }
-  updateEntDiscounts();calcTotal();
+  updateEntDiscounts();renderAddons('entertainment');calcTotal();
 }
 
 function updateEntDiscounts(){
@@ -1332,21 +1332,22 @@ function setPhotoPlan(tier,btn){markEdited();
 function setPhotoPlanInternal(tier){
   state.photoPlan=tier;
   const isBundle=['elegant','prestige','legacy'].includes(tier);
-  // Full Photo Plan defines the bundle discount tier. It auto-fills the coverage
-  // components for convenience but KEEPS fields editable (like Decor Full).
+  // Full Photo Plan defines the bundle discount tier. Auto-fills coverage
+  // components (FORCE-set so switching between Full plans updates them), but
+  // keeps fields editable.
   if(isBundle){
     const inc={
       elegant:{photo:'elegant',shoot:'',prints:'frames'},
       prestige:{photo:'prestige',shoot:'essential',prints:'gallery'},
       legacy:{photo:'legacy',shoot:'essential',prints:'gallery'}
     }[tier];
-    if(inc.photo){const e=document.getElementById('photoTier');if(!e.value)e.value=inc.photo;}
-    if(inc.shoot){const e=document.getElementById('photoShootPlan');if(!e.value)e.value=inc.shoot;}
-    if(inc.prints){const e=document.getElementById('printsPlan');if(!e.value)e.value=inc.prints;}
-    ['photoTier','photoShootPlan','printsPlan'].forEach(id=>{document.getElementById(id).disabled=false;});
+    const e1=document.getElementById('photoTier');e1.disabled=false;e1.value=inc.photo;
+    const e2=document.getElementById('photoShootPlan');e2.disabled=false;e2.value=inc.shoot;
+    const e3=document.getElementById('printsPlan');e3.disabled=false;e3.value=inc.prints;
   } else {
     ['photoTier','photoShootPlan','printsPlan'].forEach(id=>{document.getElementById(id).disabled=false;});
   }
+  renderAddons('photo');
   onPrintsPlanChange();calcTotal();
 }
 
@@ -1480,15 +1481,18 @@ state.addons={entertainment:[],photo:[]};
 let addonSeq=0;
 
 function addonsForDivision(division){
-  const tierByDiv={entertainment:document.getElementById('entPlan').value,photo:(document.getElementById('photoTier').value||'')};
-  const tier=tierByDiv[division]||'';
+  const tierByDiv={entertainment:document.getElementById('entPlan').value||'',photo:(document.getElementById('photoTier').value||'')};
+  const tier=(tierByDiv[division]||'').toLowerCase();
   const divName={entertainment:'Entertainment',photo:'Photo'}[division];
   return (catalog.addons||[]).filter(a=>{
     if(String(a['Division'])!==divName)return false;
     if(String(a['Active']).toLowerCase()==='false')return false;
-    const applies=String(a['Applies_To_Tiers']||'').toLowerCase();
-    if(!applies||applies==='all'||applies==='')return true;
-    return tier && applies.split(',').map(s=>s.trim()).includes(tier);
+    const applies=String(a['Applies_To_Tiers']||'').trim().toLowerCase();
+    // 'ALL'/empty → available for any tier. Otherwise available only when the
+    // chosen tier is listed (tier not chosen yet → show all, user filters later).
+    if(!applies||applies==='all')return true;
+    if(!tier)return true; // no tier selected yet: show everything, don't hide
+    return applies.split(',').map(s=>s.trim()).includes(tier);
   });
 }
 
