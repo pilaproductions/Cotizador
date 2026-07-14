@@ -281,18 +281,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
 <div class="block">
   <div class="block-header"><div class="block-num">2</div><div class="block-title">Full Package</div><div class="block-price" id="fp-header-price"></div><div class="block-discount" id="fp-header-discount"></div></div>
   <div class="block-content">
-    <div class="tier-row">
-      <div class="tier-label">Package Tier</div>
-      <div class="tier-opts" id="fullPackageTiers">
-        <button class="tier-btn na active" onclick="setFullPackage('na',this)">Not Applicable</button>
-        <button class="tier-btn" id="fp-essential" onclick="setFullPackage('essential',this)">Essential</button>
-        <button class="tier-btn" id="fp-elegant" onclick="setFullPackage('elegant',this)">Elegant <span style="font-size:8px;color:#6EC98A">5%</span></button>
-        <button class="tier-btn" id="fp-prestige" onclick="setFullPackage('prestige',this)">Prestige <span style="font-size:8px;color:#6EC98A">5%</span></button>
-        <button class="tier-btn" id="fp-legacy" onclick="setFullPackage('legacy',this)">Legacy <span style="font-size:8px;color:#6EC98A">7%</span></button>
-      </div>
-    </div>
-    <div id="fpAlert" class="alert alert-info"></div>
-    <div class="alert alert-info show" style="margin-top:4px;font-size:9px">Discounts: Essential=0% · Elegant=5% · Prestige=5% · Legacy=7% · Requires all 5 divisions selected · No discount on Classic Menu or Sound Only</div>
+    <div id="fullPackageIndicator"><div style="color:#999;font-size:11px;padding:6px 0">Full Package: 0/5 categories · complete the 5 qualifying categories to unlock the bonus.</div></div>
   </div>
 </div>
 
@@ -336,6 +325,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
       <span class="field-auto highlight" id="cateringPriceDisplay" style="display:none"></span>
     </div>
     <div class="field"><div class="field-label">Trays / Portions</div><span class="field-auto" id="cateringTrayDisplay">—</span></div>
+    <div id="cateringDiscountDisplay" style="display:none;margin-top:4px"></div>
     <div id="cateringAlert" class="alert alert-warn"></div>
   </div>
 </div>
@@ -391,7 +381,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
         <div class="sub-content"><div class="field"><div class="field-label">Tier</div><select class="field-select" id="decorExtrasTier" onchange="markEdited();calcDecorPrice();calcTotal()"><option value="">Not Applicable</option><option value="elegant">Elegant</option><option value="prestige">Prestige</option><option value="legacy">Legacy</option></select><span class="info-badge gold" id="extrasInfo" style="display:none"></span></div></div>
       </div>
     </div>
-    <div class="field" style="margin-top:6px"><div class="field-label">Decor Total</div><span class="field-auto highlight" id="decorTotalDisplay" style="display:none"></span></div>
+    <div id="decorDiscountDisplay" style="display:none;margin-top:6px"></div>
   </div>
 </div>
 
@@ -480,42 +470,51 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
 
 <!-- PRICING SECTION -->
 <div class="pricing-section">
+  <!-- Special Conditions -->
+  <div style="margin-bottom:16px">
+    <div style="font-size:9px;color:#888;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">Special Conditions / Modifications</div>
+    <textarea class="special-conditions" id="specialConditions" placeholder="Modifications, restrictions, special agreements..."></textarea>
+  </div>
+
+  <!-- Price Summary + Discounts side by side -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:16px">
     <div>
-      <div style="font-size:9px;color:#888;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">Price Breakdown</div>
-      <div class="price-row"><span class="price-label">Venue &amp; Host Services</span><span style="display:flex;flex-direction:column;align-items:flex-end;gap:1px"><span class="price-discount" id="pd-venue"></span><span class="price-value" id="p-venue">—</span></span></div>
+      <div style="font-size:9px;color:#888;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">Price Summary (List)</div>
+      <div class="price-row"><span class="price-label">Venue &amp; Host Services</span><span class="price-value" id="p-venue">—</span></div>
       <div class="price-row"><span class="price-label">Catering &amp; Hospitality</span><span class="price-value" id="p-catering">—</span></div>
-      <div class="price-row"><span class="price-label">Design &amp; Decor</span><span style="display:flex;flex-direction:column;align-items:flex-end;gap:1px"><span class="price-discount" id="pd-decor"></span><span class="price-value" id="p-decor">—</span></span></div>
-      <div class="price-row"><span class="price-label">Entertainment &amp; Production</span><span style="display:flex;flex-direction:column;align-items:flex-end;gap:1px"><span class="price-discount" id="pd-entertainment"></span><span class="price-value" id="p-entertainment">—</span></span></div>
-      <div class="price-row"><span class="price-label">Photo &amp; Video</span><span style="display:flex;flex-direction:column;align-items:flex-end;gap:1px"><span class="price-discount" id="pd-photo"></span><span class="price-value" id="p-photo">—</span></span></div>
+      <div class="price-row"><span class="price-label">Design &amp; Decor</span><span class="price-value" id="p-decor">—</span></div>
+      <div class="price-row"><span class="price-label">Entertainment &amp; Production</span><span class="price-value" id="p-entertainment">—</span></div>
+      <div class="price-row"><span class="price-label">Photo &amp; Video</span><span class="price-value" id="p-photo">—</span></div>
+      <div class="price-row" style="border-top:1px solid #444;padding-top:8px;margin-top:4px"><span class="price-label" style="color:#CCC">Subtotal (list)</span><span class="price-value" id="p-subtotal">$0</span></div>
     </div>
     <div>
-      <div style="font-size:9px;color:#888;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">Special Conditions / Modifications</div>
-      <textarea class="special-conditions" id="specialConditions" placeholder="Modifications, restrictions, special agreements..."></textarea>
+      <div style="font-size:9px;color:#888;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">Discounts</div>
+      <div id="discountRows"></div>
+      <div style="display:flex;align-items:center;gap:6px;padding:6px 0;border-top:1px solid #2A2A2A;margin-top:4px">
+        <input type="number" id="manualDiscPct" placeholder="%" oninput="onManualDiscountChange()" style="width:46px;height:28px;text-align:center;font-size:11px">
+        <input type="text" id="manualDiscReason" placeholder="Manual reason" oninput="onManualDiscountChange()" style="flex:1;height:28px;font-size:11px">
+        <span id="manualDiscAmount" style="color:#888;font-size:12px;min-width:44px;text-align:right">-$0</span>
+      </div>
+      <div class="price-row" style="border-top:1px solid #444;padding-top:8px;margin-top:4px"><span class="price-label" style="color:#CCC">Total Discounts</span><span class="price-value" style="color:#6EC98A" id="p-discounts-total">$0</span></div>
     </div>
   </div>
 
-  <!-- DISCOUNT SUMMARY -->
-  <div class="discount-summary" id="discountSummaryBlock" style="display:none">
-    <div class="discount-summary-title">&#x25BC; Discount Summary</div>
-    <div id="discountSummaryRows"></div>
-    <div class="discount-total-row"><span class="discount-total-label">Total Discounts Applied</span><span class="discount-total-value" id="discountTotalValue">$0</span></div>
-  </div>
-
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:end;margin-top:12px">
-    <div>
-      <div class="price-row" style="border-top:1px solid #444;padding-top:8px"><span class="price-label" style="color:#AAA">Subtotal (before discounts)</span><span class="price-value" id="p-subtotal">$0</span></div>
-      <div class="price-row"><span class="price-label" style="color:#AAA">Total Discounts</span><span class="price-value" style="color:#6EC98A" id="p-discounts-total">$0</span></div>
-      <div class="price-row"><span class="price-label" style="color:#AAA">Calculated Total</span><span class="price-value" id="p-calculated">$0</span></div>
-      <div class="price-row"><span class="price-label" style="color:#AAA">Manual Override</span><input class="price-input" id="priceOverride" type="number" placeholder="Leave empty to use calculated" oninput="calcTotal()"></div>
+  <!-- Total bar with override -->
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:20px;background:#1A1A1A;border-radius:10px;padding:14px 20px">
+    <div style="display:flex;align-items:center;gap:10px;flex:1">
+      <span style="font-size:9px;color:#999;text-transform:uppercase;letter-spacing:1px;min-width:70px">Override</span>
+      <input class="price-input" id="priceOverride" type="number" placeholder="Round price (optional)" oninput="calcTotal()" style="max-width:200px">
     </div>
-    <div><div class="price-total-row"><span class="price-total-label">FINAL TOTAL</span><span class="price-total-value" id="p-final">$0</span></div></div>
+    <div style="display:flex;align-items:baseline;gap:14px">
+      <span style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#C9A84C">Total</span>
+      <span style="font-size:26px;font-weight:600;color:#fff" id="p-final">$0</span>
+    </div>
   </div>
 </div>
 
 <div class="footer">
   <div class="footer-info">Cardona Hall &nbsp;·&nbsp; 72 Hoover Ave, Passaic NJ 07055 &nbsp;·&nbsp; Pilab Productions LLC</div>
-  <div style="font-size:9px;color:#555">v8.0 — Capa 2</div>
+  <div style="font-size:9px;color:#555">v9.0</div>
 </div>
 </div>
 
@@ -700,16 +699,42 @@ const DECOR_PRICES={
 Object.defineProperty(window,'SOUND_PRICES',{get:()=>catalog.SOUND});
 Object.defineProperty(window,'ENT_PRICES',{get:()=>catalog.ENT});
 Object.defineProperty(window,'PHOTO_PRICES',{get:()=>catalog.PHOTO});
-const PHOTO_BUNDLE_DISC={elegant:0.10,prestige:0.15,legacy:0.20};
-const PHOTO_BUNDLE_INCLUDES={
-  elegant:{photo:'elegant',shoot:'',prints:'frames'},
-  prestige:{photo:'prestige',shoot:'essential',prints:'frames'},
-  legacy:{photo:'legacy',shoot:'full',prints:'gallery'}
-};
-const FP_AVAIL={quinceanera:['elegant','prestige','legacy'],wedding:['elegant','prestige','legacy'],babyshower:['essential','elegant','prestige'],kidsparty:['essential','elegant'],birthday:['essential','elegant','prestige','legacy'],special_social:['essential','elegant','prestige'],special_corporate:['elegant','prestige','legacy']};
-const FP_DISC={essential:0,elegant:0.05,prestige:0.05,legacy:0.07};
-const BUNDLE_EVENTS=['quinceanera','wedding'];
 const TIER_ORDER=['essential','elegant','prestige','legacy'];
+
+// ── DISCOUNT ENGINE (Q3 Fase C) ────────────────────────────
+// New model: prices are ANCHOR (never discounted at source). Discounts are a
+// separate layer: per-category (suggested when eligible, UNCHECKED by default),
+// Full Package bonus (5 eligible categories, by lowest tier), and a manual
+// wildcard (% + reason). All % on anchor, they SUM. Nothing auto-applied.
+const disc={
+  // per-category: eligible?, pct, amount, checked (user activates)
+  venue:{eligible:false,pct:0,amount:0,checked:false},
+  catering:{eligible:false,pct:0,amount:0,checked:false},
+  decor:{eligible:false,pct:0,amount:0,checked:false},
+  entertainment:{eligible:false,pct:0,amount:0,checked:false},
+  photo:{eligible:false,pct:0,amount:0,checked:false},
+  // full package bonus
+  fp:{eligible:false,tier:'',pct:0,amount:0,checked:false},
+  // manual wildcard
+  manual:{pct:0,reason:'',amount:0}
+};
+
+// Category-discount % from Service_Catalog (Category_Discount_Pct), by Service_ID.
+function catDiscPct(serviceId){ const s=catalog.service[serviceId]; return s?(s.discountPct||0):0; }
+
+// Lowest tier among an array of tier keys (essential<elegant<prestige<legacy).
+function lowestTier(tiers){
+  if(!tiers.length)return '';
+  return tiers.reduce((min,t)=>TIER_ORDER.indexOf(t)<TIER_ORDER.indexOf(min)?t:min,tiers[0]);
+}
+
+// Full Package bonus % by lowest tier, from Business_Rules.full_package_bonus.
+function fpBonusPct(tier){
+  const fb=(catalog.businessRules.full_package_bonus)||{};
+  const name={essential:'Essential',elegant:'Elegant',prestige:'Prestige',legacy:'Legacy'}[tier];
+  return name&&fb[name]!==undefined?num(fb[name]):0;
+}
+
 
 function formatDateOnly(val){
   if(!val)return '';
@@ -768,6 +793,38 @@ async function generateCotNumber(){
 async function saveToSheets(data){
   const payload={action:'saveQuotation',...data};
   await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(payload),headers:{'Content-Type':'text/plain'}});
+}
+
+// Records every APPLIED discount (checked & eligible, + manual) into
+// Applied_Discounts via the backend batch action. Append-only. Called at Save
+// and at Reserve only (not on every edit).
+async function saveAppliedDiscounts(cotNum,resNum){
+  const rows=[];
+  const ts=new Date().toISOString();
+  const mkId=()=> 'AD-'+Date.now()+'-'+Math.floor(Math.random()*1000);
+  const catLabels={venue:'Venue',catering:'Catering',decor:'Decor',entertainment:'Entertainment',photo:'Photo'};
+  ['venue','catering','decor','entertainment','photo'].forEach(k=>{
+    const dc=disc[k];
+    if(dc.checked&&dc.eligible&&dc.amount>0){
+      rows.push({'Log_ID':mkId(),'COT#':cotNum,'RES#':resNum||'','Timestamp':ts,'Category':catLabels[k],
+        'Discount_Name':catLabels[k]+' '+dc.pct+'%','Discount_Type':'category','Pct':dc.pct,'Amount':Math.round(dc.amount*100)/100,
+        'Reason':'','Source':'suggested','Active':'Y'});
+    }
+  });
+  if(disc.fp.checked&&disc.fp.eligible&&disc.fp.amount>0){
+    const tierName={essential:'Essential',elegant:'Elegant',prestige:'Prestige',legacy:'Legacy'}[disc.fp.tier]||disc.fp.tier;
+    rows.push({'Log_ID':mkId(),'COT#':cotNum,'RES#':resNum||'','Timestamp':ts,'Category':'FullPackage',
+      'Discount_Name':'Full Package '+tierName,'Discount_Type':'full_package','Pct':disc.fp.pct,'Amount':Math.round(disc.fp.amount*100)/100,
+      'Reason':'','Source':'suggested','Active':'Y'});
+  }
+  if(disc.manual.amount>0){
+    rows.push({'Log_ID':mkId(),'COT#':cotNum,'RES#':resNum||'','Timestamp':ts,'Category':'Manual',
+      'Discount_Name':'Manual','Discount_Type':'manual','Pct':disc.manual.pct,'Amount':Math.round(disc.manual.amount*100)/100,
+      'Reason':disc.manual.reason||'','Source':'manual','Active':'Y'});
+  }
+  if(rows.length===0)return;
+  const body={action:'saveAppliedDiscountBatch',rows};
+  await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(body),headers:{'Content-Type':'text/plain'}});
 }
 
 // Reserve WITHOUT changing the quotation: UPDATES the existing row of the same
@@ -894,7 +951,7 @@ function onEventLocationChange(){
   const vt=document.getElementById('venueTier');
   if(isExt){
     vt.value=''; vt.disabled=true;
-    state.prices.venue=0; state.discounts.venue=0;
+    state.prices.venue=0;
     if(typeof updateVenueDisplay==='function')updateVenueDisplay();
   } else {
     vt.disabled=false;
@@ -931,56 +988,10 @@ function updateFullPackageOptions(){
   });
 }
 
-function setFullPackage(tier,btn){
-  state.fullPackage=tier;
-  document.querySelectorAll('#fullPackageTiers .tier-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  if(tier!=='na'){
-    // Lock venue
-    if(!state.isExternalEvent){document.getElementById('venueTier').value='prestige';document.getElementById('venueTier').disabled=true;}
-    // Lock catering
-    const lineMap={essential:'collection',elegant:'collection',prestige:'collection',legacy:'luxury'};
-    document.getElementById('cateringLine').value=lineMap[tier];document.getElementById('cateringLine').disabled=true;
-    onCateringLineChange();
-    document.getElementById('cateringPlan').value=tier==='legacy'?'legacy':tier;document.getElementById('cateringPlan').disabled=true;
-    onCateringPlanChange();
-    // Lock decor tier buttons
-    document.querySelectorAll('#decorTierBtns .tier-btn').forEach(b=>{b.disabled=true;b.classList.remove('active');});
-    const decorBtns=document.querySelectorAll('#decorTierBtns .tier-btn');
-    const di={essential:1,elegant:2,prestige:3,legacy:4};if(decorBtns[di[tier]])decorBtns[di[tier]].classList.add('active');
-    setDecorPlanInternal(tier,false);
-    // Lock entertainment
-    const entMap={essential:'essential',elegant:'elegant',prestige:'prestige',legacy:'legacy'};
-    document.getElementById('entPlan').value=entMap[tier];document.getElementById('entPlan').disabled=true;
-    // Lock sound based on tier
-    const soundMap={essential:'soundlighting',elegant:'soundlightingplus',prestige:'soundlightingplus',legacy:'soundlightingplus'};
-    document.getElementById('soundPlan').value=soundMap[tier];document.getElementById('soundPlan').disabled=true;
-    // Lock photo tier buttons
-    document.querySelectorAll('#photoTierBtns .tier-btn').forEach(b=>{b.disabled=true;b.classList.remove('active');});
-    const photoBtns=document.querySelectorAll('#photoTierBtns .tier-btn');
-    if(tier==='essential'){
-      // Essential FP: Photo = N/A, sub-fields disabled
-      photoBtns[0]?.classList.add('active');
-      setPhotoPlanInternal('na');
-      ['photoTier','photoShootPlan','printsPlan'].forEach(id=>{const el=document.getElementById(id);if(el){el.value='';el.disabled=true;}});
-    } else {
-      const pi={elegant:1,prestige:2,legacy:3};if(pi[tier]!==undefined)photoBtns[pi[tier]]?.classList.add('active');
-      if(['elegant','prestige','legacy'].includes(tier)){setPhotoPlanInternal(tier);}
-    }
-    document.getElementById('fpAlert').className='alert alert-info show';
-    document.getElementById('fpAlert').textContent=`Full Package ${tier.charAt(0).toUpperCase()+tier.slice(1)} — all divisions auto-filled and locked.`;
-  } else {
-    // Unlock all
-    ['venueTier','cateringLine','cateringPlan','entPlan','soundPlan','decorHonorTier','decorHonorType','decorDiningTier','decorCPTier','decorCPType','decorExtrasTier','photoTier','photoShootPlan','printsPlan'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=false;});
-    document.querySelectorAll('#decorTierBtns .tier-btn').forEach(b=>b.disabled=false);
-    document.querySelectorAll('#photoTierBtns .tier-btn').forEach(b=>b.disabled=false);
-    if(state.isExternalEvent)document.getElementById('venueTier').disabled=true;
-    state.decorPlan='na';state.photoPlan='na';
-    document.getElementById('photoBundleInfo').style.display='none';
-    document.getElementById('fpAlert').className='alert';
-  }
-  onEntPlanChange();calcTotal();
-}
+// Full Package is no longer a manual selector — it's an automatic eligibility
+// indicator (Block 3) + a bonus checkbox in the final discounts block. This
+// no-op remains only in case of a residual call.
+function setFullPackage(tier,btn){ /* deprecated: Full Package is now automatic */ }
 
 // ── VENUE ──────────────────────────────────────────────────
 function updateVenueOptions(){
@@ -999,41 +1010,22 @@ function updateVenueOptions(){
 
 function calcVenuePrice(){
   const tier=document.getElementById('venueTier').value;
-  const cateringPlan=document.getElementById('cateringPlan').value;
-  const cateringLine=document.getElementById('cateringLine').value;
-  const day=state.dayOfWeek;
-  if(state.isExternalEvent||!tier||!state.guestRange){state.prices.venue=0;state.discounts.venue=0;updateVenueDisplay();return;}
+  if(state.isExternalEvent||!tier||!state.guestRange){state.prices.venue=0;updateVenueDisplay();return;}
+  // ANCHOR price only. Discounts are computed separately by computeDiscounts().
   const basePrice=VENUE_PRICES[tier]?.[state.guestRange]||0;
-  // Calculate venue discounts
-  let discPct=0;
-  const discReasons=[];
-  // 10% if Prestige on non-Saturday
-  if(tier==='prestige'&&day!=='Saturday'){discPct+=10;discReasons.push('Prestige non-Saturday: 10%');}
-  // 10% if catering Elegant or Prestige collection
-  if(cateringLine==='collection'&&['elegant','prestige'].includes(cateringPlan)){discPct+=10;discReasons.push('Catering Elegant/Prestige: 10%');}
-  // 15% if catering Legacy
-  if(cateringLine==='luxury'&&cateringPlan==='legacy'){discPct+=15;discReasons.push('Catering Legacy: 15%');}
-  const discAmt=basePrice*(discPct/100);
-  state.prices.venue=basePrice-discAmt;
-  state.discounts.venue=discAmt;
-  updateVenueDisplay(basePrice,discPct,discAmt,discReasons);
+  state.prices.venue=basePrice;
+  updateVenueDisplay(basePrice);
 }
 
-function updateVenueDisplay(base,discPct,discAmt,reasons){
+function updateVenueDisplay(base){
   const el=document.getElementById('venuePriceDisplay');
-  const discEl=document.getElementById('venueDiscountDisplay');
   const hdrPrice=document.getElementById('venue-header-price');
-  const hdrDisc=document.getElementById('venue-header-discount');
   if(state.prices.venue){
     el.textContent=fmtMoney(state.prices.venue);el.style.display='inline-block';
     hdrPrice.textContent=fmtMoney(state.prices.venue);
-    if(discPct>0){
-      discEl.style.display='block';
-      discEl.innerHTML=`<div style="font-size:9px;color:#6EC98A;padding:4px 0">${(reasons||[]).map(r=>`✓ ${r}`).join(' &nbsp;·&nbsp; ')} &nbsp;→&nbsp; -${fmtMoney(discAmt)}</div>`;
-      hdrDisc.textContent=`-${discPct}% (-${fmtMoney(discAmt)})`;
-    } else {discEl.style.display='none';hdrDisc.textContent='';}
-  } else {el.style.display='none';discEl.style.display='none';hdrPrice.textContent='';hdrDisc.textContent='';}
+  } else {el.style.display='none';hdrPrice.textContent='';}
 }
+
 
 function onVenueTierChange(){markEdited();calcVenuePrice();updateCateringRules();calcTotal();}
 
@@ -1189,7 +1181,7 @@ function calcDecorPrice(){
   const cpType=document.getElementById('decorCPType').value;
   const extrasTier=document.getElementById('decorExtrasTier').value;
   const tables=state.numTables||0;
-  let price=0;let decorDisc=0;
+  let price=0;
 
   if(state.decorPlan==='legacy'){
     price=parseFloat(document.getElementById('decorLegacyPriceVal').value)||0;
@@ -1215,14 +1207,8 @@ function calcDecorPrice(){
       extrasPrice=EXTRAS_PRICE[extrasTier];
     }
 
+    // ANCHOR price only (no discount subtracted; computeDiscounts handles it).
     price=honorPrice+diningPrice+cpPrice+extrasPrice;
-
-    // 10% discount on full plan (when plan is not na)
-    // For na: discount only if ALL 4 components selected — per document: only full plan gets discount
-    if(state.decorPlan!=='na'&&price>0){
-      decorDisc=price*0.10;
-      price=price-decorDisc;
-    }
 
     // Update sub-prices display — clear when 0
     const honorEl=document.getElementById('honor-price');if(honorEl)honorEl.textContent=honorPrice?fmtMoney(honorPrice):'';
@@ -1232,14 +1218,8 @@ function calcDecorPrice(){
   }
 
   state.prices.decor=price;
-  state.discounts.decor=decorDisc;
-  const totalEl=document.getElementById('decorTotalDisplay');
-  if(price){totalEl.textContent=fmtMoney(price);totalEl.style.display='inline-block';}else{totalEl.style.display='none';}
   const hdr=document.getElementById('decor-header-price');hdr.textContent=price?fmtMoney(price):'';
-  const hdrDisc=document.getElementById('decor-header-discount');
-  hdrDisc.textContent=decorDisc>0?`-10% (-${fmtMoney(decorDisc)})`:'';
   document.getElementById('p-decor').textContent=price?fmtMoney(price):'—';
-  document.getElementById('pd-decor').textContent=decorDisc>0?`-10% (-${fmtMoney(decorDisc)})`:'';
 }
 
 function onDecorExtrasTier(){markEdited();
@@ -1291,34 +1271,18 @@ function onEntPlanChange(){
 }
 
 function updateEntDiscounts(){
-  const day=state.dayOfWeek;
+  // ANCHOR price only. Sound is included when an Entertainment plan is selected;
+  // otherwise sound-only. Discounts handled by computeDiscounts().
   const soundVal=document.getElementById('soundPlan').value;
   const entVal=document.getElementById('entPlan').value;
   const isExternal=state.isExternalEvent;
-
-  // Sound discount
-  let soundDisc=0;let soundDiscLabel='';
-  if(soundVal&&!isExternal){
-    const baseSound=SOUND_PRICES[soundVal]||0;
-    if(['Monday','Tuesday','Wednesday','Thursday'].includes(day)){soundDisc=baseSound*0.40;soundDiscLabel='Mon–Thu 40% off';}
-    else if(['Friday','Sunday'].includes(day)){soundDisc=baseSound*0.10;soundDiscLabel='Fri/Sun 10% off';}
+  let price=0;
+  if(!isExternal){
+    if(entVal){ price=ENT_PRICES[entVal]||0; }         // plan includes sound
+    else if(soundVal){ price=SOUND_PRICES[soundVal]||0; } // sound only
   }
-  const soundEl=document.getElementById('soundDiscountDisplay');
-  if(soundDisc>0){soundEl.textContent=soundDiscLabel+' (-'+fmtMoney(soundDisc)+')';soundEl.style.display='inline-block';}else soundEl.style.display='none';
-
-  // Entertainment plan discount
-  let entDisc=0;let entDiscLabel='';
-  if(entVal&&!isExternal){
-    const baseEnt=ENT_PRICES[entVal]||0;
-    if(['Monday','Tuesday','Wednesday','Thursday'].includes(day)){entDisc=baseEnt*0.20;entDiscLabel='Mon–Thu 20% off';}
-    else if(['Friday','Sunday'].includes(day)&&['elegant','prestige'].includes(entVal)){entDisc=baseEnt*0.10;entDiscLabel='Fri/Sun 10% off';}
-    else if(['Friday','Sunday'].includes(day)&&entVal==='legacy'){entDisc=baseEnt*0.15;entDiscLabel='Fri/Sun 15% off';}
-  }
-  const entEl=document.getElementById('entDiscountDisplay');
-  if(entDisc>0){entEl.textContent=entDiscLabel+' (-'+fmtMoney(entDisc)+')';entEl.style.display='inline-block';}else entEl.style.display='none';
-
-  state.discounts.entertainment=soundDisc+entDisc;
-  document.getElementById('ent-header-discount').textContent=(soundDisc+entDisc)>0?'-'+fmtMoney(soundDisc+entDisc):'';
+  state.prices.entertainment=price;
+  document.getElementById('ent-header-price').textContent=price?fmtMoney(price):'';
 }
 
 // ── PHOTO ──────────────────────────────────────────────────
@@ -1365,67 +1329,126 @@ function onPrintsPlanChange(){markEdited();
 }
 
 // ── TOTAL CALC ─────────────────────────────────────────────
-function calcTotal(){
+// Computes eligibility, %, and $ amount for every discount source, using ANCHOR
+// prices in state.prices (which now hold anchor, not net). Respects the user's
+// check state (disc.*.checked). Does NOT auto-apply: checked=false by default.
+function computeDiscounts(){
   const p=state.prices;
-  const d=state.discounts;
   const isExt=state.isExternalEvent;
+  const vt=document.getElementById('venueTier').value;
   const cLine=document.getElementById('cateringLine').value;
   const cPlan=document.getElementById('cateringPlan').value;
-  const soundVal=document.getElementById('soundPlan').value;
   const entVal=document.getElementById('entPlan').value;
-  const day=state.dayOfWeek;
 
-  // Venue already calculated in calcVenuePrice (skip recalc when loaded)
-  if(!state.isLoaded)calcVenuePrice();
-  document.getElementById('p-venue').textContent=p.venue?fmtMoney(p.venue):(isExt?'$0 (External)':'—');
-  document.getElementById('pd-venue').textContent=d.venue>0?`-${fmtMoney(d.venue)}`:'';
+  // reset eligibility (keep checked state)
+  ['venue','catering','decor','entertainment','photo'].forEach(k=>{disc[k].eligible=false;disc[k].pct=0;disc[k].amount=0;});
 
-  // Catering
-  document.getElementById('p-catering').textContent=p.catering?fmtMoney(p.catering):'—';
-
-  // Decor
-  if(!state.isLoaded){
-    if(state.decorPlan==='legacy'){
-      const legacyVal=parseFloat(document.getElementById('decorLegacyPriceVal').value)||0;
-      p.decor=legacyVal;state.discounts.decor=0;
-    }
+  // VENUE — Prestige only; % by range from Service_Catalog (VEN-PRE-<range>).
+  if(!isExt && vt==='prestige' && state.guestRange){
+    const rangeCode={extra_small:'XS',small:'S',medium:'M',large:'L'}[state.guestRange];
+    const pct=catDiscPct('VEN-PRE-'+rangeCode);
+    if(pct>0){disc.venue.eligible=true;disc.venue.pct=pct;disc.venue.amount=(p.venue||0)*(pct/100);}
   }
-  document.getElementById('p-decor').textContent=p.decor?fmtMoney(p.decor):'—';
-  document.getElementById('pd-decor').textContent=state.discounts.decor>0?`-10% (-${fmtMoney(state.discounts.decor)})`:'';
-  const decorDiscEl=document.getElementById('decor-header-discount');
-  if(!decorDiscEl.textContent&&state.discounts.decor>0)decorDiscEl.textContent=`-10% (-${fmtMoney(state.discounts.decor)})`;
 
-  // Entertainment
-  // When an entertainment plan is selected, sound is included — don't add sound cost separately
-  if(!state.isLoaded){
-    let soundBase=0;
-    let entBase=entVal?(ENT_PRICES[entVal]||0):0;
-    if(!entVal&&soundVal){soundBase=SOUND_PRICES[soundVal]||0;}
-    let soundDisc=0,entDisc=0;
-    if(!isExt){
-      if(!entVal&&soundVal){
-        if(['Monday','Tuesday','Wednesday','Thursday'].includes(day))soundDisc=soundBase*0.40;
-        else if(['Friday','Sunday'].includes(day))soundDisc=soundBase*0.10;
-      }
-      if(entVal){
-        if(['Monday','Tuesday','Wednesday','Thursday'].includes(day))entDisc=entBase*0.20;
-        else if(['Friday','Sunday'].includes(day)&&['elegant','prestige'].includes(entVal))entDisc=entBase*0.10;
-        else if(['Friday','Sunday'].includes(day)&&entVal==='legacy')entDisc=entBase*0.15;
-        // Legacy 10% on bruto (Saturday or any day — on top of day discount)
-        if(entVal==='legacy'){const legacyDisc=entBase*0.10;entDisc=Math.min(entDisc+legacyDisc,entBase);}
-      }
-    }
-    p.entertainment=(soundBase-soundDisc)+(entBase-entDisc);
-    d.entertainment=soundDisc+entDisc;
+  // CATERING — Collection Elegant/Prestige + Legacy.
+  if(cLine==='collection' && ['elegant','prestige'].includes(cPlan)){
+    const pct=catDiscPct('CAT-COL-'+({elegant:'ELE',prestige:'PRE'}[cPlan]));
+    if(pct>0){disc.catering.eligible=true;disc.catering.pct=pct;disc.catering.amount=(p.catering||0)*(pct/100);}
+  } else if(cLine==='luxury'){
+    const pct=catDiscPct('CAT-LEG');
+    if(pct>0){disc.catering.eligible=true;disc.catering.pct=pct;disc.catering.amount=(p.catering||0)*(pct/100);}
   }
-  document.getElementById('p-entertainment').textContent=p.entertainment?fmtMoney(p.entertainment):'—';
-  document.getElementById('pd-entertainment').textContent=d.entertainment>0?`-${fmtMoney(d.entertainment)}`:'';
-  const entGross=p.entertainment+(d.entertainment||0);
-  document.getElementById('ent-header-price').textContent=entGross?fmtMoney(entGross):'';
-  document.getElementById('ent-header-discount').textContent=d.entertainment>0?`-${fmtMoney(d.entertainment)}`:(document.getElementById('ent-header-discount').textContent||'');
-  // Photo
-  let photoDisc=d.photo||0;
+
+  // DECOR — only if FULL DECOR (all 4 subdivisions present); % by LOWEST tier.
+  const decorTiers=getDecorSubdivisionTiers();
+  if(decorTiers.full){
+    const lt=lowestTier(decorTiers.tiers);
+    const pct={elegant:8,prestige:10}[lt]||0; // Essential=0
+    if(pct>0){disc.decor.eligible=true;disc.decor.pct=pct;disc.decor.amount=(p.decor||0)*(pct/100);}
+  }
+
+  // ENTERTAINMENT — Collection plan (not sound-only); % from catalog by tier.
+  if(entVal){
+    const pct=catDiscPct('ENT-'+({essential:'ESS',elegant:'ELE',prestige:'PRE',legacy:'LEG'}[entVal]));
+    if(pct>0){disc.entertainment.eligible=true;disc.entertainment.pct=pct;disc.entertainment.amount=(p.entertainment||0)*(pct/100);}
+  }
+
+  // PHOTO — only if FULL PHOTO bundle; % by photo plan tier.
+  if(state.photoPlan && state.photoPlan!=='na'){
+    const pct={elegant:6,prestige:10,legacy:15}[state.photoPlan]||0;
+    if(pct>0){disc.photo.eligible=true;disc.photo.pct=pct;disc.photo.amount=(p.photo||0)*(pct/100);}
+  }
+
+  // FULL PACKAGE — eligibility = 5 categories with qualifying plans.
+  const elig=fullPackageEligible();
+  disc.fp.eligible=elig.eligible;
+  disc.fp.tier=elig.tier;
+  if(elig.eligible){
+    disc.fp.pct=fpBonusPct(elig.tier);
+    const anchorTotal=(p.venue||0)+(p.catering||0)+(p.decor||0)+(p.entertainment||0)+(p.photo||0);
+    disc.fp.amount=anchorTotal*(disc.fp.pct/100);
+  } else { disc.fp.pct=0; disc.fp.amount=0; disc.fp.checked=false; }
+
+  // MANUAL wildcard — % on anchor total.
+  const mPct=parseFloat(document.getElementById('manualDiscPct')?.value)||0;
+  disc.manual.pct=mPct;
+  disc.manual.reason=document.getElementById('manualDiscReason')?.value||'';
+  const anchorTotal=(p.venue||0)+(p.catering||0)+(p.decor||0)+(p.entertainment||0)+(p.photo||0);
+  disc.manual.amount=anchorTotal*(mPct/100);
+}
+
+// Returns {full:bool, tiers:[]} for decor subdivisions (Honor/Dining/CP/Extras).
+function getDecorSubdivisionTiers(){
+  const ids=['decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier'];
+  const tiers=[];let allPresent=true;
+  ids.forEach(id=>{
+    const v=document.getElementById(id)?.value;
+    if(v)tiers.push(v);else allPresent=false;
+  });
+  return {full:allPresent&&tiers.length===4, tiers};
+}
+
+// Full Package eligibility: Venue(any) + Catering(Collection/Legacy) + Decor(Full)
+// + Entertainment(Collection plan) + Photo(Coverage). Returns {eligible, tier}.
+function fullPackageEligible(){
+  if(state.isExternalEvent)return {eligible:false,tier:''};
+  const vt=document.getElementById('venueTier').value;
+  const cLine=document.getElementById('cateringLine').value;
+  const cPlan=document.getElementById('cateringPlan').value;
+  const entVal=document.getElementById('entPlan').value;
+  const photoTier=document.getElementById('photoTier').value;
+  const decorTiers=getDecorSubdivisionTiers();
+
+  const venueOK=!!vt;
+  const cateringOK=(cLine==='collection'&&cPlan)||(cLine==='luxury');
+  const decorOK=decorTiers.full;
+  const entOK=!!entVal;
+  const photoOK=!!photoTier;
+
+  const eligible=venueOK&&cateringOK&&decorOK&&entOK&&photoOK;
+  if(!eligible)return {eligible:false,tier:'',missing:{venueOK,cateringOK,decorOK,entOK,photoOK}};
+
+  // lowest tier among the 5 (for the bonus %)
+  const tiers=[];
+  if(vt)tiers.push(vt);
+  if(cLine==='collection'&&cPlan)tiers.push(cPlan);else if(cLine==='luxury')tiers.push('legacy');
+  decorTiers.tiers.forEach(t=>tiers.push(t));
+  if(entVal)tiers.push(entVal);
+  if(state.photoPlan&&state.photoPlan!=='na')tiers.push(state.photoPlan);else if(photoTier)tiers.push(photoTier);
+  return {eligible:true,tier:lowestTier(tiers)};
+}
+
+function calcTotal(){
+  const p=state.prices;
+  const isExt=state.isExternalEvent;
+
+  // 1) Recompute ANCHOR prices for each category (unless a loaded quote is intact).
   if(!state.isLoaded){
+    calcVenuePrice();
+    if(state.decorPlan==='legacy'){ p.decor=parseFloat(document.getElementById('decorLegacyPriceVal').value)||0; }
+    else { calcDecorPrice(); }
+    updateEntDiscounts(); // ent anchor
+    // Photo anchor
     const photoTier=document.getElementById('photoTier').value;
     const shootPlan=document.getElementById('photoShootPlan').value;
     const printsPlan=document.getElementById('printsPlan').value;
@@ -1434,78 +1457,128 @@ function calcTotal(){
     if(shootPlan)photoBase+=PHOTO_PRICES.shoot[shootPlan]||0;
     if(printsPlan==='gallery')photoBase+=PHOTO_PRICES.prints.gallery;
     else if(printsPlan==='frames')photoBase+=state.numTables*PHOTO_PRICES.prints.frames_per_table;
-    photoDisc=0;
-    if(!isExt&&state.photoPlan!=='na'&&PHOTO_BUNDLE_DISC[state.photoPlan]){
-      photoDisc=photoBase*PHOTO_BUNDLE_DISC[state.photoPlan];
-    }
-    p.photo=photoBase-photoDisc;d.photo=photoDisc;
+    p.photo=photoBase;
   }
+
+  // 2) Show anchor prices per category (no per-category discount baked in).
+  document.getElementById('p-venue').textContent=p.venue?fmtMoney(p.venue):(isExt?'$0 (External)':'—');
+  document.getElementById('p-catering').textContent=p.catering?fmtMoney(p.catering):'—';
+  document.getElementById('p-decor').textContent=p.decor?fmtMoney(p.decor):'—';
+  document.getElementById('p-entertainment').textContent=p.entertainment?fmtMoney(p.entertainment):'—';
   document.getElementById('p-photo').textContent=p.photo?fmtMoney(p.photo):'—';
-  document.getElementById('pd-photo').textContent=photoDisc>0?`-${fmtMoney(photoDisc)}`:'';
   document.getElementById('photo-header-price').textContent=p.photo?fmtMoney(p.photo):'';
-  document.getElementById('photo-header-discount').textContent=photoDisc>0?`-${fmtMoney(photoDisc)}`:'';
 
-  const subtotal=(p.venue||0)+(p.catering||0)+(p.decor||0)+(p.entertainment||0)+(p.photo||0);
+  // 3) Compute discount eligibility + amounts (does not auto-apply).
+  computeDiscounts();
 
-  // Full Package discount
-  // Determine lowest tier across all divisions
-  const allTiers=[];
-  const vt=document.getElementById('venueTier').value;if(vt)allTiers.push(vt==='prestige'?'prestige':vt);
-  if(cLine==='collection'&&cPlan)allTiers.push(cPlan);else if(cLine==='luxury')allTiers.push('legacy');
-  if(state.decorPlan!=='na')allTiers.push(state.decorPlan);
-  if(entVal)allTiers.push(entVal);
-  if(state.photoPlan!=='na')allTiers.push(state.photoPlan);
+  // 4) Render the per-category discount checks in each block.
+  renderCategoryDiscountChecks();
 
-  // Check if discount applies
-  const allFiveFilled=p.venue>=0&&p.catering>0&&p.decor>0&&p.entertainment>0&&p.photo>0;
-  const noClassicMenu=cLine!=='classic';
-  const noSoundOnly=entVal!=='';// must have an entertainment plan
-  const notExternal=!isExt;
+  // 5) Render Full Package eligibility indicator (Block 3).
+  renderFullPackageIndicator();
 
-  let fpDisc=0;
-  if(allFiveFilled&&noClassicMenu&&noSoundOnly&&notExternal&&state.fullPackage!=='na'&&allTiers.length>=5){
-    const lowestTier=allTiers.reduce((min,t)=>TIER_ORDER.indexOf(t)<TIER_ORDER.indexOf(min)?t:min,allTiers[0]);
-    fpDisc=subtotal*(FP_DISC[lowestTier]||0);
-  } else if(!isExt&&allFiveFilled&&noClassicMenu&&noSoundOnly&&allTiers.length>=5){
-    // Manual selection of all tiers
-    const lowestTier=allTiers.reduce((min,t)=>TIER_ORDER.indexOf(t)<TIER_ORDER.indexOf(min)?t:min,allTiers[0]);
-    fpDisc=subtotal*(FP_DISC[lowestTier]||0);
-  }
-  d.fullPackage=fpDisc;
+  // 6) Sum only the CHECKED discounts.
+  const anchorSubtotal=(p.venue||0)+(p.catering||0)+(p.decor||0)+(p.entertainment||0)+(p.photo||0);
+  let appliedCat=0;
+  ['venue','catering','decor','entertainment','photo'].forEach(k=>{ if(disc[k].checked&&disc[k].eligible)appliedCat+=disc[k].amount; });
+  const fpAmount=(disc.fp.checked&&disc.fp.eligible)?disc.fp.amount:0;
+  const manualAmount=disc.manual.amount||0;
+  const totalDiscounts=appliedCat+fpAmount+manualAmount;
 
-  // Build discount summary
-  buildDiscountSummary(d,fpDisc,subtotal);
-
-  const totalDiscounts=(d.venue||0)+(d.decor||0)+(d.entertainment||0)+(d.photo||0)+fpDisc;
-  const calculated=subtotal-fpDisc;// venue/ent/photo discounts already subtracted from their prices
+  const calculated=anchorSubtotal-totalDiscounts;
   const override=parseFloat(document.getElementById('priceOverride').value);
   const final=isNaN(override)?calculated:override;
 
-  document.getElementById('p-subtotal').textContent=fmtMoney(subtotal+(d.venue||0)+(d.decor||0)+(d.entertainment||0)+(d.photo||0));
-  document.getElementById('p-discounts-total').textContent=totalDiscounts?'-'+fmtMoney(totalDiscounts):'$0';
-  document.getElementById('p-calculated').textContent=fmtMoney(calculated);
-  document.getElementById('p-final').textContent=fmtMoney(final)||'$0';
-
-  document.getElementById('fp-header-price').textContent=state.fullPackage!=='na'?fmtMoney(calculated):'';
-  document.getElementById('fp-header-discount').textContent=fpDisc>0?`Full Package -${fmtMoney(fpDisc)}`:'';
+  // 7) Render the final discounts summary block.
+  renderDiscountsSummary(anchorSubtotal,appliedCat,fpAmount,manualAmount,totalDiscounts,calculated,final);
 }
 
-function buildDiscountSummary(d,fpDisc,subtotal){
-  const rows=[];
-  if(d.venue>0)rows.push({label:'Venue discount',value:d.venue});
-  if(d.decor>0)rows.push({label:'Decor Prestige discount (10%)',value:d.decor});
-  if(d.entertainment>0)rows.push({label:'Entertainment discount (day rate)',value:d.entertainment});
-  if(d.photo>0)rows.push({label:`Photo bundle discount (${state.photoPlan})`,value:d.photo});
-  if(fpDisc>0)rows.push({label:'Full Package discount (lowest tier)',value:fpDisc});
-  const block=document.getElementById('discountSummaryBlock');
-  const rowsEl=document.getElementById('discountSummaryRows');
-  const totalEl=document.getElementById('discountTotalValue');
-  if(rows.length>0){
-    block.style.display='block';
-    rowsEl.innerHTML=rows.map(r=>`<div class="discount-row-item"><span class="discount-row-label">${r.label}</span><span class="discount-row-value">-${fmtMoney(r.value)}</span></div>`).join('');
-    const total=rows.reduce((s,r)=>s+r.value,0);
-    totalEl.textContent='-'+fmtMoney(total);
-  } else {block.style.display='none';}
+// Renders the per-category discount check inside each category block. Check
+// APPEARS only when eligible; UNCHECKED by default; shows $ amount.
+function renderCategoryDiscountChecks(){
+  const map={
+    venue:{el:'venueDiscountDisplay',label:'Venue discount'},
+    catering:{el:'cateringDiscountDisplay',label:'Catering discount'},
+    decor:{el:'decorDiscountDisplay',label:'Decor discount'},
+    entertainment:{el:'entDiscountDisplay',label:'Entertainment discount'},
+    photo:{el:'photoDiscountSummary',label:'Photo discount'}
+  };
+  Object.keys(map).forEach(k=>{
+    const cfg=map[k];const el=document.getElementById(cfg.el);if(!el)return;
+    const dc=disc[k];
+    if(dc.eligible&&dc.amount>0){
+      el.style.display='block';
+      el.innerHTML=`<label style="display:flex;align-items:center;gap:8px;font-size:11px;cursor:pointer;color:#6EC98A;padding:4px 0">
+        <input type="checkbox" ${dc.checked?'checked':''} onchange="toggleCatDiscount('${k}',this.checked)" style="width:14px;height:14px;accent-color:#C9A84C;margin:0">
+        <span>${cfg.label} ${dc.pct}% &nbsp;→&nbsp; <strong>-${fmtMoney(dc.amount)}</strong></span>
+      </label>`;
+    } else { el.style.display='none'; el.innerHTML=''; }
+  });
+}
+
+function toggleCatDiscount(cat,checked){ disc[cat].checked=checked; calcTotal(); }
+function toggleFullPackage(checked){ disc.fp.checked=checked; calcTotal(); }
+function onManualDiscountChange(){ calcTotal(); }
+
+// Block 3 — Full Package eligibility indicator (semaphore).
+function renderFullPackageIndicator(){
+  const el=document.getElementById('fullPackageIndicator');if(!el)return;
+  const elig=fullPackageEligible();
+  if(elig.eligible){
+    const tierName={essential:'Essential',elegant:'Elegant',prestige:'Prestige',legacy:'Legacy'}[elig.tier]||elig.tier;
+    const pct=fpBonusPct(elig.tier);
+    el.innerHTML=`<div style="color:#6EC98A;font-size:11px;padding:6px 0">&#x2713; Full Package eligible — <strong>${tierName}</strong> · Bonus ${pct}%</div>`;
+  } else {
+    const m=elig.missing||{};
+    const miss=[];
+    if(!m.venueOK)miss.push('Venue');
+    if(!m.cateringOK)miss.push('Catering (Collection/Legacy)');
+    if(!m.decorOK)miss.push('Full Decor');
+    if(!m.entOK)miss.push('Entertainment');
+    if(!m.photoOK)miss.push('Photo');
+    const have=5-miss.length;
+    el.innerHTML=`<div style="color:#999;font-size:11px;padding:6px 0">Full Package: ${have}/5 categories · Missing: ${miss.join(', ')||'—'}</div>`;
+  }
+}
+
+// Final discounts summary block (Blocks 9-11) — mockup layout.
+function renderDiscountsSummary(anchorSubtotal,appliedCat,fpAmount,manualAmount,totalDiscounts,calculated,final){
+  const p=state.prices;
+  // Price summary rows
+  document.getElementById('p-subtotal').textContent=fmtMoney(anchorSubtotal);
+  // Discounts list
+  const rowsEl=document.getElementById('discountRows');
+  if(rowsEl){
+    const rows=[];
+    const catLabels={venue:'Venue',catering:'Catering',decor:'Decor',entertainment:'Entertainment',photo:'Photo'};
+    ['venue','catering','decor','entertainment','photo'].forEach(k=>{
+      const dc=disc[k];
+      if(dc.eligible&&dc.amount>0){
+        const active=dc.checked;
+        rows.push(`<div style="display:flex;align-items:center;padding:4px 0;font-size:12px;${active?'':'opacity:0.45'}">
+          <input type="checkbox" ${active?'checked':''} onchange="toggleCatDiscount('${k}',this.checked)" style="width:13px;height:13px;accent-color:#C9A84C;margin-right:8px">
+          <span style="flex:1;color:#AAA">${catLabels[k]} — ${dc.pct}%</span>
+          <span style="color:${active?'#6EC98A':'#666'};font-weight:600">-${fmtMoney(dc.amount)}</span>
+        </div>`);
+      }
+    });
+    // Full Package strip
+    if(disc.fp.eligible&&disc.fp.amount>0){
+      const active=disc.fp.checked;
+      const tierName={essential:'Essential',elegant:'Elegant',prestige:'Prestige',legacy:'Legacy'}[disc.fp.tier]||disc.fp.tier;
+      rows.push(`<div style="display:flex;align-items:center;padding:6px 8px;margin:6px 0;background:#1a1608;border:1px solid #C9A84C33;border-radius:6px;font-size:12px;${active?'':'opacity:0.55'}">
+        <input type="checkbox" ${active?'checked':''} onchange="toggleFullPackage(this.checked)" style="width:13px;height:13px;accent-color:#C9A84C;margin-right:8px">
+        <span style="flex:1;color:#C9A84C">&#9733; Full Package — ${tierName} (${disc.fp.pct}%)</span>
+        <span style="color:#C9A84C;font-weight:600">-${fmtMoney(disc.fp.amount)}</span>
+      </div>`);
+    }
+    rowsEl.innerHTML=rows.join('');
+    // manual row is a FIXED element (not regenerated) to preserve input focus.
+    const mAmt=document.getElementById('manualDiscAmount');
+    if(mAmt)mAmt.textContent=manualAmount>0?'-'+fmtMoney(manualAmount):'-$0';
+  }
+  document.getElementById('p-discounts-total').textContent=totalDiscounts?'-'+fmtMoney(totalDiscounts):'$0';
+  document.getElementById('p-final').textContent=fmtMoney(final)||'$0';
 }
 
 // ── SAVE / LOAD ────────────────────────────────────────────
@@ -1543,7 +1616,7 @@ function collectData(){
     'Tables':state.numTables,
     'Event Type':document.getElementById('eventType').value,
     'Event Sub-Type':document.getElementById('eventSubType')?.value||'',
-    'Full Package':state.fullPackage,
+    'Full Package':(disc.fp.eligible&&disc.fp.checked)?disc.fp.tier:'na',
     'Venue Tier':state.isExternalEvent?'EXTERNAL':document.getElementById('venueTier').value,
     'Catering Line':document.getElementById('cateringLine').value,
     'Catering Plan':document.getElementById('cateringPlan').value,
@@ -1567,10 +1640,10 @@ function collectData(){
     'Price Decor':state.prices.decor,
     'Price Entertainment':state.prices.entertainment,
     'Price Photo':state.prices.photo,
-    'Discount Venue':state.discounts.venue||0,
-    'Discount Entertainment':state.discounts.entertainment||0,
-    'Discount Photo':state.discounts.photo||0,
-    'Discount FP':state.discounts.fullPackage||0,
+    'Discount Venue':(disc.venue.checked&&disc.venue.eligible)?disc.venue.amount:0,
+    'Discount Entertainment':(disc.entertainment.checked&&disc.entertainment.eligible)?disc.entertainment.amount:0,
+    'Discount Photo':(disc.photo.checked&&disc.photo.eligible)?disc.photo.amount:0,
+    'Discount FP':(disc.fp.checked&&disc.fp.eligible)?disc.fp.amount:0,
     'Price Override':document.getElementById('priceOverride').value,
     'Final Total':document.getElementById('p-final').textContent,
     'Discount Detail':buildDiscountDetail(),
@@ -1588,6 +1661,7 @@ async function saveQuotation(){
   try{
     const savedNum=state.cotNumber;
     await saveToSheets(collectData());
+    await saveAppliedDiscounts(savedNum, state.resNumber||'');
     await loadAllQuotations();
     hideLoading();
     // B2: after saving, CLEAR the form (quoting is done; to reserve, load it back
@@ -1622,20 +1696,27 @@ async function resetForm(){
   document.querySelectorAll('.field-error').forEach(e=>e.classList.remove('show'));
   ['externalEventAlert','saveDateBlockAlert','soundDamageAlert'].forEach(id=>document.getElementById(id).style.display='none');
   document.getElementById('btnExportPDF').style.display='none';
-  state.fullPackage='na';state.decorPlan='na';state.photoPlan='na';
+  state.decorPlan='na';state.photoPlan='na';
   state.dayOfWeek=null;state.guestRange=null;state.numGuests=0;state.numTables=0;
   // Explicitly reset decor and photo plan state
   setDecorPlanInternal('na',false);
   setPhotoPlanInternal('na');
   state.prices={venue:0,catering:0,decor:0,entertainment:0,photo:0};
-  state.discounts={venue:0,decor:0,entertainment:0,photo:0,fullPackage:0};
+  // reset discount engine
+  ['venue','catering','decor','entertainment','photo'].forEach(k=>{disc[k]={eligible:false,pct:0,amount:0,checked:false};});
+  disc.fp={eligible:false,tier:'',pct:0,amount:0,checked:false};
+  disc.manual={pct:0,reason:'',amount:0};
   state.status='new';state.resNumber=null;state.selectedDate=null;state.isExternalEvent=false;state.isLoaded=false;state.loadedSnapshot=null;
-  ['dayOfWeek','guestRange','venuePriceDisplay','cateringPriceDisplay','decorCPPrice','decorTotalDisplay','soundDiscountDisplay','entDiscountDisplay','photoBundleInfo','extrasInfo','framesPrice','framesTablesDisplay'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
-  ['framesInfoField','decorLegacyPrice','eventSubField','discountSummaryBlock'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+  ['dayOfWeek','guestRange','venuePriceDisplay','cateringPriceDisplay','decorCPPrice','extrasInfo','framesPrice','framesTablesDisplay'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+  ['framesInfoField','decorLegacyPrice','eventSubField'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
   ['p-venue','p-catering','p-decor','p-entertainment','p-photo'].forEach(id=>document.getElementById(id).textContent='—');
-  ['pd-venue','pd-decor','pd-entertainment','pd-photo','venue-header-price','venue-header-discount','catering-header-price','decor-header-price','decor-header-discount','ent-header-price','ent-header-discount','photo-header-price','photo-header-discount','fp-header-price','fp-header-discount'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='';});
+  ['venue-header-price','catering-header-price','decor-header-price','ent-header-price','photo-header-price','fp-header-price','fp-header-discount'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='';});
+  ['venueDiscountDisplay','cateringDiscountDisplay','decorDiscountDisplay','entDiscountDisplay','photoDiscountSummary','discountRows'].forEach(id=>{const el=document.getElementById(id);if(el){el.innerHTML='';el.style.display='none';}});
+  const mp=document.getElementById('manualDiscPct');if(mp)mp.value='';
+  const mr=document.getElementById('manualDiscReason');if(mr)mr.value='';
+  const ma=document.getElementById('manualDiscAmount');if(ma)ma.textContent='-$0';
   document.getElementById('p-subtotal').textContent='$0';document.getElementById('p-discounts-total').textContent='$0';
-  document.getElementById('p-calculated').textContent='$0';document.getElementById('p-final').textContent='$0';
+  document.getElementById('p-final').textContent='$0';
   document.getElementById('cateringTrayDisplay').textContent='—';document.getElementById('statusPill').textContent='NEW';
   document.getElementById('venueDiscountDisplay').style.display='none';
   ['venueTier','cateringLine','cateringPlan','entPlan','soundPlan','decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier','photoTier','photoShootPlan','printsPlan'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=false;});
@@ -1753,10 +1834,8 @@ function loadQuotation(cotNum){
   state.prices.decor=parseFloat(rec['Price Decor'])||0;
   state.prices.entertainment=parseFloat(rec['Price Entertainment'])||0;
   state.prices.photo=parseFloat(rec['Price Photo'])||0;
-  state.discounts.venue=parseFloat(rec['Discount Venue'])||0;
-  state.discounts.entertainment=parseFloat(rec['Discount Entertainment'])||0;
-  state.discounts.photo=parseFloat(rec['Discount Photo'])||0;
-  state.discounts.fullPackage=parseFloat(rec['Discount FP'])||0;
+  // Discounts are recomputed by computeDiscounts() from the loaded selections;
+  // no need to read the old per-category discount amounts.
   if(rec['Tables'])state.numTables=parseInt(rec['Tables'])||state.numTables;
 
   // ── Step 6: Catering ──
@@ -1817,24 +1896,15 @@ function loadQuotation(cotNum){
   setPhotoPlanInternal(photoPlanVal);
   updatePhotoSaturdayRule();
 
-  // ── Step 10: Full Package (lock fields if applicable) ──
-  const fpVal=rec['Full Package']||'na';
-  state.fullPackage=fpVal;
-  document.querySelectorAll('#fullPackageTiers .tier-btn').forEach(b=>b.classList.remove('active'));
-  if(fpVal!=='na'){
-    const fpBtnMap={essential:1,elegant:2,prestige:3,legacy:4};
-    const fpBtns=document.querySelectorAll('#fullPackageTiers .tier-btn');
-    if(fpBtns[fpBtnMap[fpVal]])fpBtns[fpBtnMap[fpVal]].classList.add('active');
-    // Lock all fields
-    ['venueTier','cateringLine','cateringPlan','entPlan','soundPlan'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=true;});
-    document.querySelectorAll('#decorTierBtns .tier-btn').forEach(b=>b.disabled=true);
-    document.querySelectorAll('#photoTierBtns .tier-btn').forEach(b=>b.disabled=true);
-    document.getElementById('fpAlert').className='alert alert-info show';
-    document.getElementById('fpAlert').textContent=`Full Package ${fpVal.charAt(0).toUpperCase()+fpVal.slice(1)} — all divisions auto-filled and locked.`;
-  } else {
-    document.querySelectorAll('#fullPackageTiers .tier-btn')[0]?.classList.add('active');
-    document.getElementById('fpAlert').className='alert';
-  }
+  // ── Step 10: Full Package — now automatic (indicator + bonus check). If the
+  // saved quote had FP applied (Discount FP > 0), pre-check the bonus. calcTotal
+  // recomputes eligibility from the loaded selections.
+  const savedFP=parseFloat(rec['Discount FP'])||0;
+  disc.fp.checked = savedFP>0;
+  // Pre-check per-category discounts that were applied in the saved quote.
+  disc.venue.checked = (parseFloat(rec['Discount Venue'])||0)>0;
+  disc.entertainment.checked = (parseFloat(rec['Discount Entertainment'])||0)>0;
+  disc.photo.checked = (parseFloat(rec['Discount Photo'])||0)>0;
 
   // ── Step 11: State & metadata ──
   state.cotNumber=rec['COT#'];state.status='quoted';
@@ -1907,6 +1977,9 @@ async function confirmReservation(){
       await saveToSheets(data);
     }
 
+    // Record applied discounts for the reserved quote (append-only).
+    await saveAppliedDiscounts(state.cotNumber, state.resNumber);
+
     await loadAllQuotations();hideLoading();
     state.isLoaded=false;state.loadedSnapshot=null;
     document.getElementById('statusPill').textContent='RESERVED';
@@ -1918,47 +1991,21 @@ async function confirmReservation(){
 
 // ── PDF GENERATION ─────────────────────────────────────────
 function buildDiscountDetail(){
-  const d=state.discounts;const p=state.prices;
-  const cLine=document.getElementById('cateringLine').value;
-  const cPlan=document.getElementById('cateringPlan').value;
-  const vTier=document.getElementById('venueTier').value;
-  const day=state.dayOfWeek;
-  const entVal=document.getElementById('entPlan').value;
-  const soundVal=document.getElementById('soundPlan').value;
+  // New model: report only APPLIED (checked & eligible) discounts, incl. manual.
   const detail={};
-  // Venue
-  if(d.venue>0){
-    const reasons=[];
-    if(vTier==='prestige'&&day!=='Saturday')reasons.push('Prestige non-Saturday');
-    if(cLine==='collection'&&['elegant','prestige'].includes(cPlan))reasons.push('Catering Collection');
-    if(cLine==='luxury'&&cPlan==='legacy')reasons.push('Catering Luxury');
-    const gross=p.venue+d.venue;
-    detail.venue={amt:d.venue,pct:Math.round(d.venue/gross*100),reasons};
+  const catLabels={venue:'Venue',catering:'Catering',decor:'Decor',entertainment:'Entertainment',photo:'Photo'};
+  ['venue','catering','decor','entertainment','photo'].forEach(k=>{
+    const dc=disc[k];
+    if(dc.checked&&dc.eligible&&dc.amount>0){
+      detail[k]={amt:Math.round(dc.amount),pct:dc.pct,reason:catLabels[k]+' '+dc.pct+'%'};
+    }
+  });
+  if(disc.fp.checked&&disc.fp.eligible&&disc.fp.amount>0){
+    const tierName={essential:'Essential',elegant:'Elegant',prestige:'Prestige',legacy:'Legacy'}[disc.fp.tier]||disc.fp.tier;
+    detail.fp={amt:Math.round(disc.fp.amount),pct:disc.fp.pct,reason:'Full Package '+tierName+' '+disc.fp.pct+'%'};
   }
-  // Decor
-  if(d.decor>0){
-    const gross=p.decor+d.decor;
-    detail.decor={amt:d.decor,pct:Math.round(d.decor/gross*100),reason:'Full Plan discount'};
-  }
-  // Entertainment
-  if(d.entertainment>0){
-    let reason='';
-    if(['Monday','Tuesday','Wednesday','Thursday'].includes(day))reason=entVal?'Mon–Thu 20% off':'Mon–Thu 40% off';
-    else if(['Friday','Sunday'].includes(day))reason=entVal==='legacy'?'Fri/Sun 15% off':'Fri/Sun 10% off';
-    if(entVal==='legacy')reason=(reason?reason+' + ':'')+'Legacy 10% off';
-    const gross=p.entertainment+d.entertainment;
-    detail.entertainment={amt:d.entertainment,pct:Math.round(d.entertainment/gross*100),reason};
-  }
-  // Photo
-  if(d.photo>0){
-    const bundleLabel={elegant:'Elegant Bundle 10%',prestige:'Prestige Bundle 15%',legacy:'Legacy Bundle 20%'};
-    const gross=p.photo+d.photo;
-    detail.photo={amt:d.photo,pct:Math.round(d.photo/gross*100),reason:bundleLabel[state.photoPlan]||'Bundle discount'};
-  }
-  // Full Package
-  if(d.fullPackage>0){
-    const fpLabel={elegant:'Full Package Elegant 5%',prestige:'Full Package Prestige 5%',legacy:'Full Package Legacy 7%'};
-    detail.fp={amt:d.fullPackage,pct:Math.round(d.fullPackage/(p.venue+p.catering+p.decor+p.entertainment+p.photo+d.fullPackage)*100),reason:fpLabel[state.fullPackage]||'Full Package'};
+  if(disc.manual.amount>0){
+    detail.manual={amt:Math.round(disc.manual.amount),pct:disc.manual.pct,reason:disc.manual.reason||'Manual discount'};
   }
   return JSON.stringify(detail);
 }
@@ -1978,7 +2025,7 @@ function generatePDF(){
   const guests=state.numGuests||0;
   const children=parseInt(document.getElementById('numChildren').value)||0;
   const tables=state.numTables||0;
-  const fp=state.fullPackage;
+  const fp=(disc.fp.eligible&&disc.fp.checked)?disc.fp.tier:'na';
   const finalTotal=parseFloat((document.getElementById('p-final').textContent||'0').replace(/[$,]/g,''))||0;
   const deposit=finalTotal>5000?fmtPDFMoney(finalTotal*0.20):'$1,000';
   const today=new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
