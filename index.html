@@ -324,7 +324,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
       </select>
       <span class="field-auto highlight" id="cateringPriceDisplay" style="display:none"></span>
     </div>
-    <div class="field"><div class="field-label">Trays / Portions</div><span class="field-auto" id="cateringTrayDisplay">—</span></div>
+    <span id="cateringTrayDisplay" style="display:none"></span>
     <div id="cateringDiscountDisplay" style="display:none;margin-top:4px"></div>
     <div id="cateringAlert" class="alert alert-warn"></div>
   </div>
@@ -373,7 +373,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
             <div class="field"><div class="field-label">Tier</div><select class="field-select" id="decorCPTier" onchange="onDecorCPTierChange()"><option value="">Not Applicable</option><option value="essential">Essential</option><option value="elegant">Elegant</option><option value="prestige">Prestige</option><option value="legacy">Legacy</option></select></div>
             <div class="field"><div class="field-label">Type</div><select class="field-select" id="decorCPType" onchange="markEdited();calcDecorPrice();calcTotal()" disabled><option value="">— Select —</option><option value="flowers">Flowers</option><option value="balloons">Balloons</option><option value="others">Others</option></select></div>
           </div>
-          <div class="field"><div class="field-label">Tables (auto)</div><span class="field-auto highlight" id="decorCPTablesDisplay">—</span></div>
+          <span class="field" id="decorCPTablesField" style="display:none"><span id="decorCPTablesDisplay">—</span></span>
         </div>
       </div>
       <div class="sub-block">
@@ -393,12 +393,11 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
       <div class="field-label">Entertainment Plan</div>
       <select class="field-select" id="entPlan" onchange="onEntPlanChange()">
         <option value="">Not Applicable</option>
-        <option value="essential">Essential — $900</option>
-        <option value="elegant">Elegant — $1,400</option>
-        <option value="prestige">Prestige — $1,600</option>
-        <option value="legacy">Legacy — $3,000</option>
+        <option value="essential">Essential</option>
+        <option value="elegant">Elegant</option>
+        <option value="prestige">Prestige</option>
+        <option value="legacy">Legacy</option>
       </select>
-      <span class="field-auto green" id="entDiscountDisplay" style="display:none"></span>
     </div>
     <div class="field">
       <div class="field-label">Sound System</div>
@@ -410,7 +409,9 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
       <span class="field-auto green" id="soundDiscountDisplay" style="display:none"></span>
     </div>
     <div id="entAlert" class="alert alert-info"></div>
-    <div id="soundDamageAlert" class="alert alert-warn" style="display:none">&#x26A0; Sound System selected — Damage policy required in contract.</div>
+    <div id="soundDamageAlert" style="display:none"></div>
+    <div id="entDiscountDisplay" style="display:none;margin-top:6px"></div>
+    <div id="entAddonsWrap" style="margin-top:8px"></div>
   </div>
 </div>
 
@@ -422,21 +423,21 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
       <div class="tier-label">Full Photo Plan</div>
       <div class="tier-opts" id="photoTierBtns">
         <button class="tier-btn na active" onclick="setPhotoPlan('na',this)">Not Applicable</button>
-        <button class="tier-btn" onclick="setPhotoPlan('elegant',this)">Elegant <span style="font-size:8px;color:#6EC98A">10%</span></button>
-        <button class="tier-btn" onclick="setPhotoPlan('prestige',this)">Prestige <span style="font-size:8px;color:#6EC98A">15%</span></button>
-        <button class="tier-btn" onclick="setPhotoPlan('legacy',this)">Legacy <span style="font-size:8px;color:#6EC98A">20%</span></button>
+        <button class="tier-btn" onclick="setPhotoPlan('elegant',this)">Elegant <span style="font-size:8px;color:#6EC98A">6%</span></button>
+        <button class="tier-btn" onclick="setPhotoPlan('prestige',this)">Prestige <span style="font-size:8px;color:#6EC98A">10%</span></button>
+        <button class="tier-btn" onclick="setPhotoPlan('legacy',this)">Legacy <span style="font-size:8px;color:#6EC98A">15%</span></button>
       </div>
       <span class="info-badge" id="photoBundleInfo" style="display:none">Bundle Applied</span>
     </div>
     <div class="sub-block" style="margin-top:8px">
-      <div class="sub-header"><div class="sub-title">Photography &amp; Videography</div><div class="sub-price" id="photog-price"></div></div>
+      <div class="sub-header"><div class="sub-title">Coverage (Photo &amp; Video)</div><div class="sub-price" id="photog-price"></div></div>
       <div class="sub-content"><div class="field"><div class="field-label">Tier</div>
         <select class="field-select" id="photoTier" onchange="markEdited();calcTotal()">
           <option value="">Not Applicable</option>
-          <option value="essential">Essential — $600 (not Sat)</option>
-          <option value="elegant">Elegant — $1,200</option>
-          <option value="prestige">Prestige — $2,400</option>
-          <option value="legacy">Legacy — $2,800</option>
+          <option value="essential">Essential</option>
+          <option value="elegant">Elegant</option>
+          <option value="prestige">Prestige</option>
+          <option value="legacy">Legacy</option>
         </select>
       </div></div>
     </div>
@@ -445,8 +446,8 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
       <div class="sub-content"><div class="field"><div class="field-label">Plan</div>
         <select class="field-select" id="photoShootPlan" onchange="markEdited();calcTotal()">
           <option value="">Not Applicable</option>
-          <option value="essential">Essential — Up to 2 people ($600)</option>
-          <option value="full">Full — Up to 4 people + Reel ($750)</option>
+          <option value="essential">Essential</option>
+          <option value="full">Full</option>
         </select>
       </div></div>
     </div>
@@ -456,15 +457,16 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
         <div class="field"><div class="field-label">Plan</div>
           <select class="field-select" id="printsPlan" onchange="onPrintsPlanChange()">
             <option value="">Not Applicable</option>
-            <option value="gallery">Photo Gallery — $650 (Cardona Hall only)</option>
-            <option value="frames">Frame Pequeños — $50/table (auto)</option>
+            <option value="gallery">Photo Gallery (Cardona Hall only)</option>
+            <option value="frames">Frames — per table</option>
           </select>
         </div>
-        <div class="field" id="framesInfoField" style="display:none"><div class="field-label">Tables (auto)</div><span class="field-auto highlight" id="framesTablesDisplay">—</span><span class="field-auto green" id="framesPrice" style="display:none"></span></div>
+        <div class="field" id="framesInfoField" style="display:none"><span id="framesTablesDisplay" style="display:none">—</span><span class="field-auto green" id="framesPrice" style="display:none"></span></div>
         <div id="galleryAlert" class="alert alert-info"></div>
       </div>
     </div>
     <div id="photoDiscountSummary" style="display:none;margin-top:6px"></div>
+    <div id="photoAddonsWrap" style="margin-top:8px"></div>
   </div>
 </div>
 
@@ -587,6 +589,30 @@ async function loadCatalogs(){
 }
 
 function num(v){ if(v===null||v===undefined||v==='')return 0; const n=parseFloat(v); return isNaN(n)?0:n; }
+
+// Fills dropdown option labels with prices from the catalog (Entertainment +
+// Photo), so they always match the Sheet. Called after loadCatalogs().
+function populateDynamicPrices(){
+  const setOpt=(selId,val,label)=>{
+    const sel=document.getElementById(selId);if(!sel)return;
+    for(const o of sel.options){ if(o.value===val){o.textContent=label;break;} }
+  };
+  setOpt('entPlan','essential','Essential — '+fmtMoney(catalog.ENT.essential||0));
+  setOpt('entPlan','elegant','Elegant — '+fmtMoney(catalog.ENT.elegant||0));
+  setOpt('entPlan','prestige','Prestige — '+fmtMoney(catalog.ENT.prestige||0));
+  setOpt('entPlan','legacy','Legacy — '+fmtMoney(catalog.ENT.legacy||0));
+  const pc=catalog.PHOTO.photography||{};
+  setOpt('photoTier','essential','Essential — '+fmtMoney(pc.essential||0));
+  setOpt('photoTier','elegant','Elegant — '+fmtMoney(pc.elegant||0));
+  setOpt('photoTier','prestige','Prestige — '+fmtMoney(pc.prestige||0));
+  setOpt('photoTier','legacy','Legacy — '+fmtMoney(pc.legacy||0));
+  const ps=catalog.PHOTO.shoot||{};
+  setOpt('photoShootPlan','essential','Essential — '+fmtMoney(ps.essential||0));
+  setOpt('photoShootPlan','full','Full — '+fmtMoney(ps.full||0));
+  const pr=catalog.PHOTO.prints||{};
+  setOpt('printsPlan','gallery','Photo Gallery — '+fmtMoney(pr.gallery||0)+' (Cardona Hall only)');
+  setOpt('printsPlan','frames','Frames — '+fmtMoney(pr.frames_per_table||0)+'/table');
+}
 
 // Rebuild the exact structures the calc functions read, but from Sheet data.
 function rebuildPriceStructures(){
@@ -750,6 +776,9 @@ window.onload=async()=>{
   document.getElementById('createdDate').textContent=new Date().toLocaleDateString('en-US');
   showLoading('Connecting to database...');
   await loadCatalogs();
+  populateDynamicPrices();
+  renderAddons('entertainment');
+  renderAddons('photo');
   await loadAllQuotations();
   await generateCotNumber();
   hideLoading();
@@ -980,13 +1009,9 @@ function validateRequired(){
 }
 
 // ── FULL PACKAGE ───────────────────────────────────────────
-function updateFullPackageOptions(){
-  const avail=FP_AVAIL[state.eventType]||[];
-  ['essential','elegant','prestige','legacy'].forEach(t=>{
-    const btn=document.getElementById('fp-'+t);
-    if(btn)btn.disabled=state.clientType==='vip'?false:!avail.includes(t);
-  });
-}
+// Deprecated: Full Package is now an automatic eligibility indicator, not a
+// selectable tier. No-op kept for residual calls.
+function updateFullPackageOptions(){ /* deprecated */ }
 
 // Full Package is no longer a manual selector — it's an automatic eligibility
 // indicator (Block 3) + a bonus checkbox in the final discounts block. This
@@ -1057,9 +1082,9 @@ function onCateringPlanChange(){markEdited();
   const price=plan?(CATERING_PPX[plan]||0)*state.numGuests:0;
   state.prices.catering=price;
   const el=document.getElementById('cateringPriceDisplay');
-  if(price){el.textContent=fmtMoney(price)+' ('+state.numGuests+' guests)';el.style.display='inline-block';}else el.style.display='none';
+  if(el)el.style.display='none'; // price shown only in header/summary, not next to plan
   document.getElementById('catering-header-price').textContent=price?fmtMoney(price):'';
-  updateCateringTrays();calcVenuePrice();calcTotal();
+  calcVenuePrice();calcTotal();
 }
 
 function updateCateringTrays(){
@@ -1144,21 +1169,23 @@ function setDecorPlanInternal(tier,skipValueOverwrite){
     document.getElementById('decorCPType').disabled=false;
 
   } else {
-    // essential / elegant / prestige
+    // essential / elegant / prestige — auto-fill the tier on each subdivision and
+    // default types to Flowers, but KEEP fields ENABLED (user can adjust/mix).
     if(!skipValueOverwrite){
       ['decorHonorTier','decorDiningTier','decorCPTier'].forEach(id=>{
         const el=document.getElementById(id);if(!el)return;
         if(el.querySelector(`option[value="${tier}"]`))el.value=tier;
-        el.disabled=true;
+        el.disabled=false;
       });
       const extEl=document.getElementById('decorExtrasTier');
-      if(tier==='essential'){extEl.value='';extEl.disabled=true;}
-      else{if(extEl.querySelector(`option[value="${tier}"]`))extEl.value=tier;extEl.disabled=true;}
-      if(tier==='essential')document.getElementById('decorCPType').value='flowers';
+      if(tier==='essential'){extEl.value='';extEl.disabled=false;}
+      else{if(extEl.querySelector(`option[value="${tier}"]`))extEl.value=tier;extEl.disabled=false;}
+      // Default types to Flowers
+      const ht=document.getElementById('decorHonorType');if(ht){ht.disabled=false;if(!ht.value)ht.value='flowers';}
+      const ct=document.getElementById('decorCPType');if(ct){ct.disabled=false;if(!ct.value)ct.value='flowers';}
     } else {
-      ['decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=true;});
+      ['decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=false;});
     }
-    // Honor type: always enabled (tier is set)
     const ht=document.getElementById('decorHonorTier').value;
     document.getElementById('decorHonorType').disabled=(!ht||ht==='legacy');
     document.getElementById('decorCPType').disabled=false;
@@ -1244,7 +1271,7 @@ function updateSoundOptions(){
 
 function onSoundPlanChange(){markEdited();
   const val=document.getElementById('soundPlan').value;
-  document.getElementById('soundDamageAlert').style.display=val?'block':'none';
+  /* damage alert removed */
   updateEntDiscounts();calcTotal();
 }
 
@@ -1258,14 +1285,16 @@ function onEntPlanChange(){
   markEdited();
   const entVal=document.getElementById('entPlan').value;
   const soundSel=document.getElementById('soundPlan');
-  const soundMap={essential:'soundlighting',elegant:'soundlightingplus',prestige:'soundlightingplus',legacy:'soundlightingplus'};
+  // Sound by tier (Business_Rules sound_map): Essential+Elegant → Sound System;
+  // Prestige+Legacy → Sound & Lighting. Values kept as soundlighting/soundlightingplus.
+  const soundMap={essential:'soundlighting',elegant:'soundlighting',prestige:'soundlightingplus',legacy:'soundlightingplus'};
   if(entVal){
     soundSel.value=soundMap[entVal];
     soundSel.disabled=true;
-    document.getElementById('soundDamageAlert').style.display='block';
   } else {
+    // back to "Not Applicable" → clear the auto-set sound too
+    soundSel.value='';
     soundSel.disabled=false;
-    // if sound was auto-set, allow user to clear it
   }
   updateEntDiscounts();calcTotal();
 }
@@ -1303,15 +1332,20 @@ function setPhotoPlan(tier,btn){markEdited();
 function setPhotoPlanInternal(tier){
   state.photoPlan=tier;
   const isBundle=['elegant','prestige','legacy'].includes(tier);
-  const isQW=BUNDLE_EVENTS.includes(state.eventType);
-  document.getElementById('photoBundleInfo').style.display=(isBundle&&isQW)?'inline-block':'none';
+  // Full Photo Plan defines the bundle discount tier. It auto-fills the coverage
+  // components for convenience but KEEPS fields editable (like Decor Full).
   if(isBundle){
-    const inc=PHOTO_BUNDLE_INCLUDES[tier];
-    document.getElementById('photoTier').value=inc.photo;document.getElementById('photoTier').disabled=true;
-    document.getElementById('photoShootPlan').value=inc.shoot;document.getElementById('photoShootPlan').disabled=true;
-    document.getElementById('printsPlan').value=inc.prints;document.getElementById('printsPlan').disabled=true;
+    const inc={
+      elegant:{photo:'elegant',shoot:'',prints:'frames'},
+      prestige:{photo:'prestige',shoot:'essential',prints:'gallery'},
+      legacy:{photo:'legacy',shoot:'essential',prints:'gallery'}
+    }[tier];
+    if(inc.photo){const e=document.getElementById('photoTier');if(!e.value)e.value=inc.photo;}
+    if(inc.shoot){const e=document.getElementById('photoShootPlan');if(!e.value)e.value=inc.shoot;}
+    if(inc.prints){const e=document.getElementById('printsPlan');if(!e.value)e.value=inc.prints;}
+    ['photoTier','photoShootPlan','printsPlan'].forEach(id=>{document.getElementById(id).disabled=false;});
   } else {
-    document.getElementById('photoTier').disabled=false;document.getElementById('photoShootPlan').disabled=false;document.getElementById('printsPlan').disabled=false;
+    ['photoTier','photoShootPlan','printsPlan'].forEach(id=>{document.getElementById(id).disabled=false;});
   }
   onPrintsPlanChange();calcTotal();
 }
@@ -1438,6 +1472,69 @@ function fullPackageEligible(){
   return {eligible:true,tier:lowestTier(tiers)};
 }
 
+// ── ADD-ONS (Entertainment + Photo) ────────────────────────
+// User adds extras on demand via "+ Add Extra". Each row = dropdown of add-ons
+// AVAILABLE for the chosen tier (Addon_Catalog Applies_To_Tiers) + manual price
+// + remove. Live Show requires a type. Add-ons don't affect discounts/FP.
+state.addons={entertainment:[],photo:[]};
+let addonSeq=0;
+
+function addonsForDivision(division){
+  const tierByDiv={entertainment:document.getElementById('entPlan').value,photo:(document.getElementById('photoTier').value||'')};
+  const tier=tierByDiv[division]||'';
+  const divName={entertainment:'Entertainment',photo:'Photo'}[division];
+  return (catalog.addons||[]).filter(a=>{
+    if(String(a['Division'])!==divName)return false;
+    if(String(a['Active']).toLowerCase()==='false')return false;
+    const applies=String(a['Applies_To_Tiers']||'').toLowerCase();
+    if(!applies||applies==='all'||applies==='')return true;
+    return tier && applies.split(',').map(s=>s.trim()).includes(tier);
+  });
+}
+
+function addAddonRow(division){
+  addonSeq++;
+  state.addons[division].push({id:'ax'+addonSeq,addonId:'',name:'',price:0,type:''});
+  renderAddons(division);
+}
+function removeAddonRow(division,rowId){
+  state.addons[division]=state.addons[division].filter(r=>r.id!==rowId);
+  renderAddons(division);calcTotal();
+}
+function onAddonSelect(division,rowId,addonId){
+  const row=state.addons[division].find(r=>r.id===rowId);if(!row)return;
+  row.addonId=addonId;
+  const a=(catalog.addons||[]).find(x=>String(x['Addon_ID'])===String(addonId));
+  row.name=a?a['Name']:'';
+  row.requiresType=a?String(a['Requires_Type']).toLowerCase()==='true':false;
+  renderAddons(division);calcTotal();
+}
+function onAddonPrice(division,rowId,val){
+  const row=state.addons[division].find(r=>r.id===rowId);if(row){row.price=parseFloat(val)||0;calcTotal();}
+}
+function onAddonType(division,rowId,val){
+  const row=state.addons[division].find(r=>r.id===rowId);if(row)row.type=val;
+}
+function addonsTotal(division){
+  return (state.addons[division]||[]).reduce((s,r)=>s+(parseFloat(r.price)||0),0);
+}
+function renderAddons(division){
+  const wrap=document.getElementById(division==='entertainment'?'entAddonsWrap':'photoAddonsWrap');
+  if(!wrap)return;
+  const avail=addonsForDivision(division);
+  const rows=state.addons[division].map(row=>{
+    const opts=['<option value="">— add-on —</option>'].concat(avail.map(a=>`<option value="${a['Addon_ID']}" ${row.addonId==a['Addon_ID']?'selected':''}>${a['Name']}</option>`)).join('');
+    const typeField=row.requiresType?`<input type="text" placeholder="type" value="${row.type||''}" oninput="onAddonType('${division}','${row.id}',this.value)" style="width:90px;height:26px;font-size:11px">`:'';
+    return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+      <select onchange="onAddonSelect('${division}','${row.id}',this.value)" style="flex:1;height:26px;font-size:11px">${opts}</select>
+      ${typeField}
+      <input type="number" placeholder="$" value="${row.price||''}" oninput="onAddonPrice('${division}','${row.id}',this.value)" style="width:70px;height:26px;font-size:11px;text-align:right">
+      <button onclick="removeAddonRow('${division}','${row.id}')" style="width:24px;height:26px;background:#3a1a1a;color:#c88;border:none;border-radius:4px;cursor:pointer">✕</button>
+    </div>`;
+  }).join('');
+  wrap.innerHTML=rows+`<button onclick="addAddonRow('${division}')" style="font-size:11px;color:#C9A84C;background:none;border:1px dashed #C9A84C55;border-radius:5px;padding:4px 10px;cursor:pointer;margin-top:2px">+ Add Extra</button>`;
+}
+
 function calcTotal(){
   const p=state.prices;
   const isExt=state.isExternalEvent;
@@ -1458,6 +1555,9 @@ function calcTotal(){
     if(printsPlan==='gallery')photoBase+=PHOTO_PRICES.prints.gallery;
     else if(printsPlan==='frames')photoBase+=state.numTables*PHOTO_PRICES.prints.frames_per_table;
     p.photo=photoBase;
+    // add-ons (manual price) add to their category anchor
+    p.entertainment+=addonsTotal('entertainment');
+    p.photo+=addonsTotal('photo');
   }
 
   // 2) Show anchor prices per category (no per-category discount baked in).
@@ -1875,11 +1975,11 @@ function loadQuotation(cotNum){
   if(entPlanVal){
     soundSel.value=soundAutoMap[entPlanVal];
     soundSel.disabled=true;
-    document.getElementById('soundDamageAlert').style.display='block';
+    /* damage alert removed */
   } else {
     soundSel.value=rec['Sound Plan']||'';
     soundSel.disabled=false;
-    document.getElementById('soundDamageAlert').style.display=soundSel.value?'block':'none';
+    /* damage alert removed */
   }
   updateEntDiscounts();
 
