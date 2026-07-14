@@ -1677,6 +1677,7 @@ function renderDiscountsSummary(anchorSubtotal,appliedCat,fpAmount,manualAmount,
       </div>`);
     }
     rowsEl.innerHTML=rows.join('');
+    rowsEl.style.display='block'; // reset may have hidden it; ensure visible
     // manual row is a FIXED element (not regenerated) to preserve input focus.
     const mAmt=document.getElementById('manualDiscAmount');
     if(mAmt)mAmt.textContent=manualAmount>0?'-'+fmtMoney(manualAmount):'-$0';
@@ -2055,15 +2056,6 @@ function loadQuotation(cotNum){
     const mr=document.getElementById('manualDiscReason');if(mr)mr.value=rec['Manual Disc Reason']||'';
   }
   calcTotal(); // re-render with the restored checks applied
-  console.log('[load] disc state:',JSON.stringify({
-    venue:{el:disc.venue.eligible,amt:Math.round(disc.venue.amount),ck:disc.venue.checked},
-    catering:{el:disc.catering.eligible,amt:Math.round(disc.catering.amount),ck:disc.catering.checked},
-    decor:{el:disc.decor.eligible,amt:Math.round(disc.decor.amount),ck:disc.decor.checked},
-    ent:{el:disc.entertainment.eligible,amt:Math.round(disc.entertainment.amount),ck:disc.entertainment.checked},
-    photo:{el:disc.photo.eligible,amt:Math.round(disc.photo.amount),ck:disc.photo.checked},
-    fp:{el:disc.fp.eligible,amt:Math.round(disc.fp.amount),ck:disc.fp.checked}
-  }));
-  console.log('[load] prices:',JSON.stringify({v:Math.round(state.prices.venue),c:Math.round(state.prices.catering),d:Math.round(state.prices.decor),e:Math.round(state.prices.entertainment),p:Math.round(state.prices.photo)}));
 
   // Now lock as loaded (so reserving without changes takes Path A).
   state.isLoaded=true;
