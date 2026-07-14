@@ -1745,9 +1745,14 @@ function collectData(){
     'Price Entertainment':state.prices.entertainment,
     'Price Photo':state.prices.photo,
     'Discount Venue':(disc.venue.checked&&disc.venue.eligible)?disc.venue.amount:0,
+    'Discount Catering':(disc.catering.checked&&disc.catering.eligible)?disc.catering.amount:0,
+    'Discount Decor':(disc.decor.checked&&disc.decor.eligible)?disc.decor.amount:0,
     'Discount Entertainment':(disc.entertainment.checked&&disc.entertainment.eligible)?disc.entertainment.amount:0,
     'Discount Photo':(disc.photo.checked&&disc.photo.eligible)?disc.photo.amount:0,
     'Discount FP':(disc.fp.checked&&disc.fp.eligible)?disc.fp.amount:0,
+    'Manual Disc Pct':disc.manual.pct||'',
+    'Manual Disc Reason':disc.manual.reason||'',
+    'Addons Detail':JSON.stringify({entertainment:state.addons.entertainment,photo:state.addons.photo}),
     'Price Override':document.getElementById('priceOverride').value,
     'Final Total':document.getElementById('p-final').textContent,
     'Discount Detail':buildDiscountDetail(),
@@ -1844,10 +1849,11 @@ async function openLoadModal(){
   document.getElementById('searchResults').innerHTML='<div class="result-empty">Loading...</div>';
   await loadAllQuotations();
   allLoadedQuotations=state.allQuotations.filter(q=>(q['Status']||'').toLowerCase()==='quoted').reverse();
-  renderResults(allLoadedQuotations);
+  // Show only the last 10 by default (most recent first). Search looks across all.
+  renderResults(allLoadedQuotations.slice(0,10));
   document.getElementById('searchInput').focus();
 }
-function filterResults(query){const q=query.toLowerCase().trim();renderResults(q?allLoadedQuotations.filter(r=>(r['COT#']||'').toLowerCase().includes(q)||(r['Client Name']||'').toLowerCase().includes(q)||(r['Event Date']||'').includes(q)):allLoadedQuotations);}
+function filterResults(query){const q=query.toLowerCase().trim();renderResults(q?allLoadedQuotations.filter(r=>(r['COT#']||'').toLowerCase().includes(q)||(r['Client Name']||'').toLowerCase().includes(q)||(r['Event Date']||'').includes(q)):allLoadedQuotations.slice(0,10));}
 function renderResults(results){
   const c=document.getElementById('searchResults');
   if(!results.length){c.innerHTML='<div class="result-empty">No quoted records found</div>';return;}
@@ -2000,31 +2006,59 @@ function loadQuotation(cotNum){
   setPhotoPlanInternal(photoPlanVal);
   updatePhotoSaturdayRule();
 
-  // ── Step 10: Full Package — now automatic (indicator + bonus check). If the
-  // saved quote had FP applied (Discount FP > 0), pre-check the bonus. calcTotal
-  // recomputes eligibility from the loaded selections.
+  // ── Step 10: Restore discount checks. calcTotal (below, with isLoaded=false)
+  // recomputes anchor prices from the loaded selections and eligibility. We then
+  // mark as checked the discounts that were applied in the saved quote.
   const savedFP=parseFloat(rec['Discount FP'])||0;
-  disc.fp.checked = savedFP>0;
-  // Pre-check per-category discounts that were applied in the saved quote.
-  disc.venue.checked = (parseFloat(rec['Discount Venue'])||0)>0;
-  disc.entertainment.checked = (parseFloat(rec['Discount Entertainment'])||0)>0;
-  disc.photo.checked = (parseFloat(rec['Discount Photo'])||0)>0;
+  const savedDVenue=parseFloat(rec['Discount Venue'])||0;
+  const savedDEnt=parseFloat(rec['Discount Entertainment'])||0;
+  const savedDPhoto=parseFloat(rec['Discount Photo'])||0;
+  const savedDCatering=parseFloat(rec['Discount Catering'])||0;
+  const savedDDecor=parseFloat(rec['Discount Decor'])||0;
+
+  // Restore add-ons from saved JSON (Addons Detail), if present.
+  try{
+    const ax=JSON.parse(rec['Addons Detail']||'{}');
+    state.addons.entertainment=Array.isArray(ax.entertainment)?ax.entertainment:[];
+    state.addons.photo=Array.isArray(ax.photo)?ax.photo:[];
+    // ensure each row has an id and requiresType flag
+    ['entertainment','photo'].forEach(div=>{
+      state.addons[div].forEach(r=>{
+        if(!r.id){addonSeq++;r.id='ax'+addonSeq;}
+        const a=(catalog.addons||[]).find(x=>String(x['Addon_ID'])===String(r.addonId));
+        r.requiresType=a?String(a['Requires_Type']).toLowerCase()==='true':false;
+        if(a&&!r.name)r.name=a['Name'];
+      });
+    });
+  }catch(e){state.addons.entertainment=[];state.addons.photo=[];}
 
   // ── Step 11: State & metadata ──
   state.cotNumber=rec['COT#'];state.status='quoted';
   state.decorPlan=decorPlan;state.photoPlan=photoPlanVal;
-  state.loadedSnapshot={...rec};
   document.getElementById('cotNumber').textContent=rec['COT#'];
   document.getElementById('statusPill').textContent='LOADED';
 
-  // ── Step 12: Single calcTotal at the end ──
-  calcTotal();
-  // isLoaded MUST stay true: a loaded quotation is "loaded" so that reserving
-  // without changes takes Path A (same COT#). (Was being reset to false here,
-  // which forced Path B and spawned duplicate COT#s.)
+  // ── Step 12: recompute from loaded selections (isLoaded=false so anchor prices
+  // and eligibility are rebuilt), then restore which discounts were checked.
+  state.isLoaded=false;
+  renderAddons('entertainment');renderAddons('photo');
+  calcTotal(); // computes disc.* eligibility + anchor prices
+  disc.venue.checked = savedDVenue>0 && disc.venue.eligible;
+  disc.catering.checked = savedDCatering>0 && disc.catering.eligible;
+  disc.decor.checked = savedDDecor>0 && disc.decor.eligible;
+  disc.entertainment.checked = savedDEnt>0 && disc.entertainment.eligible;
+  disc.photo.checked = savedDPhoto>0 && disc.photo.eligible;
+  disc.fp.checked = savedFP>0 && disc.fp.eligible;
+  // restore manual discount
+  if(rec['Manual Disc Pct']){
+    const mp=document.getElementById('manualDiscPct');if(mp)mp.value=rec['Manual Disc Pct'];
+    const mr=document.getElementById('manualDiscReason');if(mr)mr.value=rec['Manual Disc Reason']||'';
+  }
+  calcTotal(); // re-render with the restored checks applied
+
+  // Now lock as loaded (so reserving without changes takes Path A).
   state.isLoaded=true;
-  // refresh the snapshot AFTER final calc so hasChanges() compares against the
-  // fully-rendered state (avoids false positives from recalculated fields).
+  state.wasLoaded=true;
   state.loadedSnapshot={...collectData()};
   document.getElementById('btnExportPDF').style.display='inline-flex';
   showToast('Loaded '+rec['COT#']+' — '+rec['Client Name'],'warn');
