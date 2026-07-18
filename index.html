@@ -1414,16 +1414,20 @@ function computeDiscounts(){
   }
 
   // ENTERTAINMENT — Collection plan (not sound-only); % from catalog by tier.
+  // Base EXCLUDES add-ons: extras never inflate the category discount.
   if(entVal){
     const pct=catDiscPct('ENT-'+({essential:'ESS',elegant:'ELE',prestige:'PRE',legacy:'LEG'}[entVal]));
-    if(pct>0){disc.entertainment.eligible=true;disc.entertainment.pct=pct;disc.entertainment.amount=(p.entertainment||0)*(pct/100);}
+    const entBase=(p.entertainment||0)-addonsTotal('entertainment');
+    if(pct>0){disc.entertainment.eligible=true;disc.entertainment.pct=pct;disc.entertainment.amount=entBase*(pct/100);}
   }
 
   // PHOTO — only if FULL PHOTO bundle; % by photo plan tier.
   if(state.photoPlan && state.photoPlan!=='na'){
     // % from Business_Rules.photo_bundle_discount (Essential=0).
+    // Base EXCLUDES add-ons: extras never inflate the category discount.
     const pct=rulePct('photo_bundle_discount',state.photoPlan);
-    if(pct>0){disc.photo.eligible=true;disc.photo.pct=pct;disc.photo.amount=(p.photo||0)*(pct/100);}
+    const photoBaseNoAddons=(p.photo||0)-addonsTotal('photo');
+    if(pct>0){disc.photo.eligible=true;disc.photo.pct=pct;disc.photo.amount=photoBaseNoAddons*(pct/100);}
   }
 
   // FULL PACKAGE — eligibility = 5 categories with qualifying plans.
@@ -1432,8 +1436,11 @@ function computeDiscounts(){
   disc.fp.tier=elig.tier;
   if(elig.eligible){
     disc.fp.pct=fpBonusPct(elig.tier);
-    const anchorTotal=(p.venue||0)+(p.catering||0)+(p.decor||0)+(p.entertainment||0)+(p.photo||0);
-    disc.fp.amount=anchorTotal*(disc.fp.pct/100);
+    // Bonus base EXCLUDES add-ons (extras don't affect Full Package).
+    const fpBase=(p.venue||0)+(p.catering||0)+(p.decor||0)
+      +((p.entertainment||0)-addonsTotal('entertainment'))
+      +((p.photo||0)-addonsTotal('photo'));
+    disc.fp.amount=fpBase*(disc.fp.pct/100);
   } else { disc.fp.pct=0; disc.fp.amount=0; disc.fp.checked=false; }
 
   // MANUAL wildcard — % on anchor total.
@@ -2189,7 +2196,7 @@ function generatePDF(){
   try{discDetail=JSON.parse(buildDiscountDetail());}catch(e){}
 
   // Event type label
-  const etLabels={wedding:'Wedding',quinceanera:'Quinceañera / Sweet 16',baby_shower:'Baby Shower',kids_party:'Kids Party',birthday:'Birthday Party',special_social:'Special Event',special_corporate:'Corporate Event'};
+  const etLabels={wedding:'Wedding',quinceanera:'Quinceañera',sweet16:'Sweet 16',baby_shower:'Baby Shower',babyshower:'Baby Shower',kids_party:'Kids Party',kidsparty:'Kids Party',birthday:'Birthday Party',special_social:'Special Event',special_corporate:'Corporate Event'};
   const etLabel=etLabels[eventType]||eventType;
 
   // Division rows
