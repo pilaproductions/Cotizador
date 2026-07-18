@@ -2084,9 +2084,50 @@ function loadQuotation(cotNum){
   state.loadedSnapshot={...collectData()};
   document.getElementById('btnExportPDF').style.display='inline-flex';
   showToast('Loaded '+rec['COT#']+' — '+rec['Client Name'],'warn');
+  validateLoadedDate();
 }
 
 function closeModal(){document.getElementById('loadModal').classList.remove('show');}
+
+// True when the event date is earlier than today (quote made long ago).
+function isPastDate(ds){
+  if(!ds)return false;
+  const today=new Date();today.setHours(0,0,0,0);
+  const [y,m,d]=ds.split('-').map(Number);
+  if(!y||!m||!d)return false;
+  return new Date(y,m-1,d)<today;
+}
+
+// Whether a past event date BLOCKS the reservation. Read from Business_Rules
+// (flags → allow_past_date_reservation = 'Y' while starting the project, 'N'
+// once operating normally). Defaults to allowing it if the rule is absent.
+function pastDateAllowed(){
+  const f=(catalog.businessRules.flags)||{};
+  const v=f['allow_past_date_reservation'];
+  if(v===undefined||v===null||v==='')return true;
+  return String(v).trim().toUpperCase()==='Y';
+}
+
+// Shown right after loading a quotation: warns immediately if its date is no
+// longer usable (already reserved at Cardona Hall, or in the past), instead of
+// letting the user fill everything and fail at Confirm Reservation.
+function validateLoadedDate(){
+  const ds=document.getElementById('eventDate').value;
+  const alertEl=document.getElementById('saveDateBlockAlert');
+  if(!alertEl)return;
+  const isExternal=(state.eventLocation==='external');
+  const taken=!isExternal && state.reservedDates.includes(ds);
+  const past=isPastDate(ds);
+  if(taken){
+    alertEl.innerHTML='&#x26D4; This date already has a Cardona Hall reservation. Pick another date before reserving (a new date creates a new quotation).';
+    alertEl.className='alert alert-error';alertEl.style.display='block';
+  } else if(past){
+    alertEl.innerHTML='&#x26A0; This event date has already passed. Update the date before reserving'+(pastDateAllowed()?'.':' — reserving a past date is not allowed.');
+    alertEl.className='alert alert-warn';alertEl.style.display='block';
+  } else {
+    alertEl.style.display='none';
+  }
+}
 
 async function confirmReservation(){
   if(state.status==='reserved'){showToast('Already reserved','warn');return;}
@@ -2095,6 +2136,11 @@ async function confirmReservation(){
   const isExternal=(state.eventLocation==='external');
   const dateAlreadyReserved=state.reservedDates.includes(eventDate);
   if(dateAlreadyReserved && !isExternal){showToast('Cannot reserve — this date already has a Cardona Hall event','error');return;}
+  // Past date: blocked or just warned, per Business_Rules flag.
+  if(isPastDate(eventDate)){
+    if(!pastDateAllowed()){showToast('Cannot reserve — the event date has already passed. Update the date first.','error');return;}
+    if(!confirm('This event date has already passed. Reserve anyway?'))return;
+  }
 
   // Two paths (COT# behaves as a consecutive; a reservation is the SAME record
   // with RES# filled, not a new COT#):
