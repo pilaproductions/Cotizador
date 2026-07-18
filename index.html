@@ -754,6 +754,15 @@ function lowestTier(tiers){
   return tiers.reduce((min,t)=>TIER_ORDER.indexOf(t)<TIER_ORDER.indexOf(min)?t:min,tiers[0]);
 }
 
+// Reads a tier-keyed percentage from a Business_Rules group (rows keyed by tier
+// name: Essential/Elegant/Prestige/Legacy). Used for decor_full_discount and
+// photo_bundle_discount, so nothing is hardcoded.
+function rulePct(group,tier){
+  const g=(catalog.businessRules[group])||{};
+  const name={essential:'Essential',elegant:'Elegant',prestige:'Prestige',legacy:'Legacy'}[tier];
+  return name&&g[name]!==undefined?num(g[name]):0;
+}
+
 // Full Package bonus % by lowest tier, from Business_Rules.full_package_bonus.
 function fpBonusPct(tier){
   const fb=(catalog.businessRules.full_package_bonus)||{};
@@ -1398,7 +1407,9 @@ function computeDiscounts(){
   const decorTiers=getDecorSubdivisionTiers();
   if(decorTiers.full){
     const lt=lowestTier(decorTiers.tiers);
-    const pct={elegant:8,prestige:10}[lt]||0; // Essential=0
+    // % from Business_Rules.decor_full_discount (Essential=0; Legacy has no
+    // discount — it is a manual custom price).
+    const pct=rulePct('decor_full_discount',lt);
     if(pct>0){disc.decor.eligible=true;disc.decor.pct=pct;disc.decor.amount=(p.decor||0)*(pct/100);}
   }
 
@@ -1410,7 +1421,8 @@ function computeDiscounts(){
 
   // PHOTO — only if FULL PHOTO bundle; % by photo plan tier.
   if(state.photoPlan && state.photoPlan!=='na'){
-    const pct={elegant:6,prestige:10,legacy:15}[state.photoPlan]||0;
+    // % from Business_Rules.photo_bundle_discount (Essential=0).
+    const pct=rulePct('photo_bundle_discount',state.photoPlan);
     if(pct>0){disc.photo.eligible=true;disc.photo.pct=pct;disc.photo.amount=(p.photo||0)*(pct/100);}
   }
 
