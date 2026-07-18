@@ -188,7 +188,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
   <button class="btn btn-gold" onclick="saveQuotation()">&#x2713; Save Quotation</button>
   <button class="btn btn-outline" onclick="openLoadModal()">&#x21BA; Load Quotation</button>
   <button class="btn btn-ghost" onclick="newQuotation()">+ New Quotation</button>
-  <button class="btn btn-reserve" onclick="confirmReservation()">&#x2605; Confirm Reservation</button>
+  <button class="btn btn-reserve" id="btnReserve" onclick="confirmReservation()">&#x2605; Confirm Reservation</button>
   <button class="btn btn-pdf" id="btnExportPDF" onclick="generatePDF()" style="display:none">&#x21E9; Export PDF</button>
 </div>
 
@@ -789,6 +789,7 @@ window.onload=async()=>{
   renderAddons('entertainment');
   renderAddons('photo');
   await loadAllQuotations();
+  updateReserveButton();
   await generateCotNumber();
   hideLoading();
   renderCalendar();
@@ -917,7 +918,7 @@ function selectDate(e,ds,isRes){
   document.getElementById('calPopup').classList.remove('show');state.calOpen=false;
   document.getElementById('saveDateBlockAlert').style.display='none';
   document.getElementById('externalEventAlert').style.display=isExternal?'block':'none';
-  onDateChange();renderCalendar();
+  onDateChange();renderCalendar();updateReserveButton();
 }
 
 // ── FIELD HANDLERS ─────────────────────────────────────────
@@ -998,6 +999,9 @@ function onEventLocationChange(){
   if(typeof renderCalendar==='function')renderCalendar();
   if(typeof onDateChange==='function')onDateChange();
   calcTotal();
+  // switching to External clears any date conflict → refresh notice + button
+  if(state.wasLoaded)validateLoadedDate();
+  updateReserveButton();
 }
 
 function formatTitleCase(el){const pos=el.selectionStart;el.value=el.value.replace(/\b\w/g,c=>c.toUpperCase());el.setSelectionRange(pos,pos);}
@@ -1849,6 +1853,7 @@ async function resetForm(){
   document.getElementById('p-subtotal').textContent='$0';document.getElementById('p-discounts-total').textContent='$0';
   document.getElementById('p-final').textContent='$0';
   document.getElementById('cateringTrayDisplay').textContent='—';document.getElementById('statusPill').textContent='NEW';
+  updateReserveButton();
   document.getElementById('venueDiscountDisplay').style.display='none';
   ['venueTier','cateringLine','cateringPlan','entPlan','soundPlan','decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier','photoTier','photoShootPlan','printsPlan'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=false;});
   document.getElementById('decorHonorType').disabled=true;document.getElementById('decorHonorType').value='';
@@ -2085,6 +2090,7 @@ function loadQuotation(cotNum){
   document.getElementById('btnExportPDF').style.display='inline-flex';
   showToast('Loaded '+rec['COT#']+' — '+rec['Client Name'],'warn');
   validateLoadedDate();
+  updateReserveButton();
 }
 
 function closeModal(){document.getElementById('loadModal').classList.remove('show');}
@@ -2127,6 +2133,28 @@ function validateLoadedDate(){
   } else {
     alertEl.style.display='none';
   }
+}
+
+// Enables/disables Confirm Reservation and explains WHY when blocked. Cases:
+//  - quotation already reserved
+//  - new quotation not yet saved (flow is Save → Load → Reserve)
+//  - Cardona Hall date already reserved by another event
+//  - past date when Business_Rules forbids it
+// External events are never blocked by date.
+function updateReserveButton(){
+  const btn=document.getElementById('btnReserve');
+  if(!btn)return;
+  const ds=document.getElementById('eventDate').value;
+  const isExternal=(state.eventLocation==='external');
+  let reason='';
+  if(state.status==='reserved') reason='Already reserved';
+  else if(!state.wasLoaded) reason='Save the quotation first, then load it to reserve';
+  else if(!isExternal && state.reservedDates.includes(ds)) reason='This date already has a Cardona Hall reservation';
+  else if(isPastDate(ds) && !pastDateAllowed()) reason='The event date has already passed';
+  btn.disabled=!!reason;
+  btn.style.opacity=reason?'0.45':'';
+  btn.style.cursor=reason?'not-allowed':'';
+  btn.title=reason||'Confirm reservation';
 }
 
 async function confirmReservation(){
@@ -2189,6 +2217,7 @@ async function confirmReservation(){
     await loadAllQuotations();hideLoading();
     state.isLoaded=false;state.loadedSnapshot=null;
     document.getElementById('statusPill').textContent='RESERVED';
+    updateReserveButton();
     document.getElementById('cotNumber').textContent=state.cotNumber+' · '+state.resNumber;
     document.getElementById('btnExportPDF').style.display='inline-flex';
     showToast('✓ Reservation confirmed — '+state.resNumber,'success');
