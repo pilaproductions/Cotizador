@@ -1324,7 +1324,9 @@ function updateEntDiscounts(){
     else if(soundVal){ price=SOUND_PRICES[soundVal]||0; } // sound only
   }
   state.prices.entertainment=price;
-  document.getElementById('ent-header-price').textContent=price?fmtMoney(price):'';
+  // NOTE: the block header is NOT written here. calcTotal() sets it using
+  // p.entertainment AFTER add-ons are added, so writing it here would show the
+  // plan price without add-ons and overwrite the correct value.
 }
 
 // ── PHOTO ──────────────────────────────────────────────────
@@ -1519,16 +1521,16 @@ function addonsForDivision(division){
   });
 }
 
-function addAddonRow(division){
+function addAddonRow(division){markEdited();
   addonSeq++;
   state.addons[division].push({id:'ax'+addonSeq,addonId:'',name:'',price:0,type:''});
   renderAddons(division);
 }
-function removeAddonRow(division,rowId){
+function removeAddonRow(division,rowId){markEdited();
   state.addons[division]=state.addons[division].filter(r=>r.id!==rowId);
   renderAddons(division);calcTotal();
 }
-function onAddonSelect(division,rowId,addonId){
+function onAddonSelect(division,rowId,addonId){markEdited();
   const row=state.addons[division].find(r=>r.id===rowId);if(!row)return;
   row.addonId=addonId;
   const a=(catalog.addons||[]).find(x=>String(x['Addon_ID'])===String(addonId));
@@ -1536,10 +1538,10 @@ function onAddonSelect(division,rowId,addonId){
   row.requiresType=a?String(a['Requires_Type']).toLowerCase()==='true':false;
   renderAddons(division);calcTotal();
 }
-function onAddonPrice(division,rowId,val){
+function onAddonPrice(division,rowId,val){markEdited();
   const row=state.addons[division].find(r=>r.id===rowId);if(row){row.price=parseFloat(val)||0;calcTotal();}
 }
-function onAddonType(division,rowId,val){
+function onAddonType(division,rowId,val){markEdited();
   const row=state.addons[division].find(r=>r.id===rowId);if(row)row.type=val;
 }
 function addonsTotal(division){
