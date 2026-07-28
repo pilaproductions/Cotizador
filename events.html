@@ -593,21 +593,33 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
         <button class="btn btn-outline btn-sm" onclick="loadDocuments()">↺ Refresh</button>
       </div>
 
-      <!-- CLIENT DOCUMENTS -->
-      <div class="section-title">Client Documents</div>
+      <!-- CLIENT & LEGAL -->
+      <div class="section-title">Client &amp; Legal</div>
       <div id="docListClient" class="doc-list"></div>
 
-      <!-- PROVIDER CONTRACTS -->
-      <div class="section-title" style="margin-top:20px;">Provider Contracts</div>
-      <div id="docListProvider" class="doc-list"></div>
+      <!-- VENUE -->
+      <div class="section-title" style="margin-top:20px;">Venue</div>
+      <div id="docListVenue" class="doc-list"></div>
 
-      <!-- OPERATIONAL REQUIREMENTS -->
-      <div class="section-title" style="margin-top:20px;">Operational Requirements</div>
-      <div id="docListOperational" class="doc-list"></div>
+      <!-- CATERING -->
+      <div class="section-title" style="margin-top:20px;">Catering</div>
+      <div id="docListCatering" class="doc-list"></div>
 
-      <!-- AMENDMENTS & OTHER -->
-      <div class="section-title" style="margin-top:20px;" id="docAmendTitle" style="display:none">Amendments & Other</div>
-      <div id="docListAmendments" class="doc-list"></div>
+      <!-- DECOR -->
+      <div class="section-title" style="margin-top:20px;">Decor</div>
+      <div id="docListDecor" class="doc-list"></div>
+
+      <!-- ENTERTAINMENT -->
+      <div class="section-title" style="margin-top:20px;">Entertainment</div>
+      <div id="docListEnt" class="doc-list"></div>
+
+      <!-- PHOTO & VIDEO -->
+      <div class="section-title" style="margin-top:20px;">Photo &amp; Video</div>
+      <div id="docListPhoto" class="doc-list"></div>
+
+      <!-- FINANCE -->
+      <div class="section-title" style="margin-top:20px;">Finance</div>
+      <div id="docListFinance" class="doc-list"></div>
     </div>
   </div>
 </div>
@@ -1788,7 +1800,7 @@ html,body{background:#fff;width:210mm;font-family:'Montserrat',sans-serif;font-s
   <div class="doc-id">
     <div class="rec-num">${currentEvent['RES#']}</div><br>
     <div style="font-size:9px;color:#555;margin-bottom:4px">Ref. ${currentEvent['COT#']}</div>
-    <span class="rec-badge">Payment Receipt</span>
+    <span class="rec-badge">Client Receipt</span>
   </div>
 </div>
 <div class="section">
@@ -2257,28 +2269,42 @@ function hasPhoto(){return hasVal('Photo Plan')||hasVal('Photo Tier')||hasVal('P
 // True if the event contracted any Decor service
 function hasDecor(){return hasVal('Decor Plan')||hasVal('Decor Honor Tier')||hasVal('Decor CP Tier');}
 
+// Catering condition: any real contracted catering line (Classic/Collection/Legacy).
+function hasCatering(){
+  const line=String((currentEvent&&currentEvent['Catering Line'])||'').toLowerCase().trim();
+  return line!==''&&line!=='na'&&line!=='n/a'&&line!=='—';
+}
+// 7 category groups: client, venue, catering, decor, entertainment, photo, finance.
+// No statuses — each card is a single Generate/Copy action. Non-applicable cards
+// are shown DISABLED (grey), not hidden (enabled:false → greyed with reason).
 const DOC_DEFINITIONS=[
-  // Client docs — always
-  {id:'quotation',name:'Quotation PDF',sub:'Event quotation document',group:'client',condition:()=>true,statuses:['Generated'],icon:'📋',canGenerate:true},
-  {id:'reservation',name:'Reservation PDF',sub:'Reservation confirmation document',group:'client',condition:()=>true,statuses:['Generated'],icon:'📄',canGenerate:true},
-  {id:'contract_client',name:'Client Contract',sub:'Service agreement with client',group:'client',condition:()=>true,statuses:['Draft','Sent','Signed'],icon:'📝',canGenerate:true},
-  {id:'venue_rules',name:'Venue Rules & Policies',sub:'Alcohol policy, anti-violence, overtime fees, restrictions',group:'client',condition:()=>true,statuses:['Draft','Sent','Signed'],icon:'📋',canGenerate:true},
-  {id:'receipt',name:'Payment Receipt',sub:'Generated from Payments tab',group:'client',condition:()=>true,statuses:['Generated'],icon:'🧾',canGenerate:true},
-  // Provider contracts
-  {id:'contract_entertainment',name:'Entertainment Contract',sub:'DJ / Performer service agreement',group:'provider',condition:()=>hasEntertainment(),statuses:['Draft','Sent','Signed'],icon:'🎵',canGenerate:true},
-  {id:'contract_decor',name:'Decor Contract',sub:'Decoration service agreement',group:'provider',condition:()=>hasDecor(),statuses:['Draft','Sent','Signed'],icon:'🎨',canGenerate:true},
-  {id:'contract_photo',name:'Photo & Video Contract',sub:'Photography / videography agreement',group:'provider',condition:()=>hasPhoto(),statuses:['Draft','Sent','Signed'],icon:'📷',canGenerate:true},
-  // Operational
-  {id:'catering_beo',name:'Catering Order (BEO)',sub:'Food & beverage order for Noches de Colombia',group:'operational',condition:()=>currentEvent&&['collection','luxury'].includes(currentEvent['Catering Line']),statuses:['Draft','Sent','Delivered'],icon:'🍽️',canGenerate:true},
-  {id:'menu_selection',name:'Menu Selection Form',sub:'Client selects dishes based on their catering plan',group:'operational',condition:()=>currentEvent&&['collection','luxury'].includes(currentEvent['Catering Line']),statuses:['Draft','Sent','Confirmed'],icon:'📋',canGenerate:true},
-  {id:'venue_staff',name:'Venue Staff Sheet',sub:'Staff assignments, roles, arrival times',group:'operational',condition:()=>currentEvent&&currentEvent['Venue Tier']!=='EXTERNAL',statuses:['Draft','Printed'],icon:'👥',canGenerate:true},
-  {id:'decor_requirements',name:'Decor Requirements',sub:'Decoration specifications by plan',group:'operational',condition:()=>hasDecor(),statuses:['Draft','Sent','Confirmed'],icon:'🎀',canGenerate:true},
-  {id:'music_program',name:'Music & Program Request',sub:'Music genres, event timeline, special moments',group:'operational',condition:()=>hasEntertainment(),statuses:['Draft','Sent','Confirmed'],icon:'🎶',canGenerate:true},
-  {id:'photo_session',name:'Photo Session Details',sub:'Session locations, dates, times, directions',group:'operational',condition:()=>hasPhoto(),statuses:['Draft','Sent','Confirmed'],icon:'📸',canGenerate:true},
-  {id:'balance_doc',name:'Balance Statement',sub:'Final balance document — generated after event',group:'client',condition:()=>currentEvent&&(currentEvent['Event Status']||'').toLowerCase()==='completed',statuses:['Generated'],icon:'💰',canGenerate:true},
-  {id:'cancellation',name:'Cancellation Notice',sub:'Event cancellation with penalty calculation',group:'operational',condition:()=>true,statuses:['Generated'],icon:'🚫',canGenerate:true},
-  {id:'date_change',name:'Date Change Amendment',sub:'Event date change with applicable fee',group:'operational',condition:()=>true,statuses:['Generated','Signed'],icon:'📅',canGenerate:true},
-  {id:'force_majeure',name:'Force Majeure — Event Freeze',sub:'Event suspension due to extraordinary circumstances',group:'operational',condition:()=>true,statuses:['Generated','Signed'],icon:'❄️',canGenerate:true},
+  // ── CLIENT & LEGAL ──────────────────────────────────────────────────────────
+  {id:'quotation',      name:'Quotation',            sub:'Event quotation (generated in the quote tool)', group:'client', num:1,  condition:()=>true, icon:'📋', canGenerate:true, forceCopy:true},
+  {id:'reservation',    name:'Reservation',          sub:'Reservation confirmation',                      group:'client', num:2,  condition:()=>true, icon:'📄', canGenerate:true},
+  {id:'contract_client',name:'Client Contract',      sub:'Service agreement with the client',             group:'client', num:3,  condition:()=>true, icon:'📝', canGenerate:true},
+  {id:'receipt',        name:'Client Receipt',       sub:'Payment receipt issued to the client',          group:'client', num:4,  condition:()=>getTotalReceived()>0, disabledReason:'Register a client payment first', icon:'🧾', canGenerate:true},
+  {id:'cancellation',   name:'Cancellation Notice',  sub:'Event cancellation with penalty calculation',   group:'client', num:20, condition:()=>true, icon:'🚫', canGenerate:true},
+  {id:'date_change',    name:'Date Change Agreement',sub:'Event date change with applicable fee',          group:'client', num:21, condition:()=>true, icon:'📅', canGenerate:true},
+  {id:'force_majeure',  name:'Force Majeure Notice', sub:'Event suspension due to extraordinary circumstances', group:'client', num:22, condition:()=>true, icon:'❄️', canGenerate:true},
+  // ── VENUE ───────────────────────────────────────────────────────────────────
+  {id:'venue_rules',    name:'Venue Rules & Policies',    sub:'Alcohol policy, conduct, overtime fees, restrictions', group:'venue', num:5, condition:()=>true, icon:'📋', canGenerate:true},
+  {id:'venue_staff',    name:'Venue Staff Sheet',         sub:'Internal manager briefing — staff & schedule',        group:'venue', num:6, condition:()=>true, internal:true, icon:'👥', canGenerate:true},
+  {id:'staff_summary',  name:'Venue Staff Payment Summary',sub:'Internal — staff payments & signatures',             group:'venue', num:7, condition:()=>true, internal:true, icon:'💵', canGenerate:true},
+  // ── CATERING ────────────────────────────────────────────────────────────────
+  {id:'menu_selection', name:'Menu Selection Form',  sub:'Client selects dishes based on their catering plan', group:'catering', num:9,  condition:()=>hasCatering(), disabledReason:'No catering line contracted', icon:'📋', canGenerate:true},
+  {id:'catering_beo',   name:'Catering Order (BEO)', sub:'Food & beverage order — internal',                   group:'catering', num:10, condition:()=>hasCatering(), disabledReason:'No catering line contracted', internal:true, icon:'🍽️', canGenerate:true},
+  // ── DECOR ───────────────────────────────────────────────────────────────────
+  {id:'contract_decor',    name:'Decor Contract',     sub:'Decoration service agreement (internal/external)', group:'decor', num:11, condition:()=>hasDecor(), disabledReason:'No decor contracted', icon:'🎨', canGenerate:true},
+  {id:'decor_requirements',name:'Decor Requirements', sub:'Decoration specifications by plan',                group:'decor', num:12, condition:()=>hasDecor(), disabledReason:'No decor contracted', icon:'🎀', canGenerate:true},
+  {id:'sitting_chart',     name:'Sitting Chart',      sub:'Table layout & seating plan',                     group:'decor', num:13, condition:()=>hasDecor(), disabledReason:'No decor contracted', icon:'🪑', canGenerate:true},
+  // ── ENTERTAINMENT ───────────────────────────────────────────────────────────
+  {id:'contract_entertainment',name:'Entertainment Contract',sub:'DJ / performer service agreement (internal/external)', group:'ent', num:14, condition:()=>hasEntertainment(), disabledReason:'No entertainment contracted', icon:'🎵', canGenerate:true},
+  {id:'music_program',         name:'Music & Program Request',sub:'Music genres, event timeline, special moments',       group:'ent', num:15, condition:()=>hasEntertainment(), disabledReason:'No entertainment contracted', icon:'🎶', canGenerate:true},
+  // ── PHOTO & VIDEO ───────────────────────────────────────────────────────────
+  {id:'contract_photo',name:'Photo & Video Contract',sub:'Photography / videography agreement (internal/external)', group:'photo', num:16, condition:()=>hasPhoto(), disabledReason:'No photo/video contracted', icon:'📷', canGenerate:true},
+  {id:'photo_session', name:'Photo & Video Request', sub:'Coverage / session details, locations, directions',      group:'photo', num:17, condition:()=>hasPhoto(), disabledReason:'No photo/video contracted', icon:'📸', canGenerate:true},
+  // ── FINANCE ─────────────────────────────────────────────────────────────────
+  {id:'balance_doc',   name:'Balance Statement',     sub:'Final revenue vs. expenses — internal',              group:'finance', num:18, condition:()=>true, internal:true, icon:'💰', canGenerate:true},
 ];
 
 async function loadDocuments(){
@@ -2299,75 +2325,73 @@ function getDocVersionCount(docId){
   return currentDocuments.filter(d=>d['Type']===docId).length;
 }
 
-function renderDocuments(){
-  const groups={client:[],provider:[],operational:[],amendments:[]};
-
-  DOC_DEFINITIONS.forEach(def=>{
-    if(!def.condition())return;
-    const status=getDocStatus(def.id);
-    const isSigned=status==='Signed'||status==='Confirmed';
-    const isGenerated=status&&status!=='';
-    const statusClass=isSigned?'dst-signed':status?`dst-${status.toLowerCase().replace(' ','-')}`:'dst-draft';
-    const statusLabel=status||'Not Generated';
-
-    // Status buttons — disabled if signed
-    const nextStatuses=isSigned?[]:def.statuses.filter(s=>s!==status);
-    const statusButtons=isSigned?
-      `<span style="font-size:9px;color:#6EC98A;font-weight:700;letter-spacing:1px">✓ SIGNED</span>`:
-      nextStatuses.map(s=>`<button class="btn btn-ghost btn-sm" onclick="updateDocStatus('${def.id}','${s}')">${s}</button>`).join('');
-
-    // Generate button — always shown, COPY badge if already generated
-    const genBtn=def.canGenerate?
-      `<button class="btn btn-outline btn-sm" onclick="generateDoc('${def.id}')">⬇ ${isGenerated?'COPY':'Generate'}</button>`:
-      '';
-
-    const card=`<div class="doc-card" style="${isSigned?'border-left:3px solid #6EC98A;':''} ">
-      <div class="doc-icon">${def.icon}</div>
+// Builds a single document card. No statuses — one action: Generate (never made)
+// or Copy (a record already exists). Non-applicable docs render DISABLED (grey).
+function docCard(def){
+  const applies=def.condition();
+  const generated=getDocVersionCount(def.id)>0 || def.forceCopy;
+  const internalTag=def.internal?`<span style="font-size:8px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;padding:1px 6px;border-radius:2px;background:#F0EAF7;color:#6A3FA0;margin-left:6px">Internal</span>`:'';
+  if(!applies){
+    // Disabled/grey — shown, not hidden.
+    return `<div class="doc-card" style="opacity:0.5;">
+      <div class="doc-icon" style="filter:grayscale(1)">${def.icon}</div>
       <div class="doc-info">
-        <div class="doc-name" style="${isSigned?'color:#1E5C2E;':''}">${def.name}</div>
-        <div class="doc-sub">${def.sub}</div>
+        <div class="doc-name" style="color:#999">${def.name}${internalTag}</div>
+        <div class="doc-sub" style="color:#BBB">${def.disabledReason||def.sub}</div>
       </div>
       <div class="doc-status">
-        <span class="doc-status-badge ${statusClass}" style="${isSigned?'background:#EBF7EF;color:#1E5C2E;border-color:#6EC98A;':''}">${statusLabel}</span>
-        ${statusButtons}
-        ${genBtn}
+        <button class="btn btn-outline btn-sm" disabled style="opacity:0.5;cursor:not-allowed">⬇ Generate</button>
       </div>
     </div>`;
-    groups[def.group].push(card);
-  });
+  }
+  const btnLabel=generated?'Copy':'Generate';
+  return `<div class="doc-card">
+    <div class="doc-icon">${def.icon}</div>
+    <div class="doc-info">
+      <div class="doc-name">${def.name}${internalTag}</div>
+      <div class="doc-sub">${def.sub}</div>
+    </div>
+    <div class="doc-status">
+      <button class="btn btn-outline btn-sm" onclick="generateDoc('${def.id}')">⬇ ${btnLabel}</button>
+    </div>
+  </div>`;
+}
 
-  // Amendments from services
+const DOC_GROUP_META=[
+  {key:'client',  id:'docListClient',  title:'Client & Legal'},
+  {key:'venue',   id:'docListVenue',   title:'Venue'},
+  {key:'catering',id:'docListCatering',title:'Catering'},
+  {key:'decor',   id:'docListDecor',   title:'Decor'},
+  {key:'ent',     id:'docListEnt',     title:'Entertainment'},
+  {key:'photo',   id:'docListPhoto',   title:'Photo & Video'},
+  {key:'finance', id:'docListFinance', title:'Finance'},
+];
+
+function renderDocuments(){
+  const groups={client:[],venue:[],catering:[],decor:[],ent:[],photo:[],finance:[]};
+  DOC_DEFINITIONS.forEach(def=>{ if(groups[def.group])groups[def.group].push(docCard(def)); });
+
+  // Amendments (#23) are per added service — dynamic cards in Client & Legal.
   currentServices.forEach(s=>{
     const amdId=`amendment_${s['Detail ID']}`;
-    const status=getDocStatus(amdId);
-    const isGenerated=status&&status!=='';
-    const card=`<div class="doc-card">
+    const generated=getDocVersionCount(amdId)>0;
+    groups.client.push(`<div class="doc-card">
       <div class="doc-icon">📎</div>
       <div class="doc-info">
-        <div class="doc-name">Amendment — ${s['Item']}</div>
+        <div class="doc-name">Amendment — ${s['Item']||'Service'}</div>
         <div class="doc-sub">${fmtMoney(s['Price'])} additional service</div>
       </div>
       <div class="doc-status">
-        <span class="doc-status-badge ${status?`dst-${status.toLowerCase()}`:'dst-draft'}">${status||'Not Generated'}</span>
-        <button class="btn btn-outline btn-sm" onclick="generateAmendmentFromDoc(${currentServices.indexOf(s)})">⬇ ${isGenerated?'COPY':'Generate'}</button>
+        <button class="btn btn-outline btn-sm" onclick="generateAmendmentFromDoc(${currentServices.indexOf(s)})">⬇ ${generated?'Copy':'Generate'}</button>
       </div>
-    </div>`;
-    groups.amendments.push(card);
+    </div>`);
   });
 
-  document.getElementById('docListClient').innerHTML=groups.client.join('')||'<div style="font-size:11px;color:#AAA;padding:12px 0;font-style:italic">No documents in this category</div>';
-  document.getElementById('docListProvider').innerHTML=groups.provider.join('')||'<div style="font-size:11px;color:#AAA;padding:12px 0;font-style:italic">No provider contracts required based on contracted services</div>';
-  document.getElementById('docListOperational').innerHTML=groups.operational.join('')||'<div style="font-size:11px;color:#AAA;padding:12px 0;font-style:italic">No operational documents required</div>';
-
-  const amendSection=document.getElementById('docAmendTitle');
-  const amendList=document.getElementById('docListAmendments');
-  if(groups.amendments.length){
-    if(amendSection)amendSection.style.display='block';
-    amendList.innerHTML=groups.amendments.join('');
-  } else {
-    if(amendSection)amendSection.style.display='none';
-    amendList.innerHTML='';
-  }
+  DOC_GROUP_META.forEach(g=>{
+    const el=document.getElementById(g.id);
+    if(!el)return;
+    el.innerHTML=groups[g.key].join('')||'<div style="font-size:11px;color:#AAA;padding:12px 0;font-style:italic">No documents in this category</div>';
+  });
 }
 
 async function updateDocStatus(docId,newStatus){
@@ -2432,6 +2456,7 @@ function generateDoc(docId){
     catering_beo:generateCateringBEO,
     menu_selection:generateMenuSelection,
     venue_staff:generateVenueStaff,
+    staff_summary:generateStaffSummary,
     decor_requirements:generateDecorRequirements,
     music_program:generateMusicProgram,
     photo_session:generatePhotoSession,
@@ -3136,7 +3161,7 @@ ${docHeader('Service Agreement',`${e['COT#']} / ${e['RES#']}`,{mode:'cardona',su
     <div class="field-item"><div class="field-lbl">Event Type</div><div class="field-val">${etLabel()}</div></div>
     <div class="field-item"><div class="field-lbl">Event Date</div><div class="field-val">${fmtDateDoc(e['Event Date'])}</div></div>
     <div class="field-item"><div class="field-lbl">Event Schedule</div><div class="field-val">${scheduleInfo()}</div></div>
-    <div class="field-item"><div class="field-lbl">Guests</div><div class="field-val">${e['Guests']||'—'} adults · ${e['Tables']||'—'} tables</div></div>
+    <div class="field-item"><div class="field-lbl">Guests</div><div class="field-val">${e['Guests']||'—'} adults${(parseInt(e['Children'])||0)>0?' · '+e['Children']+' children':''} · ${e['Tables']||'—'} tables</div></div>
     <div class="field-item"><div class="field-lbl">Venue</div><div class="field-val">72 Hoover Ave, Passaic, NJ 07055 — Cardona Hall</div></div>
   </div>
 </div>
@@ -3150,7 +3175,8 @@ ${docHeader('Service Agreement',`${e['COT#']} / ${e['RES#']}`,{mode:'cardona',su
 <div class="sec">
   <div class="sec-title">4. Guest Count & Final Confirmation</div>
   <ul class="bullet-list">
-    <li>Final confirmed guest count must be submitted no later than <strong>14 days before the event</strong>.</li>
+    <li>The venue capacity and guest count for this event are governed by the figures confirmed in the signed Reservation.</li>
+    <li>Final confirmed guest count must be submitted no later than <strong>15 days before the event</strong>.</li>
     <li>Additional guests added <strong>15 or more days before the event</strong> are charged <strong>$45 per person</strong>. Additional guests added <strong>within 15 days of the event, or on the event day</strong>, are charged <strong>$60 per person</strong>.</li>
     <li>Any additional person is registered as an added service and formalized through a signed Amendment.</li>
     <li>Reductions after the final confirmation date are not permitted — the guaranteed count remains the billing basis.</li>
@@ -3242,11 +3268,12 @@ ${docHeader('Service Agreement',`${e['COT#']} / ${e['RES#']}`,{mode:'cardona',su
 
 <div class="sec">
   <div class="sec-title">12. External Vendor Policy</div>
+  <p style="font-size:12px;color:#777;margin-bottom:8px">This section applies to any service the Client provides through parties other than ${ENTITY} — whether an external professional vendor engaged by the Client, or services the Client handles directly.</p>
   <ul class="bullet-list">
-    <li>External vendors must be approved in writing by ${ENTITY} at least 14 days before the event.</li>
-    <li>Every external vendor must submit a valid Certificate of Insurance (COI) — minimum $500,000 General Liability — naming ${ENTITY} as Additional Insured.</li>
-    <li>Vendors without a valid COI will not be permitted to enter the premises on the event date.</li>
-    <li>${ENTITY} is not responsible for the performance, conduct, or failure of external vendors.</li>
+    <li>Any external service must be approved in writing by ${ENTITY} at least 14 days before the event.</li>
+    <li>Every external professional vendor engaged by the Client must submit a valid Certificate of Insurance (COI) — minimum $500,000 General Liability — naming ${ENTITY} as Additional Insured. Vendors without a valid COI will not be permitted to enter the premises on the event date.</li>
+    <li>Where the Client handles a service directly (self-provided, with no third-party vendor), the Client assumes full responsibility for that service and holds ${ENTITY} harmless for its outcome.</li>
+    <li>${ENTITY} is not responsible for the performance, conduct, or failure of any external vendor or client-handled service.</li>
   </ul>
 </div>
 
@@ -5660,10 +5687,10 @@ function generateExpenseReceipt(expenseId){
   const balance=agreed-paid;
   const accent='#C9A84C';
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
-<title>Payment Receipt — ${exp['Provider Name']||''}</title>
+<title>Provider Payment Receipt — ${exp['Provider Name']||''}</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>${baseStyles(accent)}</style></head><body><div class="doc">
-${docHeader('Payment Receipt',`RCP-${exp['Expense ID']||''}`,'Produced by Pilab Productions',accent)}
+${docHeader('Provider Payment Receipt',`RCP-${exp['Expense ID']||''}`,'Produced by Pilab Productions',accent)}
 <div class="sec">
   <div class="sec-title">Paid To</div>
   <div class="field-grid">
@@ -5837,8 +5864,8 @@ function generateStaffSummary(){
 .staff-table tr:nth-child(even) td{background:#FAFAFA;}
 .sig-mini{border-bottom:1px solid #444;height:28px;min-width:90px;display:inline-block;}
 </style></head><body><div class="doc">
-${docPageOpen('CARDONA HALL','Venue Staff Summary — INTERNAL',`REF: ${e['RES#']}`)}
-${docHeader('Venue Staff Summary',e['RES#'],{mode:'cardona',sub:'INTERNAL — Payment Summary'})}
+${docPageOpen('CARDONA HALL','Venue Staff Payment Summary — INTERNAL',`REF: ${e['RES#']}`)}
+${docHeader('Venue Staff Payment Summary',e['RES#'],{mode:'cardona',sub:'INTERNAL — Payment Summary'})}
 <div class="sec">
   <div class="field-grid">
     <div class="field-item"><div class="field-lbl">Client Name</div><div class="field-val">${e['Client Name']||'—'}</div></div>
