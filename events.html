@@ -639,6 +639,15 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
     <div style="padding:20px;">
       <input type="hidden" id="assignProvDetailId">
       <div id="assignProvRoleInfo" style="font-size:12px;color:#777;margin-bottom:14px;"></div>
+      <div class="form-field" style="margin-bottom:16px;">
+        <div class="form-lbl">Provider Type</div>
+        <select class="form-select" id="assignProvType" onchange="onAssignTypeChange()">
+          <option value="Internal Staff">Internal Staff (Pilab's own, we pay)</option>
+          <option value="Internal Vendor">Internal Vendor (we engage &amp; pay)</option>
+          <option value="External Vendor">External Vendor (client brings, needs COI)</option>
+          <option value="Client-Handled">Client-Handled (client does it himself)</option>
+        </select>
+      </div>
       <div id="assignProvInternalRow" class="form-field" style="margin-bottom:16px;">
         <div class="form-lbl">Provider (from directory)</div>
         <select class="form-select" id="assignProvSelect"><option value="">— Select —</option></select>
@@ -1334,28 +1343,35 @@ function openAssignProviderToRole(detailId){
   if(!s)return;
   const type=normProviderType(s['Provider Type']);
   document.getElementById('assignProvDetailId').value=detailId;
-  document.getElementById('assignProvRoleInfo').innerHTML=`Role: <strong>${s['Item']||''}</strong> · ${type} · ${s['Division']||''}`;
+  document.getElementById('assignProvRoleInfo').innerHTML=`Role: <strong>${s['Item']||''}</strong> · ${s['Division']||''}`;
+  document.getElementById('assignProvType').value=type;
+  document.getElementById('assignProvCustom').value='';
+  onAssignTypeChange(); // builds directory list / toggles rows based on selected type
+  document.getElementById('assignProvOverlay').style.display='flex';
+}
+// Toggle provider input by the TYPE chosen in the modal (type defined at assign time).
+function onAssignTypeChange(){
+  const type=document.getElementById('assignProvType').value;
   const isInternal=isInternalType(type);
   document.getElementById('assignProvInternalRow').style.display=isInternal?'block':'none';
   document.getElementById('assignProvCustomRow').style.display=isInternal?'none':'block';
   if(isInternal){
+    const detailId=document.getElementById('assignProvDetailId').value;
+    const s=currentServices.find(x=>x['Detail ID']===detailId)||{};
     const sel=document.getElementById('assignProvSelect');
     let html='<option value="">— Select —</option>';
     (allDirectoryProviders||[]).filter(p=>(p['Category']||'').toLowerCase()===(s['Division']||'').toLowerCase()).forEach(p=>{
       html+=`<option value="${p['Provider ID']}" data-name="${p['Name']||''}">${p['Name']||''}</option>`;
     });
     sel.innerHTML=html;
-  }else{
-    document.getElementById('assignProvCustom').value='';
   }
-  document.getElementById('assignProvOverlay').style.display='flex';
 }
 function closeAssignProvForm(){document.getElementById('assignProvOverlay').style.display='none';}
 function confirmAssignProvider(){
   const detailId=document.getElementById('assignProvDetailId').value;
   const s=currentServices.find(x=>x['Detail ID']===detailId);
   if(!s)return;
-  const type=normProviderType(s['Provider Type']);
+  const type=document.getElementById('assignProvType').value; // type chosen here, at assign time
   let provId='',provName='';
   if(isInternalType(type)){
     const sel=document.getElementById('assignProvSelect');
@@ -1367,17 +1383,18 @@ function confirmAssignProvider(){
     if(!provName){showToast('Enter the provider name','error');return;}
   }
   closeAssignProvForm();
-  updateRoleProvider(detailId,provId,provName);
+  updateRoleProvider(detailId,provId,provName,type);
 }
-async function updateRoleProvider(detailId,provId,provName){
+async function updateRoleProvider(detailId,provId,provName,type){
   const s=currentServices.find(x=>x['Detail ID']===detailId);
+  const ptype=normProviderType(type||(s&&s['Provider Type']));
   showLoading();
   try{
     await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify({
-      action:'updateServiceDetail','Detail ID':detailId,'Provider ID':provId,'Provider Name':provName,'Assign Status':'Assigned'
+      action:'updateServiceDetail','Detail ID':detailId,'Provider ID':provId,'Provider Name':provName,'Provider Type':ptype,'Assign Status':'Assigned'
     }),headers:{'Content-Type':'text/plain'}});
-    // For Internal roles, create the linked Expense record (price blank, to fill in Expenses)
-    if(s&&isInternalType(s['Provider Type'])){
+    // Internal (Staff/Vendor) → create the linked Expense record (price blank, filled in Expenses)
+    if(isInternalType(ptype)){
       await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify({
         action:'saveExpense',
         'Expense ID':genID('EXP'),
@@ -1393,7 +1410,7 @@ async function updateRoleProvider(detailId,provId,provName){
         'Amount Paid':0,
         'Payment Date':'','Method':'','Type':'Pago Único',
         'Status':'Pending','Notes':'',
-        'Provider Type':normProviderType(s['Provider Type']),
+        'Provider Type':ptype,
         'Detail ID':detailId
       }),headers:{'Content-Type':'text/plain'}});
     }
@@ -4902,7 +4919,11 @@ function editRole(roleId){
   document.getElementById('roleCategory').value=r['Category']||'Venue';
   document.getElementById('roleName').value=r['Role Name']||'';
   document.getElementById('roleNotes').value=r['Notes']||'';
-  document.getElementById('roleForm').style.display='block';
+  const f=document.getElementById('roleForm');
+  f.style.display='block';
+  f.scrollIntoView({behavior:'smooth',block:'center'});
+  const nm=document.getElementById('roleName');
+  if(nm)nm.focus();
 }
 async function saveRole(){
   const name=document.getElementById('roleName').value.trim();
