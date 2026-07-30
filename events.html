@@ -276,9 +276,10 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
           </div>
           <div class="form-field"><div class="form-lbl">Type</div>
             <select class="form-select" id="svcType" onchange="onSvcTypeChange()">
-              <option value="Internal">Internal (we pay)</option>
-              <option value="External">External (client brings)</option>
-              <option value="Client">Client (does it himself)</option>
+              <option value="Internal Staff">Internal Staff (Pilab's own, we pay)</option>
+              <option value="Internal Vendor">Internal Vendor (we engage &amp; pay)</option>
+              <option value="External Vendor">External Vendor (client brings, needs COI)</option>
+              <option value="Client-Handled">Client-Handled (client does it himself)</option>
             </select>
           </div>
           <button class="btn btn-gold" onclick="saveService()">Add</button>
@@ -911,7 +912,7 @@ async function deriveAndFreezeRoles(){
           'Description': desc,
           'Price': 0,
           'Notes': '',
-          'Provider Type': r['Provider_Default']||'Internal',
+          'Provider Type': normProviderType(r['Provider_Default']),
           'Provider ID': '',
           'Provider Name': '',
           'Assign Status': 'Pending',
@@ -972,6 +973,42 @@ function catalogDishesForLine(line,catalog){
 }
 
 function fmtMoney(n){return '$'+(parseFloat(n)||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});}
+
+// ── PROVIDER TYPE MODEL (4 types) ───────────────────────────────────────────
+// Internal Staff  — Pilab's own person, uses Pilab materials, paid a wage. No
+//                   contract, no COI. Gets internal requirement + payment receipt.
+// Internal Vendor — Vendor engaged & paid by Pilab. Contract + requirement +
+//                   payment receipt. No COI.
+// External Vendor — Vendor the CLIENT brings. Contract + COI. No requirement
+//                   (internal), no receipt (client pays).
+// Client-Handled  — The client does it themselves. Contract (no COI). No
+//                   requirement, no receipt.
+const PROVIDER_TYPES=['Internal Staff','Internal Vendor','External Vendor','Client-Handled'];
+// Legacy 3-value data → new 4-value model (Internal defaults to Internal Staff).
+function normProviderType(v){
+  const s=String(v||'').trim().toLowerCase();
+  if(s==='internal'||s==='internal staff'||s==='')return 'Internal Staff';
+  if(s==='internal vendor')return 'Internal Vendor';
+  if(s==='external'||s==='external vendor')return 'External Vendor';
+  if(s==='client'||s==='client-handled'||s==='client handled')return 'Client-Handled';
+  return 'Internal Staff';
+}
+function isInternalType(v){return normProviderType(v).startsWith('Internal');}      // Staff or Vendor → Pilab pays
+function needsContract(v){const t=normProviderType(v);return t!=='Internal Staff';}  // Vendor/External/Client sign
+function needsCOI(v){return normProviderType(v)==='External Vendor';}               // only External brings COI
+function getsRequirement(v){return isInternalType(v);}                              // internal doc → internal only
+// Badge palette per provider type.
+function providerBadge(v){
+  const t=normProviderType(v);
+  const map={
+    'Internal Staff':['Internal Staff','#EAF4ED','#1E5C2E'],
+    'Internal Vendor':['Internal Vendor','#E0F2F0','#0A6B60'],
+    'External Vendor':['External Vendor','#FFF1E0','#B5560A'],
+    'Client-Handled':['Client-Handled','#E8E0F0','#6A3FA0'],
+  };
+  const [label,bg,fg]=map[t];
+  return `<span style="font-size:8px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;padding:1px 6px;border-radius:2px;background:${bg};color:${fg};margin-left:6px">${label}</span>`;
+}
 function fmtDate(d){if(!d)return'—';try{const dt=new Date(d);if(isNaN(dt))return String(d);return dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});}catch{return String(d);}}
 function genID(prefix){return prefix+'-'+Date.now();}
 function showToast(msg,type='success'){const t=document.getElementById('toast');t.textContent=msg;t.className=`toast toast-${type} show`;setTimeout(()=>t.className='toast',4000);}
@@ -1216,9 +1253,9 @@ function onSvcRoleChange(){
   if(row)row.style.display=((v||'').toLowerCase()==='other')?'flex':'none';
 }
 function onSvcTypeChange(){
-  // Internal => pick from directory; External/Client => free-text name
+  // Internal (Staff/Vendor) => pick from directory; External/Client => free-text name
   const type=document.getElementById('svcType').value;
-  const isInternal=type==='Internal';
+  const isInternal=isInternalType(type);
   document.getElementById('svcProvider').parentElement.style.display=isInternal?'block':'none';
   document.getElementById('svcProviderCustomRow').style.display=isInternal?'none':'block';
 }
@@ -1242,11 +1279,7 @@ function renderServices(){
 
   const box=document.getElementById('servicesByCategory');
   if(!box)return;
-  const typeBadge=(t)=>{
-    const tt=(t||'Internal').toLowerCase();
-    const m={internal:['Internal','#EAF4ED','#1E5C2E'],external:['External','#FFF1E0','#B5560A'],client:['Client','#E8E0F0','#6A3FA0']}[tt]||['Internal','#EAF4ED','#1E5C2E'];
-    return `<span style="font-size:8px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;padding:1px 6px;border-radius:2px;background:${m[1]};color:${m[2]}">${m[0]}</span>`;
-  };
+  const typeBadge=(t)=>providerBadge(t);
   let html='';
   SVC_CATEGORIES.forEach(cat=>{
     const list=currentServices.map((s,idx)=>({s,idx})).filter(o=>(o.s['Division']||'Other')===cat.key);
@@ -1299,10 +1332,10 @@ function renderServices(){
 function openAssignProviderToRole(detailId){
   const s=currentServices.find(x=>x['Detail ID']===detailId);
   if(!s)return;
-  const type=s['Provider Type']||'Internal';
+  const type=normProviderType(s['Provider Type']);
   document.getElementById('assignProvDetailId').value=detailId;
   document.getElementById('assignProvRoleInfo').innerHTML=`Role: <strong>${s['Item']||''}</strong> · ${type} · ${s['Division']||''}`;
-  const isInternal=type==='Internal';
+  const isInternal=isInternalType(type);
   document.getElementById('assignProvInternalRow').style.display=isInternal?'block':'none';
   document.getElementById('assignProvCustomRow').style.display=isInternal?'none':'block';
   if(isInternal){
@@ -1322,9 +1355,9 @@ function confirmAssignProvider(){
   const detailId=document.getElementById('assignProvDetailId').value;
   const s=currentServices.find(x=>x['Detail ID']===detailId);
   if(!s)return;
-  const type=s['Provider Type']||'Internal';
+  const type=normProviderType(s['Provider Type']);
   let provId='',provName='';
-  if(type==='Internal'){
+  if(isInternalType(type)){
     const sel=document.getElementById('assignProvSelect');
     provId=sel.value;
     if(!provId){showToast('Select a provider','error');return;}
@@ -1344,7 +1377,7 @@ async function updateRoleProvider(detailId,provId,provName){
       action:'updateServiceDetail','Detail ID':detailId,'Provider ID':provId,'Provider Name':provName,'Assign Status':'Assigned'
     }),headers:{'Content-Type':'text/plain'}});
     // For Internal roles, create the linked Expense record (price blank, to fill in Expenses)
-    if(s&&(s['Provider Type']||'Internal').toLowerCase()==='internal'){
+    if(s&&isInternalType(s['Provider Type'])){
       await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify({
         action:'saveExpense',
         'Expense ID':genID('EXP'),
@@ -1360,7 +1393,7 @@ async function updateRoleProvider(detailId,provId,provName){
         'Amount Paid':0,
         'Payment Date':'','Method':'','Type':'Pago Único',
         'Status':'Pending','Notes':'',
-        'Provider Type':'Internal',
+        'Provider Type':normProviderType(s['Provider Type']),
         'Detail ID':detailId
       }),headers:{'Content-Type':'text/plain'}});
     }
@@ -1379,7 +1412,7 @@ function generateProviderAgreementFromRole(detailId){
   const roleName=((s['Item']||'').toLowerCase()==='other')?(s['Description']||s['Item']):(s['Item']||'');
   const pseudoExp={
     'Expense ID':s['Detail ID'],
-    'Provider Type':s['Provider Type']||'Internal',
+    'Provider Type':normProviderType(s['Provider Type']),
     'Category':s['Division']||'',
     'Provider ID':s['Provider ID']||'',
     'Provider Name':s['Provider Name']||'',
@@ -1498,10 +1531,10 @@ async function saveService(){
   const item=isOther?'Other':role;
   const description=isOther?customName:role;
   const category=document.getElementById('svcCategory').value||'Other';
-  const type=document.getElementById('svcType').value||'Internal';
+  const type=document.getElementById('svcType').value||'Internal Staff';
   // Provider is optional (can be assigned later)
   let provId='',provName='';
-  if(type==='Internal'){
+  if(isInternalType(type)){
     const sel=document.getElementById('svcProvider');
     provId=sel.value||'';
     if(provId){const opt=sel.options[sel.selectedIndex];provName=opt.dataset.name||opt.textContent;}
@@ -1530,7 +1563,7 @@ async function saveService(){
   try{
     await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(payload),headers:{'Content-Type':'text/plain'}});
     // If Internal with a provider chosen at creation, also create the linked Expense
-    if(type==='Internal'&&provName){
+    if(isInternalType(type)&&provName){
       await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify({
         action:'saveExpense',
         'Expense ID':genID('EXP'),
@@ -1545,7 +1578,7 @@ async function saveService(){
         'Agreed Amount':0,'Amount Paid':0,
         'Payment Date':'','Method':'','Type':'Pago Único',
         'Status':'Pending','Notes':'',
-        'Provider Type':'Internal',
+        'Provider Type':type,
         'Detail ID':payload['Detail ID']
       }),headers:{'Content-Type':'text/plain'}});
     }
@@ -2059,7 +2092,7 @@ async function loadExpenses(){
 
 function renderExpenses(){
   // Expenses now lists only internal providers linked from Services
-  const list=currentExpenses.filter(e=>(e['Provider Type']||'Internal').toLowerCase()==='internal');
+  const list=currentExpenses.filter(e=>isInternalType(e['Provider Type']));
   const totalAgreed=list.reduce((s,e)=>s+(parseFloat(e['Agreed Amount'])||0),0);
   const totalPaid=list.reduce((s,e)=>s+(parseFloat(e['Amount Paid'])||0),0);
   const pending=list.reduce((s,e)=>{const b=(parseFloat(e['Agreed Amount'])||0)-(parseFloat(e['Amount Paid'])||0);return s+(b>0?b:0);},0);
@@ -2209,7 +2242,7 @@ function renderPL(){
   const totalRevenue=base+extraTotal;
 
   // ── EXPENSES (internal only) ──
-  const internal=(currentExpenses||[]).filter(e=>(e['Provider Type']||'Internal').toLowerCase()==='internal');
+  const internal=(currentExpenses||[]).filter(e=>isInternalType(e['Provider Type']));
   const expPaid=internal.reduce((s,e)=>s+(parseFloat(e['Amount Paid'])||0),0);
   const expAgreed=internal.reduce((s,e)=>s+(parseFloat(e['Agreed Amount'])||0),0);
   const expPending=internal.reduce((s,e)=>{const b=(parseFloat(e['Agreed Amount'])||0)-(parseFloat(e['Amount Paid'])||0);return s+(b>0?b:0);},0);
@@ -4268,7 +4301,7 @@ ${docHeader('Venue Staff Sheet',`${e['RES#']}`,{mode:'cardona',sub:'INTERNAL —
     });
     const svcType=(name,pid)=>{
       const s=(currentServices||[]).find(x=>(x['Provider Name']||'')===(name||'')||(pid&&x['Provider ID']===pid));
-      return s?(s['Provider Type']||'Internal'):'Internal';
+      return s?normProviderType(s['Provider Type']):'Internal Staff';
     };
     const internal=allProv.filter(op=>(op['Provider Type']||svcType(op['Provider Name'],op['Provider ID'])).toLowerCase()==='internal');
     const external=allProv.filter(op=>(op['Provider Type']||svcType(op['Provider Name'],op['Provider ID'])).toLowerCase()!=='internal');
@@ -4331,8 +4364,8 @@ ${docHeader('Venue Staff Sheet',`${e['RES#']}`,{mode:'cardona',sub:'INTERNAL —
         const provFor=(cat)=>{
           const exps=(currentExpenses||[]).filter(ex=>(ex['Category']||'').toLowerCase()===cat.toLowerCase());
           if(!exps.length)return '—';
-          const internal=exps.filter(ex=>(ex['Provider Type']||'Internal').toLowerCase()==='internal');
-          const nonInternal=exps.filter(ex=>(ex['Provider Type']||'Internal').toLowerCase()!=='internal');
+          const internal=exps.filter(ex=>isInternalType(ex['Provider Type']));
+          const nonInternal=exps.filter(ex=>!isInternalType(ex['Provider Type']));
           const names=[...new Set(internal.map(ex=>ex['Provider Name']).filter(Boolean))];
           if(names.length)return names.join(', ');
           if(nonInternal.length)return 'External';
@@ -4956,7 +4989,7 @@ function populateOpsAssignedRoles(){
     html='<option value="">No roles in Services yet</option>';
   }else{
     roles.forEach(s=>{
-      const type=s['Provider Type']||'Internal';
+      const type=normProviderType(s['Provider Type']);
       const prov=(s['Provider Name']||'').trim()||'Pending';
       html+=`<option value="${s['Detail ID']}">${s['Item']||''} — ${prov} (${type})</option>`;
     });
@@ -4980,7 +5013,7 @@ function onOpsAssignedRoleSelect(){
   const cat=s['Division']||'';
   document.getElementById('opsRole').value=s['Item']||'';
   document.getElementById('opsCategory').value=cat;
-  document.getElementById('opsType').value=s['Provider Type']||'Internal';
+  document.getElementById('opsType').value=normProviderType(s['Provider Type']);
   document.getElementById('opsDescription').value=s['Item']||'';
   // Tasks section
   const taskSection=document.getElementById('opsTaskSection');
@@ -5139,7 +5172,7 @@ async function saveOperation(){
         'Task End Time':'',
         'Status':status,
         'Notes':notes,
-        'Provider Type':s['Provider Type']||'Internal'
+        'Provider Type':normProviderType(s['Provider Type'])
       };
       await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(payload),headers:{'Content-Type':'text/plain'}});
     }
@@ -5192,7 +5225,7 @@ function renderOperations(){
   // Group by Provider Name + Category
   const svcType=(name,pid)=>{
     const s=(currentServices||[]).find(x=>(x['Provider Name']||'')===(name||'')||(pid&&x['Provider ID']===pid));
-    return s?(s['Provider Type']||'Internal'):'Internal';
+    return s?normProviderType(s['Provider Type']):'Internal Staff';
   };
   const groups={};
   ops.forEach(op=>{
@@ -5209,7 +5242,7 @@ function renderOperations(){
     const hasProvider=(g.name||'').trim()&&g.name!=='Pending';
     const status=hasProvider?'Confirmed':'Pending';
     const sColor=hasProvider?'#1E5C2E':'#C99000';
-    const tBadge={internal:['Internal','#EAF4ED','#1E5C2E'],external:['External','#FFF1E0','#B5560A'],client:['Client','#E8E0F0','#6A3FA0']}[(g.ptype||'Internal').toLowerCase()]||['Internal','#EAF4ED','#1E5C2E'];
+    const _pt=normProviderType(g.ptype);const tBadge={'Internal Staff':['Internal Staff','#EAF4ED','#1E5C2E'],'Internal Vendor':['Internal Vendor','#E0F2F0','#0A6B60'],'External Vendor':['External Vendor','#FFF1E0','#B5560A'],'Client-Handled':['Client-Handled','#E8E0F0','#6A3FA0']}[_pt];
     return `<div style="background:#FAFAFA;border:1px solid #EEE;border-radius:4px;padding:10px 14px;margin-bottom:8px">
       <div style="display:flex;align-items:flex-start;gap:10px">
         <div style="flex:1">
@@ -5240,8 +5273,8 @@ function renderOperations(){
 
   // Split into Internal vs External/Client
   const allGroups=Object.values(groups);
-  const internal=allGroups.filter(g=>(g.ptype||'Internal').toLowerCase()==='internal');
-  const external=allGroups.filter(g=>(g.ptype||'Internal').toLowerCase()!=='internal');
+  const internal=allGroups.filter(g=>isInternalType(g.ptype));
+  const external=allGroups.filter(g=>!isInternalType(g.ptype));
 
   const renderSection=(title,list,barColor)=>{
     if(!list.length)return '';
@@ -5736,7 +5769,7 @@ function generateProviderAgreement(expenseId,directExp){
   if(!exp){showToast('Provider not found','error');return;}
   const win=docOpen();if(!win)return;
   const e=currentEvent;
-  const isExternal=['external','client'].includes((exp['Provider Type']||'Internal').toLowerCase());
+  const isExternal=!isInternalType(exp['Provider Type']);
   const category=exp['Category']||'';
   const catColors={Entertainment:'#E040A0',Decor:'#D4A853',Photo:'#00B4D8',Staff:'#C9A84C',Catering:'#1A7A3C'};
   const accent=catColors[category]||'#C9A84C';
