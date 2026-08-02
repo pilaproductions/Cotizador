@@ -2421,8 +2421,9 @@ function renderDocuments(){
   const groups={client:[],venue:[],catering:[],decor:[],ent:[],photo:[],finance:[]};
   DOC_DEFINITIONS.forEach(def=>{ if(groups[def.group])groups[def.group].push(docCard(def)); });
 
-  // Amendments (#23) are per added service — dynamic cards in Client & Legal.
-  currentServices.forEach(s=>{
+  // Amendments (#23) are ONLY for services added manually AFTER the contract
+  // (Source='manual'). Package-derived roles never generate an amendment.
+  currentServices.filter(s=>String(s['Source']||'').toLowerCase()==='manual').forEach(s=>{
     const amdId=`amendment_${s['Detail ID']}`;
     const generated=getDocVersionCount(amdId)>0;
     groups.client.push(`<div class="doc-card">
@@ -3766,8 +3767,23 @@ function generateDecorContract(groupKey){
   const isInternalVendor=(t==='Internal Vendor');
   const otherParty=isClient?(e['Client Name']||'Client'):g.provName;
   const partyRole=isClient?'Client (self-provided decor)':'Provider';
-  // rows → scope table (divisions this provider covers)
-  const scopeRows=g.rows.map(r=>`<tr><td style="font-weight:600">${r['Item']||'—'}</td><td>${r['Description']||r['Notes']||'Per Decor Requirements'}</td><td style="text-align:right">___________</td></tr>`).join('');
+  // Amount owed to THIS provider (not the client sale price).
+  // Internal Vendor → agreed amount from the linked Expense if it exists, else blank to fill.
+  // External Vendor / Client-Handled → Pilab does not pay → no amount shown.
+  let totalCell='___________';
+  if(isInternalVendor){
+    const detailIds=g.rows.map(r=>String(r['Detail ID']||''));
+    const exp=(currentExpenses||[]).find(x=>
+      detailIds.includes(String(x['Detail ID']||''))||
+      (String(x['Provider Name']||'').toLowerCase()===g.provName.toLowerCase()&&String(x['Category']||'').toLowerCase()==='decor')
+    );
+    const agreed=exp?parseFloat(exp['Agreed Amount']||0):0;
+    totalCell=agreed>0?fmtM(agreed):'___________';
+  } else {
+    // External / Client-Handled → no amount managed by Pilab
+    totalCell='<span style="color:#999;font-style:italic">N/A — not paid by Pilab</span>';
+  }
+  const scopeRows=g.rows.map(r=>`<tr><td style="font-weight:600">${r['Item']||'—'}</td><td>${r['Description']||r['Notes']||'Per Decor Requirements'}</td><td style="text-align:right">${isInternalVendor?'___________':'—'}</td></tr>`).join('');
 
   // Conditional clause blocks
   const insuranceBlock=isExternal
@@ -3850,7 +3866,7 @@ ${docHeader('Decor Service Contract',`${e['RES#']}-DEC`,'Design & Decor — Pila
     <thead><tr><th>Division / Item</th><th>Description</th><th style="text-align:right">Amount</th></tr></thead>
     <tbody>
       ${scopeRows}
-      <tr class="total-row"><td colspan="2">TOTAL AGREED AMOUNT</td><td style="text-align:right">${fmtM(e['Price Decor'])}</td></tr>
+      <tr class="total-row"><td colspan="2">TOTAL AGREED AMOUNT (to provider)</td><td style="text-align:right">${totalCell}</td></tr>
     </tbody>
   </table>
   <ul class="bullet-list" style="margin-top:10px">
