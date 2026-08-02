@@ -2946,21 +2946,43 @@ function sigBlock(leftLabel, leftName, rightLabel='Client Signature'){
 </div>`;
 }
 
+// Sound plan raw value → display label.
+function soundLabel(v){
+  const s=String(v||'').toLowerCase().replace(/[^a-z]/g,'');
+  if(s==='soundlighting'||s==='soundandlighting')return 'Sound & Lighting';
+  if(s==='sound'||s==='soundsystem')return 'Sound System';
+  return v||'';
+}
+// Clean a detail value (hide 'na'/'n/a'/blank).
+function cleanDet(v){const s=String(v||'').trim().toLowerCase();return (s===''||s==='na'||s==='n/a'||s==='—')?'':v;}
+function titleCase(v){return String(v||'').replace(/\b\w/g,c=>c.toUpperCase());}
+
 function servicesTableHTML(){
   const e=currentEvent;
-  const rows=[
-    ['Venue & Host Services', e['Venue Tier']||'—', `${e['Day of Week']||''} · ${e['Guests']||'—'} guests`, fmtM(e['Price Venue'])],
-    ['Catering & Hospitality', e['Catering Line']||'—', e['Catering Plan']||'', fmtM(e['Price Catering'])],
-    ['Design & Decor', e['Decor Plan']||'—', '', fmtM(e['Price Decor'])],
-    ['Entertainment & Production', e['Entertainment Plan']||'—', e['Sound Plan']||'', fmtM(e['Price Entertainment'])],
-    ['Photo & Video', e['Photo Tier']||e['Photo Plan']||'—', e['Photo Plan']&&e['Photo Plan']!==e['Photo Tier']?e['Photo Plan']:'', fmtM(e['Price Photo'])],
-  ].filter(r=>r[3]!=='$0'&&r[3]!==fmtM(0));
+  const num=v=>parseFloat(v)||0;
+  // Opción A: each division shows its NET price (anchor − its own discount). Full Package
+  // discount is a SEPARATE row. Rows + FP row = Final Total.
+  const defs=[
+    ['Venue & Host Services', titleCase(e['Venue Tier']), `${titleCase(e['Day of Week'])} · ${e['Guests']||'—'} guests`, num(e['Price Venue']), num(e['Discount Venue'])],
+    ['Catering & Hospitality', titleCase(e['Catering Line']), titleCase(cleanDet(e['Catering Plan'])), num(e['Price Catering']), num(e['Discount Catering'])],
+    ['Design & Decor', titleCase(e['Decor Plan']), '', num(e['Price Decor']), num(e['Discount Decor'])],
+    ['Entertainment & Production', titleCase(e['Entertainment Plan']), soundLabel(e['Sound Plan']), num(e['Price Entertainment']), num(e['Discount Entertainment'])],
+    ['Photo & Video', titleCase(cleanDet(e['Photo Tier'])||cleanDet(e['Photo Plan'])), '', num(e['Price Photo']), num(e['Discount Photo'])],
+  ].filter(r=>r[3]>0);
+  const rowsHTML=defs.map(([div,plan,det,price,disc])=>{
+    const net=price-disc;
+    const discNote=disc>0?`<div style="font-size:10px;color:#1E7A44">Discount applied −${fmtM(disc)}</div>`:'';
+    return `<tr><td style="font-weight:600">${div}</td><td>${plan||'—'}${discNote}</td><td style="color:#777">${det||''}</td><td style="text-align:right;font-weight:600">${fmtM(net)}</td></tr>`;
+  }).join('');
+  const fp=num(e['Discount FP']);
+  const fpRow=fp>0?`<tr><td style="font-weight:600;color:#1E7A44">Full Package Discount</td><td colspan="2" style="color:#777;font-size:11px">Applied for contracting all five divisions</td><td style="text-align:right;font-weight:600;color:#1E7A44">−${fmtM(fp)}</td></tr>`:'';
   return `
 <table class="services-table">
   <thead><tr><th>Division</th><th>Service / Plan</th><th>Details</th><th style="text-align:right">Amount</th></tr></thead>
   <tbody>
-    ${rows.map(([div,plan,det,amt],i)=>`<tr><td style="font-weight:600">${div}</td><td>${plan}</td><td style="color:#777">${det}</td><td style="text-align:right;font-weight:600">${amt}</td></tr>`).join('')}
-    <tr class="total-row"><td colspan="3">TOTAL AGREED AMOUNT (taxes included)</td><td style="text-align:right">${fmtM(currentEvent['Final Total'])}</td></tr>
+    ${rowsHTML}
+    ${fpRow}
+    <tr class="total-row"><td colspan="3">TOTAL AGREED AMOUNT (taxes included)</td><td style="text-align:right">${fmtM(e['Final Total'])}</td></tr>
   </tbody>
 </table>`;
 }
