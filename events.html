@@ -2960,29 +2960,24 @@ function titleCase(v){return String(v||'').replace(/\b\w/g,c=>c.toUpperCase());}
 function servicesTableHTML(){
   const e=currentEvent;
   const num=v=>parseFloat(v)||0;
-  // Opción A: each division shows its NET price (anchor − its own discount). Full Package
-  // discount is a SEPARATE row. Rows + FP row = Final Total.
+  // Contract shows WHAT was contracted (division + tier/plan) without per-division
+  // prices — only the total. The Reservation already shows the full pricing breakdown.
   const defs=[
-    ['Venue & Host Services', titleCase(e['Venue Tier']), `${titleCase(e['Day of Week'])} · ${e['Guests']||'—'} guests`, num(e['Price Venue']), num(e['Discount Venue'])],
-    ['Catering & Hospitality', titleCase(e['Catering Line']), titleCase(cleanDet(e['Catering Plan'])), num(e['Price Catering']), num(e['Discount Catering'])],
-    ['Design & Decor', titleCase(e['Decor Plan']), '', num(e['Price Decor']), num(e['Discount Decor'])],
-    ['Entertainment & Production', titleCase(e['Entertainment Plan']), soundLabel(e['Sound Plan']), num(e['Price Entertainment']), num(e['Discount Entertainment'])],
-    ['Photo & Video', titleCase(cleanDet(e['Photo Tier'])||cleanDet(e['Photo Plan'])), '', num(e['Price Photo']), num(e['Discount Photo'])],
+    ['Venue & Host Services', titleCase(e['Venue Tier']), `${titleCase(e['Day of Week'])} · ${e['Guests']||'—'} guests`, num(e['Price Venue'])],
+    ['Catering & Hospitality', titleCase(e['Catering Line']), titleCase(cleanDet(e['Catering Plan'])), num(e['Price Catering'])],
+    ['Design & Decor', titleCase(e['Decor Plan']), '', num(e['Price Decor'])],
+    ['Entertainment & Production', titleCase(e['Entertainment Plan']), soundLabel(e['Sound Plan']), num(e['Price Entertainment'])],
+    ['Photo & Video', titleCase(cleanDet(e['Photo Tier'])||cleanDet(e['Photo Plan'])), '', num(e['Price Photo'])],
   ].filter(r=>r[3]>0);
-  const rowsHTML=defs.map(([div,plan,det,price,disc])=>{
-    const net=price-disc;
-    const discNote=disc>0?`<div style="font-size:10px;color:#1E7A44">Discount applied −${fmtM(disc)}</div>`:'';
-    return `<tr><td style="font-weight:600">${div}</td><td>${plan||'—'}${discNote}</td><td style="color:#777">${det||''}</td><td style="text-align:right;font-weight:600">${fmtM(net)}</td></tr>`;
-  }).join('');
-  const fp=num(e['Discount FP']);
-  const fpRow=fp>0?`<tr><td style="font-weight:600;color:#1E7A44">Full Package Discount</td><td colspan="2" style="color:#777;font-size:11px">Applied for contracting all five divisions</td><td style="text-align:right;font-weight:600;color:#1E7A44">−${fmtM(fp)}</td></tr>`:'';
+  const rowsHTML=defs.map(([div,plan,det])=>
+    `<tr><td style="font-weight:600">${div}</td><td>${plan||'—'}</td><td style="color:#777">${det||''}</td></tr>`
+  ).join('');
   return `
 <table class="services-table">
-  <thead><tr><th>Division</th><th>Service / Plan</th><th>Details</th><th style="text-align:right">Amount</th></tr></thead>
+  <thead><tr><th>Division</th><th>Service / Plan</th><th>Details</th></tr></thead>
   <tbody>
     ${rowsHTML}
-    ${fpRow}
-    <tr class="total-row"><td colspan="3">TOTAL AGREED AMOUNT (taxes included)</td><td style="text-align:right">${fmtM(e['Final Total'])}</td></tr>
+    <tr class="total-row"><td colspan="2">TOTAL AGREED AMOUNT (taxes included)</td><td style="text-align:right">${fmtM(e['Final Total'])}</td></tr>
   </tbody>
 </table>`;
 }
@@ -3250,7 +3245,9 @@ function generateClientContract(){
   const ENTITY=ext?'PILAB SOLUTIONS LLC':legalEntity('contract_client');
   const ADDR=ext?(e['External Venue Address']||'________________________ (external venue address)'):'72 Hoover Ave, Passaic, NJ 07055';
   const secDeposit=parseFloat(businessRule('security_deposit','amount',500))||500;
-  const total=getEventTotal();
+  // Contract = initial agreement at reservation. Uses Final Total (no post-contract
+  // extra income; reschedule/extra charges live in their own documents/amendments).
+  const total=parseFloat(e['Final Total'])||0;
   const received=getTotalReceived();
   const balance=total-received;
   const fmtBal=(received<=0)?'<span style="color:#CC2200;font-weight:600">'+fmtM(total)+' (full amount — no deposit yet)</span>':'<span style="color:'+(balance<=0?'#1E5C2E':'#CC2200')+';font-weight:600">'+fmtM(balance)+'</span>';
@@ -3311,14 +3308,23 @@ ${docHeader('Service Agreement',`${e['COT#']} / ${e['RES#']}`,ext?{mode:'pilab',
 <div class="sec">
   <div class="sec-title">5. Payment Schedule</div>
   <table class="services-table">
-    <thead><tr><th>Concept</th><th>Amount</th><th>Status / Due Date</th><th>Method</th></tr></thead>
+    <thead><tr><th>Concept</th><th style="text-align:right">Amount</th></tr></thead>
     <tbody>
-      <tr><td style="font-weight:600">Reservation deposit received to date</td><td>${fmtDep}</td><td>Applied to total — reservation confirmed</td><td>${depMethod}</td></tr>
-      <tr><td style="font-weight:600">Outstanding balance</td><td>${fmtBal}</td><td>Due 15 days before event</td><td>${ACCEPTED_METHODS}</td></tr>
-      <tr class="total-row"><td>TOTAL CONTRACT VALUE</td><td>${fmtM(total)}</td><td colspan="2"></td></tr>
+      <tr class="total-row"><td>TOTAL CONTRACT VALUE</td><td style="text-align:right">${fmtM(total)}</td></tr>
     </tbody>
   </table>
-  <p style="font-size:12px;color:#777;margin-top:8px">The reservation deposit is applied toward the total contract value. A receipt will be issued for each payment.${ext?'':' All discounts apply exclusively to events held at Cardona Hall.'}</p>
+  <div style="font-size:11px;font-weight:700;color:#7A5C10;letter-spacing:1px;text-transform:uppercase;margin:12px 0 6px">Payments Received</div>
+  <table class="services-table">
+    <thead><tr><th>Date</th><th>Type</th><th>Method</th><th style="text-align:right">Amount</th></tr></thead>
+    <tbody>
+      ${(currentPayments&&currentPayments.length)
+        ? currentPayments.map(p=>`<tr><td>${fmtDateDoc(p['Payment Date'])}</td><td>${p['Type']||'Payment'}</td><td>${p['Method']||'—'}</td><td style="text-align:right;font-weight:600;color:#1E5C2E">${fmtM(p['Amount'])}</td></tr>`).join('')
+        : `<tr><td colspan="4" style="color:#999;font-style:italic;text-align:center;padding:10px">No payments recorded yet</td></tr>`}
+      <tr class="total-row"><td colspan="3">TOTAL RECEIVED</td><td style="text-align:right;color:#1E5C2E">${fmtM(received)}</td></tr>
+      <tr class="total-row"><td colspan="3">OUTSTANDING BALANCE${balance>0?' — due 15 days before event':''}</td><td style="text-align:right;color:${balance<=0?'#1E5C2E':'#CC2200'}">${fmtM(balance)}</td></tr>
+    </tbody>
+  </table>
+  <p style="font-size:12px;color:#777;margin-top:8px">A receipt is issued for each payment. The reservation deposit is applied toward the total contract value.${ext?'':' All discounts apply exclusively to events held at Cardona Hall.'}</p>
   <p style="font-size:12px;color:#CC2200;margin-top:6px;font-weight:600">Late Payment Surcharge: The outstanding balance must be paid no later than 15 days before the event. Payments received after that date accrue a surcharge of 1.5% per month on the outstanding balance, with a minimum charge of $50 per month.</p>
 </div>
 
