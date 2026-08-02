@@ -2297,7 +2297,12 @@ function generatePDF(){
   try{discDetail=JSON.parse(buildDiscountDetail());}catch(e){}
 
   const etLabels={wedding:'A Wedding Celebration',quinceanera:'A Quinceañera Celebration',sweet16:'A Sweet 16 Celebration',baby_shower:'A Baby Shower',babyshower:'A Baby Shower',kids_party:'A Kids Party',kidsparty:'A Kids Party',birthday:'A Birthday Celebration',special_social:'A Special Celebration',special_corporate:'A Corporate Event'};
-  const etLabel=etLabels[eventType]||'A Celebration';
+  let etLabel=etLabels[eventType]||'A Celebration';
+  // Bug 2: for special/corporate, append the specified sub-type → "A Corporate Event — Graduation"
+  const _subType=(document.getElementById('eventSubType')?.value||'').trim();
+  if((eventType==='special_social'||eventType==='special_corporate')&&_subType){
+    etLabel=etLabel+' — '+_subType;
+  }
 
   const vTier=document.getElementById('venueTier').value;
   const cLine=document.getElementById('cateringLine').value;
@@ -2509,6 +2514,9 @@ html,body{background:#fff;font-family:'Montserrat',sans-serif;color:#1a1a1a;}
 .tot-l{font-family:'Cormorant Garamond',serif;font-size:16px;color:#ccc;letter-spacing:3px;text-transform:uppercase;}
 .dep{font-size:11px;margin-top:6px;font-weight:500;}
 .tot-a{font-family:'Cormorant Garamond',serif;font-size:44px;font-weight:700;color:#C9A84C;}
+.spec-cond{padding:8px 44px 4px;}
+.spec-cond-t{font-size:9px;letter-spacing:2px;color:#A67C1E;text-transform:uppercase;font-weight:700;margin-bottom:3px;}
+.spec-cond-b{font-size:10px;color:#555;line-height:1.4;}
 .foot{padding:6px 40px 2px;text-align:center;}
 .foot-l{font-size:9px;color:#999;letter-spacing:2px;}.foot-p{margin-top:6px;font-size:12px;}
 @media print{*{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;}}
@@ -2531,6 +2539,7 @@ html,body{background:#fff;font-family:'Montserrat',sans-serif;color:#1a1a1a;}
   </div>
 </div>
 <div class="total"><div><div class="tot-l">Total Investment</div>${depNote}</div><div class="tot-a">${fmtPDFMoney(finalTotal)}</div></div>
+${(function(){const sc=(document.getElementById('specialConditions')?.value||'').trim();return sc?`<div class="spec-cond"><div class="spec-cond-t">Special Conditions</div><div class="spec-cond-b">${sc.replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div></div>`:'';})()}
 <div class="foot"><div class="foot-l">CARDONAHALL.COM · +1 862-232-0117 · 72 HOOVER AVE, PASSAIC NJ</div>
   <div class="foot-p"><span class="p-pi">Pi</span><span class="p-la">la</span><span class="p-b">b</span><span class="p-dot">.</span><span style="color:#999"> Productions</span></div></div>
 </div></div></body></html>`;
