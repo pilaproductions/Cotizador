@@ -738,6 +738,30 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
 const SCRIPT_URL='https://script.google.com/macros/s/AKfycbyUAKZyuX8xcdSTXNkJoagPlaW4fumRWnrDuuARiMntpS76sx_6I-6TYxUpjkhjVIADAQ/exec';
 const ET_LABELS={wedding:'Wedding',quinceanera:'Quinceañera',sweet16:'Sweet 16',baby_shower:'Baby Shower',kids_party:'Kids Party',birthday:'Birthday Party',special_social:'Special Event',special_corporate:'Corporate',bautizo:'Bautizo',graduacion:'Graduation',primera_comunion:'Primera Comunión'};
 let allEvents=[],currentEvent=null,currentPayments=[],currentServices=[];
+// Business_Rules cache (loaded lazily). businessRule(group,key,fallback) reads a value.
+let _businessRulesCache=null;
+async function loadBusinessRules(){
+  if(_businessRulesCache)return _businessRulesCache;
+  try{
+    const r=await fetch(SCRIPT_URL+'?sheet=Business_Rules&nocache='+Date.now());
+    const d=await r.json();
+    _businessRulesCache=Array.isArray(d)?d:[];
+  }catch(e){_businessRulesCache=[];}
+  return _businessRulesCache;
+}
+function businessRule(group,key,fallback){
+  const rows=_businessRulesCache||[];
+  const hit=rows.find(x=>String(x['Rule_Group']||'').toLowerCase()===String(group).toLowerCase()
+    && String(x['Rule_Key']||'').toLowerCase()===String(key).toLowerCase()
+    && String(x['Active']||'Y').toUpperCase()!=='N');
+  return hit?hit['Rule_Value']:fallback;
+}
+// True when the event happens outside Cardona Hall (services-only, Pilab entity).
+function isExternalEvent(){
+  const loc=String((currentEvent&&currentEvent['Event Location'])||'').toLowerCase();
+  const vt=String((currentEvent&&currentEvent['Venue Tier'])||'').toUpperCase();
+  return loc==='external'||vt==='EXTERNAL';
+}
 
 // ── CATERING DATA (lazy + cached) ────────────────────────────────────────────
 // Loaded only when a catering document (#9/#10) is generated AND the event has
@@ -1099,6 +1123,7 @@ function renderList(){
 async function openEvent(resNum){
   currentEvent=allEvents.find(e=>e['RES#']===resNum);
   if(!currentEvent)return;
+  loadBusinessRules();
   document.getElementById('detailRes').textContent=currentEvent['RES#'];
   document.getElementById('detailClient').textContent=currentEvent['Client Name']||'—';
   const status=(currentEvent['Status']||currentEvent['Event Status']||'reserved').toLowerCase();
@@ -3198,13 +3223,16 @@ function generateClientContract(){
   const win=docOpen(); if(!win)return;
   const e=currentEvent;
   const copy=isCopy('contract_client');
-  const ENTITY=legalEntity('contract_client'); // CARDONA HALL LLC
+  const ext=isExternalEvent();
+  // Internal (Cardona Hall) → CARDONA HALL LLC. External (services only) → PILAB SOLUTIONS LLC.
+  const ENTITY=ext?'PILAB SOLUTIONS LLC':legalEntity('contract_client');
+  const ADDR=ext?(e['External Venue Address']||'________________________ (external venue address)'):'72 Hoover Ave, Passaic, NJ 07055';
+  const secDeposit=parseFloat(businessRule('security_deposit','amount',500))||500;
   const total=getEventTotal();
   const received=getTotalReceived();
   const balance=total-received;
   const fmtBal=(received<=0)?'<span style="color:#CC2200;font-weight:600">'+fmtM(total)+' (full amount — no deposit yet)</span>':'<span style="color:'+(balance<=0?'#1E5C2E':'#CC2200')+';font-weight:600">'+fmtM(balance)+'</span>';
   const fmtDep=(received<=0)?'<span style="color:#999">$0 — pending</span>':'<span style="color:#1E5C2E;font-weight:600">'+fmtM(received)+'</span>';
-  // Payment methods: deposit row shows the REAL method(s) used; balance row shows accepted methods.
   const ACCEPTED_METHODS='Cash / Zelle / Check / Card';
   const paidMethods=[...new Set((currentPayments||[]).map(p=>String(p['Method']||'').trim()).filter(Boolean))];
   const depMethod=(received<=0)?'—':(paidMethods.length?paidMethods.join(', '):ACCEPTED_METHODS);
@@ -3214,15 +3242,15 @@ function generateClientContract(){
 <style>${baseStyles(PALETTES.venue)}</style></head><body>
 ${copy?copyWatermark():''}
 <div class="doc">
-${docPageOpen('CARDONA HALL','Service Agreement',`${e['COT#']} / ${e['RES#']}`)}
-${docHeader('Service Agreement',`${e['COT#']} / ${e['RES#']}`,{mode:'cardona',sub:'Client Service Agreement'})}
+${docPageOpen(ext?'PILAB PRODUCTIONS':'CARDONA HALL','Service Agreement',`${e['COT#']} / ${e['RES#']}`)}
+${docHeader('Service Agreement',`${e['COT#']} / ${e['RES#']}`,ext?{mode:'pilab',sub:'Client Service Agreement — External Event'}:{mode:'cardona',sub:'Client Service Agreement'})}
 <div class="notice-bar">This contract must be signed and returned within 24 hours of issuance. After this period, the reserved date will be released and any deposit paid will be forfeited.</div>
 
 <div class="sec">
   <div class="sec-title">1. Parties</div>
   <p style="font-size:12.5px;color:#555;margin-bottom:10px">This Service Agreement is entered into on ${docToday()}, between:</p>
   <div class="field-grid">
-    <div class="field-item"><div class="field-lbl">Service Provider (Contracting Party)</div><div class="field-val">${ENTITY} — 72 Hoover Ave, Passaic, NJ 07055</div></div>
+    <div class="field-item"><div class="field-lbl">Service Provider (Contracting Party)</div><div class="field-val">${ENTITY}${ext?'':' — 72 Hoover Ave, Passaic, NJ 07055'}</div></div>
     <div class="field-item"><div class="field-lbl">Client Name</div><div class="field-val">${e['Client Name']||'—'}</div></div>
     <div class="field-item"><div class="field-lbl">Client Phone</div><div class="field-val">${e['Phone']||'—'}</div></div>
     <div class="field-item"><div class="field-lbl">Client Email</div><div class="field-val">${e['Email']||'—'}</div></div>
@@ -3236,7 +3264,7 @@ ${docHeader('Service Agreement',`${e['COT#']} / ${e['RES#']}`,{mode:'cardona',su
     <div class="field-item"><div class="field-lbl">Event Date</div><div class="field-val">${fmtDateDoc(e['Event Date'])}</div></div>
     <div class="field-item"><div class="field-lbl">Event Schedule</div><div class="field-val">${scheduleInfo()}</div></div>
     <div class="field-item"><div class="field-lbl">Guests</div><div class="field-val">${e['Guests']||'—'} adults${(parseInt(e['Children'])||0)>0?' · '+e['Children']+' children':''} · ${e['Tables']||'—'} tables</div></div>
-    <div class="field-item"><div class="field-lbl">Venue</div><div class="field-val">72 Hoover Ave, Passaic, NJ 07055 — Cardona Hall</div></div>
+    <div class="field-item"><div class="field-lbl">${ext?'Event Location (external venue)':'Venue'}</div><div class="field-val">${ext?ADDR:'72 Hoover Ave, Passaic, NJ 07055 — Cardona Hall'}</div></div>
   </div>
 </div>
 
@@ -3263,20 +3291,24 @@ ${docHeader('Service Agreement',`${e['COT#']} / ${e['RES#']}`,{mode:'cardona',su
   <table class="services-table">
     <thead><tr><th>Concept</th><th>Amount</th><th>Status / Due Date</th><th>Method</th></tr></thead>
     <tbody>
-      <tr><td style="font-weight:600">Deposit received to date</td><td>${fmtDep}</td><td>Reservation confirmed</td><td>${depMethod}</td></tr>
-      <tr><td style="font-weight:600">Outstanding balance</td><td>${fmtBal}</td><td>Due 8 days before event</td><td>${ACCEPTED_METHODS}</td></tr>
+      <tr><td style="font-weight:600">Reservation deposit received to date</td><td>${fmtDep}</td><td>Applied to total — reservation confirmed</td><td>${depMethod}</td></tr>
+      <tr><td style="font-weight:600">Outstanding balance</td><td>${fmtBal}</td><td>Due 15 days before event</td><td>${ACCEPTED_METHODS}</td></tr>
       <tr class="total-row"><td>TOTAL CONTRACT VALUE</td><td>${fmtM(total)}</td><td colspan="2"></td></tr>
     </tbody>
   </table>
-  <p style="font-size:12px;color:#777;margin-top:8px">A receipt will be issued for each payment. All discounts apply exclusively to events held at Cardona Hall.</p>
-  <p style="font-size:12px;color:#CC2200;margin-top:6px;font-weight:600">Late Payment Penalty: Payments not received by the agreed due date will accrue interest at 1.5% per month on the outstanding balance, with a minimum charge of $50 per month.</p>
+  <p style="font-size:12px;color:#777;margin-top:8px">The reservation deposit is applied toward the total contract value. A receipt will be issued for each payment.${ext?'':' All discounts apply exclusively to events held at Cardona Hall.'}</p>
+  <p style="font-size:12px;color:#CC2200;margin-top:6px;font-weight:600">Late Payment Surcharge: The outstanding balance must be paid no later than 15 days before the event. Payments received after that date accrue a surcharge of 1.5% per month on the outstanding balance, with a minimum charge of $50 per month.</p>
 </div>
 
-<div class="sec">
+${ext?'':`<div class="sec">
   <div class="sec-title">6. Security Deposit</div>
-  <div class="info-box">A refundable security deposit is required no later than 8 days before the event.</div>
-  <p style="font-size:12.5px;color:#555;margin:8px 0 6px">Refunded within 7 business days after the event if no damage, no penalty fees, and all terms met. If damage or penalties exceed the deposit amount, the client is responsible for the balance within 7 days.</p>
-</div>
+  <div class="info-box">A <strong>refundable Security Deposit of ${fmtM(secDeposit)}</strong> is required no later than 15 days before the event. This is separate from and additional to the Reservation Deposit and the Total Contract Value.</div>
+  <ul class="bullet-list" style="margin-top:8px">
+    <li>The Reservation Deposit (Section 5) is a partial payment applied to the total. The Security Deposit is a damage guarantee, held separately and not applied to the balance.</li>
+    <li>Refunded within 7 business days after the event if no damage, no penalty fees, and all terms are met.</li>
+    <li>If damage or penalties exceed the deposit amount, the Client is responsible for the balance within 7 days.</li>
+  </ul>
+</div>`}
 
 <div class="sec">
   <div class="sec-title">7. Cancellation Policy</div>
@@ -3319,7 +3351,7 @@ ${docHeader('Service Agreement',`${e['COT#']} / ${e['RES#']}`,{mode:'cardona',su
   </ul>
 </div>
 
-<div class="sec">
+${ext?'':`<div class="sec">
   <div class="sec-title">10. Alcohol & Beverage Policy (BYOB)</div>
   <div class="warn-box">Cardona Hall does not sell alcohol. Under New Jersey law (N.J.S.A. 2C:33-27), clients may bring <strong>wine and beer only</strong> — no spirits or hard liquor are permitted on the premises.</div>
   <ul class="bullet-list">
@@ -3336,9 +3368,19 @@ ${docHeader('Service Agreement',`${e['COT#']} / ${e['RES#']}`,{mode:'cardona',su
   <ul class="bullet-list">
     <li>No photographs may be taken on or staged at external tables not contracted as part of the event.</li>
     <li>No photographs or prints may be hung, taped, or mounted on the venue walls at any time.</li>
-    <li>These rules apply to all photographers, whether contracted through Pilab Productions or brought by the client.</li>
+    <li>These rules apply to all photographers, whether contracted through ${ENTITY} or brought by the client.</li>
   </ul>
-</div>
+</div>`}
+
+${ext?`<div class="sec">
+  <div class="sec-title">10. External Venue Coordination</div>
+  <ul class="bullet-list">
+    <li>The Client guarantees ${ENTITY} timely access to the external venue for setup and breakdown, including sufficient load-in/load-out time for decor, sound, and equipment.</li>
+    <li>The Client is responsible for ensuring the external venue provides adequate technical conditions — electrical power for sound and lighting, usable space, and any required permits or venue authorizations.</li>
+    <li>${ENTITY} is not responsible for the conditions, permits, safety, or any damage of the external venue. Responsibility for the venue itself remains with the Client and/or the venue operator.</li>
+    <li>If the external venue denies or delays access, or lacks the agreed technical conditions, ${ENTITY} is not liable for any resulting limitation of services, and no refund applies for services prevented by such conditions.</li>
+  </ul>
+</div>`:''}
 
 <div class="sec">
   <div class="sec-title">12. External Vendor Policy</div>
@@ -3354,9 +3396,11 @@ ${docHeader('Service Agreement',`${e['COT#']} / ${e['RES#']}`,{mode:'cardona',su
 <div class="sec">
   <div class="sec-title">13. Conduct & Liability</div>
   <ul class="bullet-list">
-    <li>The Client is responsible for the conduct of all guests. Cardona Hall may terminate the event for aggressive behavior or policy violations — no refund will be issued.</li>
+    ${ext
+      ? `<li>The Client is responsible for the conduct of all guests at the event. ${ENTITY} may withdraw its staff and services in case of aggressive behavior or safety risk toward its personnel — no refund will be issued for services already rendered.</li>`
+      : `<li>The Client is responsible for the conduct of all guests. Cardona Hall may terminate the event for aggressive behavior or policy violations — no refund will be issued.</li>`}
     <li>The Client shall indemnify, defend, and hold harmless ${ENTITY} and its staff from any claims, damages, or expenses arising from the event.</li>
-    <li>Cardona Hall's liability to the Client shall not exceed the total amount paid under this Agreement.</li>
+    <li>${ENTITY}'s liability to the Client shall not exceed the total amount paid under this Agreement.</li>
   </ul>
 </div>
 
@@ -3372,7 +3416,7 @@ ${docHeader('Service Agreement',`${e['COT#']} / ${e['RES#']}`,{mode:'cardona',su
 
 <div class="sec">
   <div class="sec-title">15. Force Majeure</div>
-  <p style="font-size:12.5px;color:#555">Neither party shall be liable for failure to perform due to circumstances beyond their reasonable control (natural disasters, government restrictions, public health emergencies, building damage). If Cardona Hall cancels due to force majeure, all payments will be refunded within 14 business days. Force majeure claims by the client must be supported by written documentation (medical certificate, death certificate, official report).</p>
+  <p style="font-size:12.5px;color:#555">Neither party shall be liable for failure to perform due to circumstances beyond their reasonable control (natural disasters, government restrictions, public health emergencies, building damage). If ${ENTITY} cancels due to force majeure, all payments will be refunded within 14 business days. Force majeure claims by the client must be supported by written documentation (medical certificate, death certificate, official report).</p>
 </div>
 
 <div class="sec">
