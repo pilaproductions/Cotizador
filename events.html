@@ -2344,8 +2344,8 @@ const DOC_DEFINITIONS=[
   {id:'menu_selection', name:'Menu Selection Form',  sub:'Client selects dishes based on their catering plan', group:'catering', num:9,  condition:()=>hasCatering(), disabledReason:'No catering line contracted', icon:'📋', canGenerate:true},
   {id:'catering_beo',   name:'Catering Order (BEO)', sub:'Food & beverage order — internal',                   group:'catering', num:10, condition:()=>hasCatering(), disabledReason:'No catering line contracted', internal:true, icon:'🍽️', canGenerate:true},
   // ── DECOR ───────────────────────────────────────────────────────────────────
-  {id:'contract_decor',    name:'Decor Contract',     sub:'Decoration service agreement (internal/external)', group:'decor', num:11, condition:()=>hasDecor(), disabledReason:'No decor contracted', icon:'🎨', canGenerate:true},
-  {id:'decor_requirements',name:'Decor Requirements', sub:'Decoration specifications by plan',                group:'decor', num:12, condition:()=>hasDecor(), disabledReason:'No decor contracted', icon:'🎀', canGenerate:true},
+  // Decor Contract is rendered dynamically per provider group (see renderDocuments).
+  {id:'decor_requirements',name:'Decor Requirements', sub:'Decoration specifications by division & provider', group:'decor', num:12, condition:()=>hasDecor(), disabledReason:'No decor contracted', icon:'🎀', canGenerate:true},
   {id:'sitting_chart',     name:'Sitting Chart',      sub:'Table layout & seating plan',                     group:'decor', num:13, condition:()=>hasDecor(), disabledReason:'No decor contracted', icon:'🪑', canGenerate:true},
   // ── ENTERTAINMENT ───────────────────────────────────────────────────────────
   {id:'contract_entertainment',name:'Entertainment Contract',sub:'DJ / performer service agreement (internal/external)', group:'ent', num:14, condition:()=>hasEntertainment(), disabledReason:'No entertainment contracted', icon:'🎵', canGenerate:true},
@@ -2436,6 +2436,29 @@ function renderDocuments(){
       </div>
     </div>`);
   });
+
+  // Decor Contracts — one card per provider group (provider + type). Internal Staff excluded.
+  if(hasDecor()){
+    const dgroups=providerContractGroups('Decor');
+    if(!dgroups.length){
+      groups.decor.unshift(`<div class="doc-card" style="opacity:0.5;">
+        <div class="doc-icon" style="filter:grayscale(1)">🎨</div>
+        <div class="doc-info"><div class="doc-name" style="color:#999">Decor Contract</div>
+        <div class="doc-sub" style="color:#BBB">Assign a provider (Internal Vendor / External / Client) to a decor role first</div></div>
+        <div class="doc-status"><button class="btn btn-outline btn-sm" disabled style="opacity:0.5;cursor:not-allowed">⬇ Generate</button></div>
+      </div>`);
+    } else {
+      dgroups.slice().reverse().forEach(g=>{
+        const gen=getDocVersionCount('contract_decor_'+g.key)>0;
+        groups.decor.unshift(`<div class="doc-card">
+          <div class="doc-icon">🎨</div>
+          <div class="doc-info"><div class="doc-name">Decor Contract — ${g.provName}${providerBadge(g.provType)}</div>
+          <div class="doc-sub">${g.rows.map(r=>r['Item']||'').filter(Boolean).join(' · ')||'Decor service'}</div></div>
+          <div class="doc-status"><button class="btn btn-outline btn-sm" onclick="generateDecorContractCard('${g.key}')">⬇ ${gen?'Copy':'Generate'}</button></div>
+        </div>`);
+      });
+    }
+  }
 
   DOC_GROUP_META.forEach(g=>{
     const el=document.getElementById(g.id);
@@ -3711,10 +3734,77 @@ ${docFooter('Productions · Entertainment & Production')}
 }
 
 // ── 4. DECOR CONTRACT ─────────────────────────────────────────────────────────
-function generateDecorContract(){
+// Groups a division's assigned roles into contract units: one per (provider + type).
+// Internal Staff is excluded (no contract). Returns [{key,provName,provType,divisions[]}].
+function providerContractGroups(division){
+  const rows=(currentServices||[]).filter(s=>String(s['Division']||'').toLowerCase()===division.toLowerCase());
+  const map={};
+  rows.forEach(s=>{
+    const type=normProviderType(s['Provider Type']);
+    if(type==='Internal Staff')return;              // Staff → no contract
+    const name=String(s['Provider Name']||'').trim();
+    if(!name)return;                                // needs an assigned provider
+    const key=name.toLowerCase()+'|'+type;
+    if(!map[key])map[key]={key,provName:name,provType:type,rows:[]};
+    map[key].rows.push(s);
+  });
+  return Object.values(map);
+}
+
+// One Decor contract per provider group. groupKey selects which provider.
+function generateDecorContract(groupKey){
+  const groups=providerContractGroups('Decor');
+  if(!groups.length){alert('No decor provider with a contract type assigned yet.');return;}
+  const g=groupKey?groups.find(x=>x.key===groupKey):groups[0];
+  if(!g){alert('Provider group not found.');return;}
   const win=docOpen(); if(!win)return;
   const e=currentEvent;
   const ACCENT='#D4A853';
+  const t=g.provType;                               // Internal Vendor | External Vendor | Client-Handled
+  const isClient=(t==='Client-Handled');
+  const isExternal=(t==='External Vendor');
+  const isInternalVendor=(t==='Internal Vendor');
+  const otherParty=isClient?(e['Client Name']||'Client'):g.provName;
+  const partyRole=isClient?'Client (self-provided decor)':'Provider';
+  // rows → scope table (divisions this provider covers)
+  const scopeRows=g.rows.map(r=>`<tr><td style="font-weight:600">${r['Item']||'—'}</td><td>${r['Description']||r['Notes']||'Per Decor Requirements'}</td><td style="text-align:right">___________</td></tr>`).join('');
+
+  // Conditional clause blocks
+  const insuranceBlock=isExternal
+    ? `<div class="sec"><div class="sec-title">6. Insurance (COI Required)</div><ul class="bullet-list">
+        <li>Provider must submit a Certificate of Insurance — minimum <strong>$500,000 General Liability</strong> — naming Pilab Productions and Cardona Hall LLC as Additional Insured, no later than 14 days before the event.</li>
+        <li>Provider will not be permitted to enter the premises without a valid COI on file.</li></ul></div>`
+    : `<div class="sec"><div class="sec-title">6. Insurance</div><ul class="bullet-list">
+        <li>${isClient?'As self-provided decor within the venue, no third-party Certificate of Insurance is required; the Client assumes full responsibility under the signed Client Contract and Venue Rules.':'As an internally engaged vendor, no separate Certificate of Insurance is required; coverage is handled under Pilab Productions.'}</li></ul></div>`;
+
+  const paymentBlock=isClient
+    ? ''  // Client-Handled → no payment section
+    : isExternal
+      ? `<div class="sec"><div class="sec-title">4. Payment Terms</div><ul class="bullet-list">
+          <li>Payment for this service is arranged <strong>directly between the Client and the Provider</strong>.</li>
+          <li>Pilab Productions does not manage, collect, advance, or guarantee payment to the Provider for this engagement.</li></ul></div>`
+      : `<div class="sec"><div class="sec-title">4. Payment Terms</div>
+          <table class="services-table"><thead><tr><th>Installment</th><th>Amount</th><th>Due Date</th><th>Method</th></tr></thead>
+          <tbody>
+            <tr><td>Advance (if requested)</td><td>_____________</td><td>Upon provider request</td><td>Cash / Zelle / Check</td></tr>
+            <tr><td>Balance</td><td>_____________</td><td>Event completion or upon request</td><td>Cash / Zelle / Check</td></tr>
+          </tbody></table></div>`;
+
+  const penaltyBlock=isClient
+    ? `<div class="sec"><div class="sec-title">5. Responsibility (Self-Provided)</div><ul class="bullet-list">
+        <li>The Client is solely responsible for the setup, quality, safety, and timely removal of the self-provided decor.</li>
+        <li>The Client holds Pilab Productions and Cardona Hall LLC harmless for any outcome, damage, or delay arising from the self-provided decor.</li></ul></div>`
+    : `<div class="sec"><div class="sec-title">5. Non-Performance &amp; Penalties</div><ul class="bullet-list">
+        <li>Provider must refund 100% of any advance payment within 24 hours of the scheduled event.</li>
+        <li>Provider owes Pilab Productions a penalty equal to <strong>1.5x the total agreed contract value</strong>.</li>
+        <li>Provider is responsible for all costs to obtain emergency replacement services.</li></ul></div>`;
+
+  const contractorBlock=isClient
+    ? ''  // client is not a contractor
+    : `<li>Provider is an independent contractor — responsible for own taxes, insurance, and staff.</li>`;
+
+  const typeBadgeHtml=`<span style="font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:2px 10px;border-radius:3px;background:#1A1200;color:${ACCENT};">${t}</span>`;
+
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>${baseStyles(ACCENT)}
@@ -3725,19 +3815,19 @@ function generateDecorContract(){
 .sec-title{color:#7A5C10;border-bottom:2px solid ${ACCENT};}
 .info-box{background:#FBF5E6;border-left:4px solid ${ACCENT};border-top:1px solid ${ACCENT};border-bottom:1px solid ${ACCENT};}
 .services-table th{background:#1A1200;color:${ACCENT};}
-.cancel-table th{background:#1A1200;color:${ACCENT};}
 .footer-bar{border-top:2px solid ${ACCENT};}
 </style></head><body><div class="doc">
 ${docHeader('Decor Service Contract',`${e['RES#']}-DEC`,'Design & Decor — Pilab Productions',ACCENT)}
 
 <div class="sec">
   <div class="sec-title">1. Parties</div>
+  <div style="margin-bottom:10px">${typeBadgeHtml}</div>
   <div class="field-grid">
     <div class="field-item"><div class="field-lbl">Contracting Party</div><div class="field-val">Pilab Productions / Cardona Hall LLC</div></div>
-    <div class="field-item"><div class="field-lbl">Provider Name</div><div class="field-val">${mLine(provField('Decor'),'write provider name')}</div></div>
-    <div class="field-item"><div class="field-lbl">Provider Category</div><div class="field-val">Design & Decor — Decorator / Florist</div></div>
-    <div class="field-item"><div class="field-lbl">Provider Phone</div><div class="field-val">${mLine('','write phone')}</div></div>
-    <div class="field-item"><div class="field-lbl">Provider Email</div><div class="field-val">${mLine('','write email')}</div></div>
+    <div class="field-item"><div class="field-lbl">${partyRole}</div><div class="field-val">${mLine(otherParty,'write name')}</div></div>
+    <div class="field-item"><div class="field-lbl">Provider Type</div><div class="field-val">${t}</div></div>
+    <div class="field-item"><div class="field-lbl">Phone</div><div class="field-val">${mLine('','write phone')}</div></div>
+    <div class="field-item"><div class="field-lbl">Email</div><div class="field-val">${mLine('','write email')}</div></div>
     <div class="field-item"><div class="field-lbl">Business / Trade Name</div><div class="field-val">${mLine('','write business name')}</div></div>
   </div>
 </div>
@@ -3750,90 +3840,51 @@ ${docHeader('Decor Service Contract',`${e['RES#']}-DEC`,'Design & Decor — Pila
     <div class="field-item"><div class="field-lbl">Guests / Tables</div><div class="field-val">${e['Guests']||'—'} guests · ${e['Tables']||'—'} tables</div></div>
     <div class="field-item"><div class="field-lbl">Reservation #</div><div class="field-val">${e['RES#']||'—'}</div></div>
     <div class="field-item"><div class="field-lbl">Setup Access</div><div class="field-val">___________ (3h before event)</div></div>
-    <div class="field-item"><div class="field-lbl">Decor Plan</div><div class="field-val">${e['Decor Plan']||'—'} · ${e['Decor CP Tier']||''} · ${e['Decor CP Type']||''}</div></div>
+    <div class="field-item"><div class="field-lbl">Decor Plan</div><div class="field-val">${e['Decor Plan']||'—'}</div></div>
   </div>
 </div>
 
 <div class="sec">
-  <div class="sec-title">3. Scope of Services</div>
+  <div class="sec-title">3. Scope of Services${g.rows.length>1?' — Divisions Covered':''}</div>
   <table class="services-table">
-    <thead><tr><th>Item</th><th>Description</th><th style="text-align:right">Amount</th></tr></thead>
+    <thead><tr><th>Division / Item</th><th>Description</th><th style="text-align:right">Amount</th></tr></thead>
     <tbody>
-      <tr><td style="font-weight:600">Honor Table / Focal Point</td><td>${e['Decor Honor Tier']||'—'} · ${e['Decor Honor Type']||''}</td><td style="text-align:right">___________</td></tr>
-      <tr><td style="font-weight:600">Centerpieces</td><td>${e['Decor CP Tier']||'—'} · ${e['Decor CP Type']||''} · ${e['Tables']||'—'} tables</td><td style="text-align:right">___________</td></tr>
-      <tr><td style="font-weight:600">Additional Elements</td><td>Per Decor Requirements document</td><td style="text-align:right">___________</td></tr>
-      <tr><td style="font-weight:600">Setup & Breakdown</td><td>Included in service</td><td style="text-align:right">Included</td></tr>
+      ${scopeRows}
       <tr class="total-row"><td colspan="2">TOTAL AGREED AMOUNT</td><td style="text-align:right">${fmtM(e['Price Decor'])}</td></tr>
     </tbody>
   </table>
   <ul class="bullet-list" style="margin-top:10px">
     <li>All items delivered must exactly match what is described and agreed. Substitutions require prior written approval from Pilab Productions.</li>
-    <li>Balloons are a service — Provider is responsible for inflation, installation, and structural integrity throughout the event.</li>
     <li>Provider must not attach any elements to walls, ceilings, or light fixtures without prior written approval.</li>
     <li>All decoration elements must be removed within 90 minutes of event conclusion.</li>
   </ul>
 </div>
 
 <div class="sec">
-  <div class="sec-title">3a. Substitution Policy</div>
+  <div class="sec-title">3a. Substitution &amp; Rental Items</div>
   <ul class="bullet-list">
-    <li>Provider must notify Pilab Productions of any necessary substitution no later than <strong>48 hours before the event</strong>.</li>
-    <li>Approved substitutions must maintain the agreed color palette and use materials of equivalent or greater value.</li>
-    <li>Unauthorized substitutions on the event day constitute partial non-performance under Section 5.</li>
+    <li>Substitutions must be notified no later than <strong>48 hours before the event</strong> and maintain the agreed palette with materials of equivalent or greater value.</li>
+    <li>Non-consumable items (vases, bases, stands, arches) remain the property of the ${isClient?'Client':'Provider'} as rental items.</li>
   </ul>
 </div>
 
-<div class="sec">
-  <div class="sec-title">3b. Rental Items & Damage</div>
-  <ul class="bullet-list">
-    <li>Non-consumable items (vases, bases, stands, arches) are the property of the Provider and are considered rental items.</li>
-    <li>Damage to Provider's rental items caused by guests or staff will be assessed and invoiced to Pilab Productions, who reserves the right to recover costs from the client's security deposit.</li>
-    <li>Pilab Productions is not responsible for items damaged due to Provider's own setup failure or negligence.</li>
-  </ul>
-</div>
+${paymentBlock}
+${penaltyBlock}
+${insuranceBlock}
 
 <div class="sec">
-  <div class="sec-title">3c. Price Adjustment</div>
+  <div class="sec-title">7. Venue Rules · 8. Liability · 9. Force Majeure</div>
   <ul class="bullet-list">
-    <li>Prices are locked at signing. Adjustments exceeding 10% of the total require written approval from Pilab Productions at least 30 days before the event.</li>
-    <li>Unapproved price increases will not be honored.</li>
-  </ul>
-</div>
-
-<div class="sec">
-  <div class="sec-title">4. Payment Terms</div>
-  <table class="services-table">
-    <thead><tr><th>Installment</th><th>Amount</th><th>Due Date</th><th>Method</th></tr></thead>
-    <tbody>
-      <tr><td>Advance (if requested)</td><td>_____________</td><td>Upon provider request</td><td>Cash / Zelle / Check</td></tr>
-      <tr><td>Balance</td><td>_____________</td><td>Event completion or upon request</td><td>Cash / Zelle / Check</td></tr>
-    </tbody>
-  </table>
-</div>
-
-<div class="sec">
-  <div class="sec-title">5. Non-Performance & Penalties</div>
-  <ul class="bullet-list">
-    <li>Provider must refund 100% of any advance payment within 24 hours of the scheduled event.</li>
-    <li>Provider owes Pilab Productions a penalty equal to <strong>1.5x the total agreed contract value</strong>.</li>
-    <li>Provider is responsible for all costs to obtain emergency replacement services.</li>
-  </ul>
-</div>
-
-<div class="sec">
-  <div class="sec-title">6. Insurance — 7. Venue Rules — 8. Liability — 9. Independent Contractor — 10. Force Majeure</div>
-  <ul class="bullet-list">
-    <li>COI minimum $500,000 GL required 14 days before event. Pilab Productions named as Additional Insured.</li>
     <li>Setup access 3 hours before event. All materials removed within 90 minutes of conclusion.</li>
-    <li>Provider indemnifies and holds harmless Pilab Productions and Cardona Hall LLC from any claims.</li>
-    <li>Provider is an independent contractor — responsible for own taxes, insurance, and staff.</li>
+    <li>${isClient?'The Client':'The Provider'} indemnifies and holds harmless Pilab Productions and Cardona Hall LLC from any claims arising from this decor.</li>
+    ${contractorBlock}
     <li>Force majeure: both parties work in good faith to reschedule. Advances returned if no reschedule within 90 days.</li>
   </ul>
 </div>
 
 <div class="sec">
   <div class="sec-title">Signatures</div>
-  ${sigBlock('Authorized — James Cardona / Pilab Productions','James Cardona · Pilab Productions','Provider Signature')}
+  ${sigBlock('Authorized — James Cardona / Pilab Productions','James Cardona · Pilab Productions',isClient?'Client Signature':'Provider Signature')}
 </div>
 ${docFooter('Productions · Design & Decor')}
 </div>
@@ -5975,6 +6026,12 @@ ${docPageClose()}
 
 function generateAmendmentFromDoc(idx){
   generateAmendment(idx);
+}
+// Per-provider Decor contract: generate + log under a provider-specific doc id.
+function generateDecorContractCard(groupKey){
+  generateDecorContract(groupKey);
+  const g=providerContractGroups('Decor').find(x=>x.key===groupKey);
+  logDocGenerated('contract_decor_'+groupKey, g?(g.provName+' · '+g.provType+' · '+g.rows.map(r=>r['Item']).filter(Boolean).join(', ')):'');
 }
 
 window.onload=()=>loadEvents();
