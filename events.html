@@ -3245,6 +3245,8 @@ function generateClientContract(){
   const ENTITY=ext?'PILAB SOLUTIONS LLC':legalEntity('contract_client');
   const ADDR=ext?(e['External Venue Address']||'________________________ (external venue address)'):'72 Hoover Ave, Passaic, NJ 07055';
   const secDeposit=parseFloat(businessRule('security_deposit','amount',500))||500;
+  const lateFee158=parseFloat(businessRule('late_payment','fee_15_8',100))||100;
+  const lateFeeUnder8=parseFloat(businessRule('late_payment','fee_under8',200))||200;
   // Contract = initial agreement at reservation. Uses Final Total (no post-contract
   // extra income; reschedule/extra charges live in their own documents/amendments).
   const total=parseFloat(e['Final Total'])||0;
@@ -3325,7 +3327,7 @@ ${docHeader('Service Agreement',`${e['COT#']} / ${e['RES#']}`,ext?{mode:'pilab',
     </tbody>
   </table>
   <p style="font-size:12px;color:#777;margin-top:8px">A receipt is issued for each payment. The reservation deposit is applied toward the total contract value.${ext?'':' All discounts apply exclusively to events held at Cardona Hall.'}</p>
-  <p style="font-size:12px;color:#CC2200;margin-top:6px;font-weight:600">Late Payment Surcharge: The outstanding balance must be paid no later than 15 days before the event. Payments received after that date accrue a surcharge of 1.5% per month on the outstanding balance, with a minimum charge of $50 per month.</p>
+  <p style="font-size:12px;color:#CC2200;margin-top:6px;font-weight:600">Late Payment Fee: The outstanding balance must be paid no later than 15 days before the event. If paid between 15 and 8 days before the event, a late fee of ${fmtM(lateFee158)} applies. If paid with less than 8 days before the event or on the event day, a late fee of ${fmtM(lateFeeUnder8)} applies.</p>
 </div>
 
 ${ext?'':`<div class="sec">
