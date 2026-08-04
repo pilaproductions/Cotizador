@@ -697,12 +697,20 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
         <div id="dcNewDay" style="font-size:11px;color:#888;margin-top:5px;"></div>
       </div>
       <div style="margin-bottom:14px;">
-        <label style="font-size:11px;color:#555;font-weight:600;display:block;margin-bottom:5px;">Date Change Fee (paid now)</label>
+        <label style="font-size:11px;color:#555;font-weight:600;display:block;margin-bottom:5px;">Date Change Fee (charge — added to event total)</label>
         <div style="display:flex;align-items:center;gap:10px;">
           <span style="font-size:14px;color:#555;">$</span>
           <input type="number" id="dcFee" min="0" step="50" style="flex:1;padding:9px;border:1px solid #CCC;border-radius:4px;font-size:13px;">
         </div>
-        <div id="dcFeeNote" style="font-size:10px;color:#999;margin-top:4px;"></div>
+        <div id="dcFeeNote" style="font-size:10px;color:#999;margin-top:4px;">This fee is registered as an amendment and added to the event total. The client pays it as part of their balance.</div>
+      </div>
+      <div style="margin-bottom:14px;">
+        <label style="font-size:11px;color:#555;font-weight:600;display:block;margin-bottom:5px;">Deposit paid now (optional)</label>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:14px;color:#555;">$</span>
+          <input type="number" id="dcDeposit" min="0" step="50" placeholder="0" style="flex:1;padding:9px;border:1px solid #CCC;border-radius:4px;font-size:13px;">
+        </div>
+        <div style="font-size:10px;color:#999;margin-top:4px;">Leave blank if the client pays later. Any amount entered is recorded as a normal payment.</div>
       </div>
       <div style="margin-bottom:14px;">
         <label style="font-size:11px;color:#555;font-weight:600;display:block;margin-bottom:5px;">Fee Payment Method</label>
@@ -1048,24 +1056,26 @@ function showToast(msg,type='success'){const t=document.getElementById('toast');
 function showLoading(){document.getElementById('overlay').classList.add('show');}
 function hideLoading(){document.getElementById('overlay').classList.remove('show');}
 
-// Extra income = client payments that are NOT package deposits/installments
-// (date change fees, clauses, penalties, overtime). Shared by Payments & P&L.
-function getExtraIncome(){
-  const types=['date change fee','force majeure fee','cancellation fee','clause','penalty','overtime'];
-  return (currentPayments||[]).filter(p=>{
-    const t=(p['Type']||'').toLowerCase();
-    return types.some(x=>t.includes(x));
-  });
+// CHARGES MODEL (consistent):
+// - Base contract = Final Total.
+// - Amendments (fees + services added after the contract) = rows in Event Services
+//   Detail with Source='manual'. Each raises the event total.
+// - Payments are ONLY real client deposits/installments — never fees.
+// getAmendmentCharges returns the manual amendment rows (fees & added services).
+function getAmendmentCharges(){
+  return (currentServices||[]).filter(s=>String(s['Source']||'').toLowerCase()==='manual');
 }
-function getExtraIncomeTotal(){
-  return getExtraIncome().reduce((s,p)=>s+(parseFloat(p['Amount'])||0),0);
+function getAmendmentChargesTotal(){
+  return getAmendmentCharges().reduce((s,r)=>s+(parseFloat(r['Price'])||0),0);
 }
+// Back-compat alias (P&L and other callers used getExtraIncome*).
+function getExtraIncome(){ return getAmendmentCharges(); }
+function getExtraIncomeTotal(){ return getAmendmentChargesTotal(); }
 function getEventTotal(){
   const base=parseFloat(currentEvent['Final Total'])||0;
-  // Billed total = contract + extra income (fees/clauses), matching the P&L
-  return base+getExtraIncomeTotal();
+  // Billed total = base contract + all amendment charges (fees + added services).
+  return base+getAmendmentChargesTotal();
 }
-
 function getTotalReceived(){
   return currentPayments.reduce((s,p)=>s+(parseFloat(p['Amount'])||0),0);
 }
@@ -1721,6 +1731,7 @@ async function saveDateChange(){
   const days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   const newDay=tbd?'':days[new Date(newDate+'T00:00:00').getDay()];
   const fee=parseFloat(document.getElementById('dcFee').value)||0;
+  const deposit=parseFloat(document.getElementById('dcDeposit').value)||0;
   const method=document.getElementById('dcMethod').value;
   const reason=document.getElementById('dcReason').value.trim();
   const availability=document.getElementById('dcAvailability').value;
@@ -1729,7 +1740,7 @@ async function saveDateChange(){
   const newDateStored=tbd?'TBD':newDate;
   const newDateLabel=tbd?'TBD (to be defined)':fmtDate(newDate);
   const stamp=new Date().toLocaleDateString('en-US');
-  const logEntry=`${oldDate} → ${newDateLabel} | Fee: ${fmtMoney(fee)} (${method}) | Avail: ${availability}${reason?' | '+reason:''} | by James | ${stamp}`;
+  const logEntry=`${oldDate} → ${newDateLabel} | Fee: ${fmtMoney(fee)} | Deposit now: ${fmtMoney(deposit)} (${method}) | Avail: ${availability}${reason?' | '+reason:''} | by James | ${stamp}`;
 
   const datePayload={
     action:'updateEventDate',
@@ -1743,8 +1754,28 @@ async function saveDateChange(){
   showLoading();
   try{
     await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(datePayload),headers:{'Content-Type':'text/plain'}});
-    // Register the fee as a normal Payment (counts toward event total)
+    // Register the fee as an AMENDMENT CHARGE in Event Services Detail (Division='Fees').
+    // It raises the event total; it is NOT a payment.
     if(fee>0){
+      const feePayload={
+        action:'saveServiceDetail',
+        'Detail ID':'SVC-'+Date.now(),
+        'RES#':currentEvent['RES#'],
+        'COT#':currentEvent['COT#'],
+        'Event Date':newDateStored,
+        'Division':'Fees',
+        'Type':'Fee',
+        'Item':'Date Change Fee',
+        'Description':'Date change: '+oldDate+' → '+newDateLabel+(reason?' · '+reason:''),
+        'Price':fee,
+        'Provider Type':'',
+        'Assign Status':'',
+        'Source':'manual'
+      };
+      await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(feePayload),headers:{'Content-Type':'text/plain'}});
+    }
+    // Register the deposit (if any) as a NORMAL payment (abono) — optional.
+    if(deposit>0){
       const payPayload={
         action:'savePayment',
         'Payment ID':'PAY-'+Date.now(),
@@ -1753,11 +1784,11 @@ async function saveDateChange(){
         'Client Name':currentEvent['Client Name'],
         'Event Date':newDateStored,
         'Payment Date':new Date().toISOString().split('T')[0],
-        'Amount':fee,
+        'Amount':deposit,
         'Method':method,
-        'Type':'Date Change Fee',
+        'Type':'Abono',
         'Reference':reason||'',
-        'Notes':'Date change: '+oldDate+' → '+newDateLabel,
+        'Notes':'Deposit at date change: '+oldDate+' → '+newDateLabel,
         'Recorded Date':stamp
       };
       await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(payPayload),headers:{'Content-Type':'text/plain'}});
@@ -1782,9 +1813,9 @@ async function saveDateChange(){
     updateDateChangeButton();
     closeDateChangeForm();
     showToast(tbd?'Event set to Date Pending':'Date changed to '+fmtDate(newDate),'success');
-    // Wait briefly so the Sheet finishes writing the fee payment before reloading
+    // Wait briefly so the Sheet finishes writing before reloading
     await new Promise(r=>setTimeout(r,1500));
-    await Promise.all([loadPayments(),loadEvents()]);
+    await Promise.all([loadPayments(),loadServices(),loadEvents()]);
     if(confirm('Saved. Generate the Date Change Amendment now?')) generateDateChange();
   }catch(e){showToast('Error changing date','error');}
   hideLoading();
@@ -2312,7 +2343,7 @@ function renderPL(){
   // Revenue breakdown
   let revRows=`<tr><td>Event Package</td><td style="text-align:right;font-weight:600">${fmtMoney(base)}</td></tr>`;
   extraIncome.forEach(p=>{
-    revRows+=`<tr><td style="color:#888;font-size:11px">${p['Type']||'Extra'}${p['Notes']?' · '+p['Notes']:''}</td><td style="text-align:right;font-weight:600;font-size:11px">${fmtMoney(parseFloat(p['Amount'])||0)}</td></tr>`;
+    revRows+=`<tr><td style="color:#888;font-size:11px">${p['Item']||'Amendment'}${p['Description']?' · '+p['Description']:''}</td><td style="text-align:right;font-weight:600;font-size:11px">${fmtMoney(parseFloat(p['Price'])||0)}</td></tr>`;
   });
   revRows+=`<tr style="border-top:1px solid #EEE"><td style="font-weight:700">Total Billed</td><td style="text-align:right;font-weight:700;color:#C9A84C">${fmtMoney(totalRevenue)}</td></tr>`;
   document.getElementById('plRevenueBody').innerHTML=revRows;
