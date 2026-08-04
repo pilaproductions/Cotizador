@@ -285,7 +285,14 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
           <button class="btn btn-gold" onclick="saveService()">Add</button>
         </div>
         <div class="form-row" id="svcCustomRow" style="margin-top:10px;display:none">
-          <div class="form-field"><div class="form-lbl">Custom Role Name</div><input class="form-input" type="text" id="svcName" placeholder="e.g. Hora Loca, CO2 Jets..."></div>
+          <div class="form-field"><div class="form-lbl" id="svcNameLbl">Custom Role Name</div><input class="form-input" type="text" id="svcName" placeholder="e.g. Hora Loca, CO2 Jets..."></div>
+        </div>
+        <div class="form-row" id="svcPriceRow" style="margin-top:10px;display:none">
+          <div class="form-field"><div class="form-lbl">Client Price (billed to client)</div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="font-size:14px;color:#555;">$</span>
+            <input class="form-input" type="number" id="svcPrice" min="0" step="10" placeholder="0.00" style="flex:1"></div>
+            <div style="font-size:10px;color:#999;margin-top:4px;">Added to the event total as an amendment. Required for internal / custom charges.</div>
+          </div>
         </div>
         <div class="form-row form-row-2" style="margin-top:10px;">
           <div class="form-field"><div class="form-lbl">Provider (optional — can assign later)</div>
@@ -1272,12 +1279,16 @@ const SVC_CATEGORIES=[
   {key:'Photo',label:'Photo & Video'}
 ];
 
-function toggleManualServiceForm(){
+async function toggleManualServiceForm(){
   const f=document.getElementById('manualServiceForm');
   if(!f)return;
   const show=f.style.display==='none';
   f.style.display=show?'block':'none';
-  if(show)populateSvcRoleDropdown();
+  if(show){
+    if(!currentRoles||!currentRoles.length){await loadRoles();}
+    populateSvcRoleDropdown();
+    refreshSvcForm();
+  }
 }
 function populateSvcRoleDropdown(){
   const sel=document.getElementById('svcRole');
@@ -1287,22 +1298,39 @@ function populateSvcRoleDropdown(){
   (currentRoles||[]).filter(r=>(r['Category']||'')===cat).forEach(r=>{
     html+=`<option value="${r['Role Name']}">${r['Role Name']}</option>`;
   });
+  // Custom Charge: a client-billed charge that is not an operational role (Division='Fees').
+  html+='<option value="__custom_charge__">＋ Custom Charge (client-billed)</option>';
   sel.innerHTML=html;
   onSvcRoleChange();
   populateSvcProviderDropdown();
 }
-function onSvcRoleChange(){
-  const v=document.getElementById('svcRole').value;
-  const row=document.getElementById('svcCustomRow');
-  if(row)row.style.display=((v||'').toLowerCase()==='other')?'flex':'none';
+function isCustomCharge(){return (document.getElementById('svcRole').value||'')==='__custom_charge__';}
+// Price applies when Pilab bills the client: Internal Staff/Vendor, or a Custom Charge.
+// External Vendor / Client-Handled → client pays the vendor / does it themselves → no price.
+function svcPriceApplies(){
+  if(isCustomCharge())return true;
+  return isInternalType(document.getElementById('svcType').value);
 }
-function onSvcTypeChange(){
-  // Internal (Staff/Vendor) => pick from directory; External/Client => free-text name
-  const type=document.getElementById('svcType').value;
-  const isInternal=isInternalType(type);
-  document.getElementById('svcProvider').parentElement.style.display=isInternal?'block':'none';
-  document.getElementById('svcProviderCustomRow').style.display=isInternal?'none':'block';
+function refreshSvcForm(){
+  const custom=isCustomCharge();
+  const roleVal=(document.getElementById('svcRole').value||'').toLowerCase();
+  // Custom name row: shown for "Other" role OR Custom Charge (as the concept)
+  const nameRow=document.getElementById('svcCustomRow');
+  const nameLbl=document.getElementById('svcNameLbl');
+  const showName=custom||roleVal==='other';
+  if(nameRow)nameRow.style.display=showName?'flex':'none';
+  if(nameLbl)nameLbl.textContent=custom?'Charge Concept':'Custom Role Name';
+  // Type + provider: hidden for Custom Charge (it's an internal client-billed charge)
+  const typeField=document.getElementById('svcType').closest('.form-field');
+  if(typeField)typeField.style.display=custom?'none':'block';
+  const isInternal=isInternalType(document.getElementById('svcType').value);
+  document.getElementById('svcProvider').parentElement.style.display=(!custom&&isInternal)?'block':'none';
+  document.getElementById('svcProviderCustomRow').style.display=(!custom&&!isInternal)?'block':'none';
+  // Price row: shown when Pilab bills the client
+  document.getElementById('svcPriceRow').style.display=svcPriceApplies()?'flex':'none';
 }
+function onSvcRoleChange(){ refreshSvcForm(); }
+function onSvcTypeChange(){ refreshSvcForm(); }
 function populateSvcProviderDropdown(){
   const sel=document.getElementById('svcProvider');
   if(!sel)return;
@@ -1573,25 +1601,37 @@ async function savePayment(){
 }
 
 async function saveService(){
-  const role=document.getElementById('svcRole').value;
+  const roleVal=document.getElementById('svcRole').value;
+  const custom=(roleVal==='__custom_charge__');
   const customName=document.getElementById('svcName').value.trim();
-  const isOther=(role||'').toLowerCase()==='other';
-  if(!role){showToast('Select a role','error');return;}
+  const priceApplies=svcPriceApplies();
+  const price=parseFloat(document.getElementById('svcPrice').value)||0;
+
+  if(!roleVal){showToast('Select a role','error');return;}
+  if(custom&&!customName){showToast('Enter the charge concept','error');return;}
+  const isOther=(roleVal||'').toLowerCase()==='other';
   if(isOther&&!customName){showToast('Enter the custom role name','error');return;}
-  // For an "Other" role: Item stays "Other" (used to detect custom roles), and the
-  // specific role name (e.g. "Mariachi") is stored in Description so documents can show it.
-  const item=isOther?'Other':role;
-  const description=isOther?customName:role;
-  const category=document.getElementById('svcCategory').value||'Other';
-  const type=document.getElementById('svcType').value||'Internal Staff';
-  // Provider is optional (can be assigned later)
-  let provId='',provName='';
-  if(isInternalType(type)){
-    const sel=document.getElementById('svcProvider');
-    provId=sel.value||'';
-    if(provId){const opt=sel.options[sel.selectedIndex];provName=opt.dataset.name||opt.textContent;}
+  if(priceApplies&&price<=0){showToast('Client price is required and cannot be 0','error');return;}
+
+  let category,type,item,description,provId='',provName='';
+  if(custom){
+    // Custom Charge → a client-billed amendment under Division 'Fees'. No provider.
+    category='Fees';
+    type='';
+    item='Custom Charge';
+    description=customName;
   }else{
-    provName=document.getElementById('svcProviderCustom').value.trim();
+    category=document.getElementById('svcCategory').value||'Other';
+    type=document.getElementById('svcType').value||'Internal Staff';
+    item=isOther?'Other':roleVal;
+    description=isOther?customName:roleVal;
+    if(isInternalType(type)){
+      const sel=document.getElementById('svcProvider');
+      provId=sel.value||'';
+      if(provId){const opt=sel.options[sel.selectedIndex];provName=opt.dataset.name||opt.textContent;}
+    }else{
+      provName=document.getElementById('svcProviderCustom').value.trim();
+    }
   }
   const payload={
     action:'saveServiceDetail',
@@ -1600,15 +1640,15 @@ async function saveService(){
     'COT#':currentEvent['COT#'],
     'Event Date':currentEvent['Event Date'],
     'Division':category,
-    'Type':'Role',
+    'Type':custom?'Fee':'Role',
     'Item':item,
     'Description':description,
-    'Price':0,
+    'Price':priceApplies?price:0,
     'Notes':document.getElementById('svcNotes').value,
     'Provider Type':type,
     'Provider ID':provId,
     'Provider Name':provName,
-    'Assign Status':provName?'Assigned':'Pending',
+    'Assign Status':provName?'Assigned':(custom?'':'Pending'),
     'Source':'manual'
   };
   showLoading();
@@ -1636,6 +1676,7 @@ async function saveService(){
     }
     document.getElementById('svcRole').value='';
     document.getElementById('svcName').value='';
+    document.getElementById('svcPrice').value='';
     document.getElementById('svcProviderCustom').value='';
     document.getElementById('svcNotes').value='';
     document.getElementById('svcCustomRow').style.display='none';
@@ -1822,38 +1863,32 @@ async function saveDateChange(){
 }
 
 function generateReceipt(){
-  if(!currentPayments||currentPayments.length===0){
-    showToast('No payments recorded — receipt unavailable','error');
+  if((!currentPayments||currentPayments.length===0)&&!(parseFloat(currentEvent['Final Total'])>0)){
+    showToast('Nothing to show on the statement yet','error');
     return;
   }
   const today=new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
-  const total=getEventTotal();
+  const ext=isExternalEvent();
+  const ENTITY=ext?'PILAB SOLUTIONS LLC':'CARDONA HALL LLC';
+  const base=parseFloat(currentEvent['Final Total'])||0;          // original contract
+  const charges=getAmendmentCharges();                            // manual amendments (fees + added services)
+  const chargesTotal=getAmendmentChargesTotal();
+  const total=base+chargesTotal;                                  // event total (statement of account)
   const received=getTotalReceived();
   const balance=total-received;
-  const base=parseFloat(currentEvent['Final Total'])||0;
-  const extrasTotal=currentServices.reduce((s,sv)=>s+(parseFloat(sv['Price'])||0),0);
   const fmtM=n=>'$'+(parseFloat(n)||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});
 
-  // Build services rows — CLIENT RECEIPT shows ONLY what the client contracted/pays:
-  // contracted services (exclude staff/venue operational roles). Staff never appears.
-  const contractedSvc=(currentServices||[]).filter(s=>{
-    const div=(s['Division']||'').toLowerCase();
-    return div!=='staff' && div!=='venue';
-  });
-  const svcRows=contractedSvc.map(s=>`
-    <tr><td style="padding:6px 0;font-size:12px;color:#555">${s['Item']||'—'}</td><td style="padding:6px 0;text-align:right;font-weight:600;font-size:12px">${fmtM(s['Price'])}</td></tr>
+  // CHARGES: original package (base) + each amendment (concept + price). Amendments
+  // already carry their client price and concept (Item/Description).
+  const chargeRows=charges.map(s=>`
+    <tr><td style="padding:6px 0;font-size:12px;color:#555">${s['Item']||'Amendment'}${s['Description']?' — '+s['Description']:''}</td><td style="padding:6px 0;text-align:right;font-weight:600;font-size:12px">${fmtM(s['Price'])}</td></tr>
   `).join('');
 
-  // Charges for date changes, cancellations, penalties, clauses, overtime, etc.
-  const extraCharges=getExtraIncome();
-  const extraRows=extraCharges.map(p=>`
-    <tr><td style="padding:6px 0;font-size:12px;color:#555">${p['Type']||'Additional Charge'}${p['Notes']?' — '+p['Notes']:''}</td><td style="padding:6px 0;text-align:right;font-weight:600;font-size:12px">${fmtM(p['Amount'])}</td></tr>
-  `).join('');
-
-  // Build payments rows
-  const payRows=currentPayments.map(p=>`
-    <tr><td style="padding:5px 0;font-size:11px;color:#555">${fmtDate(p['Payment Date'])} — ${p['Type']} (${p['Method']})</td><td style="padding:5px 0;text-align:right;font-size:11px;font-weight:600;color:#1E5C2E">${fmtM(p['Amount'])}</td></tr>
-  `).join('');
+  // PAYMENTS: real client deposits/installments. Show Reference only if present.
+  const payRows=(currentPayments||[]).map(p=>{
+    const ref=String(p['Reference']||'').trim();
+    return `<tr><td style="padding:5px 0;font-size:11px;color:#555">${fmtDate(p['Payment Date'])} — ${p['Type']||'Payment'} (${p['Method']||'—'})${ref?' · Ref: '+ref:''}</td><td style="padding:5px 0;text-align:right;font-size:11px;font-weight:600;color:#1E5C2E">${fmtM(p['Amount'])}</td></tr>`;
+  }).join('');
 
   const ET_LABELS={wedding:'Wedding',quinceanera:'Quinceañera',sweet16:'Sweet 16',baby_shower:'Baby Shower',kids_party:'Kids Party',birthday:'Birthday Party',special_social:'Special Event',special_corporate:'Corporate',bautizo:'Bautizo',graduacion:'Graduation',primera_comunion:'Primera Comunión'};
   const etLabel=ET_LABELS[currentEvent['Event Type']]||currentEvent['Event Type']||'—';
@@ -1900,8 +1935,8 @@ html,body{background:#fff;width:210mm;font-family:'Montserrat',sans-serif;font-s
 </style></head><body><div class="doc">
 <div class="hdr">
   <div>
-    <div class="ch-name">Cardona Hall</div>
-    <div class="pilab-line"><span class="p-rest">Produced by </span><span class="p-pi">Pi</span><span class="p-la">la</span><span class="p-b">b</span><span class="p-dot">.</span><span class="p-rest"> Productions</span></div>
+    <div class="ch-name">${ext?'Pilab Productions':'Cardona Hall'}</div>
+    <div class="pilab-line">${ext?'<span class="p-rest">A </span><span class="p-pi">Pi</span><span class="p-la">la</span><span class="p-b">b</span><span class="p-dot">.</span><span class="p-rest"> Solutions LLC company</span>':'<span class="p-rest">Produced by </span><span class="p-pi">Pi</span><span class="p-la">la</span><span class="p-b">b</span><span class="p-dot">.</span><span class="p-rest"> Productions</span>'}</div>
   </div>
   <div class="doc-id">
     <div class="rec-num">${currentEvent['RES#']}</div><br>
@@ -1920,15 +1955,14 @@ html,body{background:#fff;width:210mm;font-family:'Montserrat',sans-serif;font-s
     <div><div class="eb-lbl">Event Type</div><div class="eb-val">${etLabel}</div></div>
     <div><div class="eb-lbl">Date</div><div class="eb-val">${fmtDate(currentEvent['Event Date'])}</div></div>
     <div><div class="eb-lbl">Day</div><div class="eb-val">${currentEvent['Day of Week']||'—'}</div></div>
-    <div><div class="eb-lbl">Guests</div><div class="eb-val">${currentEvent['Guests']||'—'} adults</div></div>
+    <div><div class="eb-lbl">Guests</div><div class="eb-val">${currentEvent['Guests']||'—'}</div></div>
   </div>
 </div>
 <div class="section">
   <div class="sec-title">Charges</div>
   <table class="concept-table">
     <tr><td style="color:#555">Event Services Package</td><td style="text-align:right;font-weight:600">${fmtM(base)}</td></tr>
-    ${svcRows}
-    ${extraRows}
+    ${chargeRows}
     <tr><td colspan="2"><div class="divider"></div></td></tr>
     <tr><td style="font-weight:700;font-size:13px">Total</td><td style="text-align:right;font-weight:700;font-size:14px;color:#C9A84C">${fmtM(total)}</td></tr>
   </table>
@@ -5786,7 +5820,6 @@ ${docHeader('Date Change Amendment',`DCH-${e['RES#']}`,'Produced by Pilab Produc
     <div class="field-item"><div class="field-lbl">New Event Date</div><div class="field-val${newDateDisp?'':' field-manual'}">${newDateDisp}</div></div>
     <div class="field-item"><div class="field-lbl">New Day of Week</div><div class="field-val${newDayDisp?'':' field-manual'}">${newDayDisp}</div></div>
     <div class="field-item"><div class="field-lbl">Availability Confirmed</div><div class="field-val" style="font-size:11px">${availDisp?(availDisp==='Confirmed'?'☑ Yes':'☑ Pending'):'□ Yes &nbsp; □ Pending'}</div></div>
-    <div class="field-item"><div class="field-lbl">Confirmed by</div><div class="field-val">James Cardona</div></div>
   </div>
 </div>
 <div class="sec">
@@ -5797,10 +5830,10 @@ ${docHeader('Date Change Amendment',`DCH-${e['RES#']}`,'Produced by Pilab Produc
     <tbody>
       <tr><td>Total Contract Amount</td><td style="text-align:right">${fmtM(parseFloat(e['Final Total'])||0)}</td><td>Reference only</td></tr>
       <tr><td>Days Before Original Event</td><td style="text-align:right">${daysRemaining!==null?daysRemaining+' days':'—'}</td><td>${feeNote}</td></tr>
-      <tr class="total-row"><td>Date Change Fee${fromFlow?' — PAID':''}</td><td style="text-align:right">${fmtM(fee||0)}</td><td>${fromFlow?(dcMethod||'Paid'):'Non-refundable'}</td></tr>
+      <tr class="total-row"><td>Date Change Fee</td><td style="text-align:right">${fmtM(fee||0)}</td><td>${fromFlow?'Added to event total':'Non-refundable'}</td></tr>
     </tbody>
   </table>
-  <div class="info-box" style="margin-top:10px;font-size:10px">${fromFlow?'Fee paid at the time of the date change'+(dcMethod?' via '+dcMethod:'')+'. ':'Fee is non-refundable under any circumstances, including force majeure. '}Only one date change permitted per contract. A second request will be treated as a cancellation.</div>`}
+  <div class="info-box" style="margin-top:10px;font-size:10px">${fromFlow?'This fee is added to the event total and is payable as part of the balance. ':'Fee is non-refundable under any circumstances, including force majeure. '}Only one date change permitted per contract. A second request will be treated as a cancellation.</div>`}
 </div>
 <div class="sec">
   <div class="sec-title">4. Acknowledgment</div>
