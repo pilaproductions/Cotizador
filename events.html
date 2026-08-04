@@ -742,31 +742,16 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
         <div id="dcNewDay" style="font-size:11px;color:#888;margin-top:5px;"></div>
       </div>
       <div style="margin-bottom:14px;">
-        <label style="font-size:11px;color:#555;font-weight:600;display:block;margin-bottom:5px;">Date Change Fee (charge — added to event total)</label>
+        <label style="font-size:11px;color:#555;font-weight:600;display:block;margin-bottom:5px;">Date Change Fee (auto-filled by policy — editable)</label>
         <div style="display:flex;align-items:center;gap:10px;">
           <span style="font-size:14px;color:#555;">$</span>
           <input type="number" id="dcFee" min="0" step="50" style="flex:1;padding:9px;border:1px solid #CCC;border-radius:4px;font-size:13px;">
         </div>
-        <div id="dcFeeNote" style="font-size:10px;color:#999;margin-top:4px;">This fee is registered as an amendment and added to the event total. The client pays it as part of their balance.</div>
+        <div id="dcFeeNote" style="font-size:10px;color:#999;margin-top:4px;"></div>
+        <div style="font-size:10px;color:#999;margin-top:4px;">Auto-filled from policy. Editable — set to 0 to waive (e.g. a known client). If greater than 0, it's added to the event total as a charge; the client pays it later through Payments.</div>
       </div>
-      <div style="margin-bottom:14px;">
-        <label style="font-size:11px;color:#555;font-weight:600;display:block;margin-bottom:5px;">Deposit paid now (optional)</label>
-        <div style="display:flex;align-items:center;gap:10px;">
-          <span style="font-size:14px;color:#555;">$</span>
-          <input type="number" id="dcDeposit" min="0" step="50" placeholder="0" style="flex:1;padding:9px;border:1px solid #CCC;border-radius:4px;font-size:13px;">
-        </div>
-        <div style="font-size:10px;color:#999;margin-top:4px;">Leave blank if the client pays later. Any amount entered is recorded as a normal payment.</div>
-      </div>
-      <div style="margin-bottom:14px;">
-        <label style="font-size:11px;color:#555;font-weight:600;display:block;margin-bottom:5px;">Fee Payment Method</label>
-        <select id="dcMethod" style="width:100%;padding:9px;border:1px solid #CCC;border-radius:4px;font-size:13px;">
-          <option value="Cash">Cash</option>
-          <option value="Zelle">Zelle</option>
-          <option value="Transfer">Transfer</option>
-          <option value="Card">Card</option>
-          <option value="Check">Check</option>
-          <option value="Other">Other</option>
-        </select>
+      <div style="margin-bottom:14px;display:none;">
+        <select id="dcMethod"><option value="Cash">Cash</option></select>
       </div>
       <div style="margin-bottom:14px;">
         <label style="font-size:11px;color:#555;font-weight:600;display:block;margin-bottom:5px;">Reason / Notes</label>
@@ -1800,13 +1785,15 @@ async function updateStatus(newStatus){
 }
 
 // ── DATE CHANGE FLOW ──────────────────────────────────────────────────────────
-// Compute the date-change fee from days remaining (same scale as the Amendment doc)
+// Compute the date-change fee from days remaining. Reads Business_Rules
+// (date_change_fee group), falling back to the contract policy scale.
 function dcComputeFee(daysRemaining){
-  if(daysRemaining===null) return {fee:600,note:'15–29 days'};
-  if(daysRemaining>90)  return {fee:150, note:'>90 days'};
-  if(daysRemaining>=60) return {fee:250, note:'60–90 days'};
-  if(daysRemaining>=30) return {fee:400, note:'30–59 days'};
-  if(daysRemaining>=15) return {fee:600, note:'15–29 days'};
+  const br=(k,fb)=>parseFloat(businessRule('date_change_fee',k,fb))||fb;
+  if(daysRemaining===null) return {fee:br('15_29',600),note:'15–29 days'};
+  if(daysRemaining>90)  return {fee:br('over_90',150), note:'>90 days'};
+  if(daysRemaining>=60) return {fee:br('60_90',250), note:'60–90 days'};
+  if(daysRemaining>=30) return {fee:br('30_59',400), note:'30–59 days'};
+  if(daysRemaining>=15) return {fee:br('15_29',600), note:'15–29 days'};
   return {fee:null, note:'< 15 days — change not permitted'};
 }
 function dcDaysRemaining(){
@@ -1863,8 +1850,6 @@ async function saveDateChange(){
   const days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   const newDay=tbd?'':days[new Date(newDate+'T00:00:00').getDay()];
   const fee=parseFloat(document.getElementById('dcFee').value)||0;
-  const deposit=parseFloat(document.getElementById('dcDeposit').value)||0;
-  const method=document.getElementById('dcMethod').value;
   const reason=document.getElementById('dcReason').value.trim();
   const availability=document.getElementById('dcAvailability').value;
   const oldDate=fmtDate(currentEvent['Event Date']);
@@ -1872,7 +1857,7 @@ async function saveDateChange(){
   const newDateStored=tbd?'TBD':newDate;
   const newDateLabel=tbd?'TBD (to be defined)':fmtDate(newDate);
   const stamp=new Date().toLocaleDateString('en-US');
-  const logEntry=`${oldDate} → ${newDateLabel} | Fee: ${fmtMoney(fee)} | Deposit now: ${fmtMoney(deposit)} (${method}) | Avail: ${availability}${reason?' | '+reason:''} | by James | ${stamp}`;
+  const logEntry=`${oldDate} → ${newDateLabel} | Fee: ${fmtMoney(fee)} | Avail: ${availability}${reason?' | '+reason:''} | by James | ${stamp}`;
 
   const datePayload={
     action:'updateEventDate',
@@ -1906,25 +1891,6 @@ async function saveDateChange(){
       };
       await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(feePayload),headers:{'Content-Type':'text/plain'}});
     }
-    // Register the deposit (if any) as a NORMAL payment (abono) — optional.
-    if(deposit>0){
-      const payPayload={
-        action:'savePayment',
-        'Payment ID':'PAY-'+Date.now(),
-        'RES#':currentEvent['RES#'],
-        'COT#':currentEvent['COT#'],
-        'Client Name':currentEvent['Client Name'],
-        'Event Date':newDateStored,
-        'Payment Date':new Date().toISOString().split('T')[0],
-        'Amount':deposit,
-        'Method':method,
-        'Type':'Abono',
-        'Reference':reason||'',
-        'Notes':'Deposit at date change: '+oldDate+' → '+newDateLabel,
-        'Recorded Date':stamp
-      };
-      await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(payPayload),headers:{'Content-Type':'text/plain'}});
-    }
     // Update in-memory event
     currentEvent['Event Date']=newDateStored;
     currentEvent['Day of Week']=newDay;
@@ -1933,7 +1899,6 @@ async function saveDateChange(){
     currentEvent['_dcNewDate']=newDateStored;
     currentEvent['_dcNewDay']=newDay;
     currentEvent['_dcFee']=fee;
-    currentEvent['_dcMethod']=method;
     currentEvent['_dcReason']=reason;
     currentEvent['_dcAvailability']=availability;
     currentEvent['_dcTBD']=tbd;
