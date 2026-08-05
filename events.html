@@ -1081,6 +1081,19 @@ function providerBadge(v){
   return `<span style="font-size:8px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;padding:1px 6px;border-radius:2px;background:${bg};color:${fg};margin-left:6px">${label}</span>`;
 }
 function fmtDate(d){if(!d)return'—';try{const dt=new Date(d);if(isNaN(dt))return String(d);return dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});}catch{return String(d);}}
+// True original event date: the dedicated column if set, else the current date.
+function origEventDate(){
+  const o=currentEvent&&currentEvent['Original Event Date'];
+  if(o&&String(o).trim()!==''&&String(o).trim().toUpperCase()!=='TBD')return o;
+  return currentEvent?currentEvent['Event Date']:'';
+}
+// Is the current event date pending (TBD)?
+function isDateTBD(){return String(currentEvent&&currentEvent['Event Date']||'').trim().toUpperCase()==='TBD';}
+// Display of the current/new event date (TBD-aware).
+function currentDateDisp(fmt){
+  if(isDateTBD())return 'To be defined';
+  return (fmt||fmtDate)(currentEvent['Event Date']);
+}
 function genID(prefix){return prefix+'-'+Date.now();}
 function showToast(msg,type='success'){const t=document.getElementById('toast');t.textContent=msg;t.className=`toast toast-${type} show`;setTimeout(()=>t.className='toast',4000);}
 function showLoading(){document.getElementById('overlay').classList.add('show');}
@@ -1868,6 +1881,13 @@ async function saveDateChange(){
     'Status':newStatus,
     'Date Change Log':logEntry
   };
+  // Preserve the ORIGINAL event date the first time a change happens. On later
+  // changes it's already stored and carried over by the append-only copy.
+  const hasOrig=currentEvent['Original Event Date']&&String(currentEvent['Original Event Date']).trim()!==''&&String(currentEvent['Original Event Date']).trim().toUpperCase()!=='TBD';
+  if(!hasOrig){
+    datePayload['Original Event Date']=currentEvent['Event Date'];
+    currentEvent['Original Event Date']=currentEvent['Event Date'];
+  }
   showLoading();
   try{
     await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(datePayload),headers:{'Content-Type':'text/plain'}});
@@ -2009,7 +2029,7 @@ html,body{background:#fff;width:210mm;font-family:'Montserrat',sans-serif;font-s
   </div>
   <div class="event-bar">
     <div><div class="eb-lbl">Event Type</div><div class="eb-val">${etLabel}</div></div>
-    <div><div class="eb-lbl">Date</div><div class="eb-val">${fmtDate(currentEvent['Event Date'])}</div></div>
+    <div><div class="eb-lbl">Date</div><div class="eb-val">${currentDateDisp()}</div></div>
     <div><div class="eb-lbl">Day</div><div class="eb-val">${currentEvent['Day of Week']||'—'}</div></div>
     <div><div class="eb-lbl">Guests</div><div class="eb-val">${currentEvent['Guests']||'—'}</div></div>
   </div>
@@ -2149,7 +2169,7 @@ html,body{background:#fff;width:210mm;font-family:'Montserrat',sans-serif;font-s
   </div>
   <div class="event-bar">
     <div><div class="eb-lbl">Event Type</div><div class="eb-val">${etLabel}</div></div>
-    <div><div class="eb-lbl">Date</div><div class="eb-val">${fmtDate(currentEvent['Event Date'])}</div></div>
+    <div><div class="eb-lbl">Date</div><div class="eb-val">${currentDateDisp()}</div></div>
     <div><div class="eb-lbl">Day</div><div class="eb-val">${currentEvent['Day of Week']||'—'}</div></div>
     <div><div class="eb-lbl">Guests</div><div class="eb-val">${currentEvent['Guests']||'—'} guests</div></div>
   </div>
@@ -5806,19 +5826,16 @@ function generateDateChange(){
   // event's Event Date already holds the NEW date, so we derive the ORIGINAL
   // date from the most recent Date Change Log entry.
   const fromFlow=!!e['_dcNewDate'];
-  let origDateStr='';
-  if(fromFlow){
-    const log=String(e['Date Change Log']||'');
-    const last=log.split(' || ').pop();      // most recent entry
-    const m=last&&last.match(/^(.*?)\s*→/);   // "OldDate → NewDate | ..."
-    origDateStr=m?m[1].trim():'';
-  }
+  // ORIGINAL date now comes from the dedicated column (robust, works whether the
+  // doc is generated right after the change or regenerated later after reload).
+  const origVal=(e['Original Event Date']&&String(e['Original Event Date']).trim()!==''&&String(e['Original Event Date']).trim().toUpperCase()!=='TBD')
+    ? e['Original Event Date'] : null;
+  const origDateStr=origVal?fmtDateDoc(origVal):'';
   const today=new Date();
-  // For day-count, use the ORIGINAL date (pre-change) when coming from the flow.
-  const refDateStr=fromFlow?origDateStr:(e['Event Date']?fmtDateDoc(e['Event Date']):'');
-  const baseDate=fromFlow
-    ? (origDateStr?new Date(origDateStr):null)
-    : (e['Event Date']?new Date(e['Event Date'].split('T')[0]+'T00:00:00'):null);
+  // Day-count is based on the ORIGINAL date (pre-change).
+  const baseDate=origVal
+    ? new Date(String(origVal).split('T')[0]+'T00:00:00')
+    : (e['Event Date']&&String(e['Event Date']).toUpperCase()!=='TBD'?new Date(String(e['Event Date']).split('T')[0]+'T00:00:00'):null);
   const daysRemaining=(baseDate&&!isNaN(baseDate))?Math.floor((baseDate-today)/(1000*60*60*24)):null;
   let fee=600,feeNote='15–29 days';
   if(daysRemaining!==null){
@@ -5828,19 +5845,19 @@ function generateDateChange(){
     else if(daysRemaining>=15){fee=600;feeNote='15–29 days';}
     else{fee=null;feeNote='< 15 days — not permitted';}
   }
-  // Override fee/note with the exact value chosen in the Change Date flow
-  let dcMethod='',dcReason='',isTBD=false;
+  // The NEW date is the event's current Event Date (TBD-aware).
+  const tbdNow=String(e['Event Date']||'').trim().toUpperCase()==='TBD';
+  let dcMethod='',dcReason='',isTBD=tbdNow;
   if(fromFlow){
     fee=parseFloat(e['_dcFee'])||0;
-    dcMethod=e['_dcMethod']||'';
     dcReason=e['_dcReason']||'';
-    isTBD=!!e['_dcTBD'];
-    feeNote=dcReason||'Paid';
+    isTBD=!!e['_dcTBD']||tbdNow;
+    feeNote=dcReason||feeNote;
   }
-  const newDateDisp=fromFlow?(isTBD?'To be confirmed':fmtDateDoc(e['_dcNewDate'])):'';
+  const newDateDisp=isTBD?'To be confirmed':fmtDateDoc(fromFlow?e['_dcNewDate']:e['Event Date']);
   const newDayDisp=fromFlow?(isTBD?'TBD':(e['_dcNewDay']||'')):'';
   const availDisp=fromFlow?(e['_dcAvailability']||''):'';
-  const origDateDisp=fromFlow?(origDateStr||'—'):fmtDateDoc(e['Event Date']);
+  const origDateDisp=origDateStr||fmtDateDoc(e['Event Date']);
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
 <title>Date Change — ${e['RES#']}</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
