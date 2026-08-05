@@ -252,17 +252,25 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
           </div>
           <button class="btn btn-gold" id="btnSaveIncome" onclick="saveIncome()">Add</button>
         </div>
-        <div class="form-row" style="margin-top:10px;display:grid;grid-template-columns:auto 1fr 1fr;gap:10px;align-items:end;">
-          <div class="form-field" style="display:flex;align-items:center;gap:8px;padding-top:18px;">
+        <div class="form-row" style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;align-items:end;">
+          <div class="form-field"><div class="form-lbl">Payment received now (optional)</div>
+            <div style="display:flex;align-items:center;gap:6px;"><span style="font-size:13px;color:#555;">$</span><input class="form-input" type="number" id="incPayNow" placeholder="0.00" min="0" style="flex:1"></div>
+          </div>
+          <div class="form-field"><div class="form-lbl">Payment method</div>
+            <select class="form-select" id="incPayMethod"><option value="Cash">Cash</option><option value="Zelle">Zelle</option><option value="Card">Card</option><option value="Check">Check</option><option value="Transfer">Transfer</option><option value="Other">Other</option></select>
+          </div>
+          <div class="form-field" id="incNotesRow"><div class="form-lbl">Notes</div><input class="form-input" type="text" id="incNotes" placeholder="Details..."></div>
+        </div>
+        <div class="form-row" style="margin-top:10px;display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:end;">
+          <div class="form-field" style="display:flex;align-items:center;gap:8px;padding-top:0;">
             <input type="checkbox" id="incNeedsRole" onchange="onIncNeedsRoleChange()" style="width:16px;height:16px;">
             <label for="incNeedsRole" style="font-size:12px;color:#555;cursor:pointer;">Requires execution (create a role in Services)</label>
           </div>
           <div class="form-field" id="incRoleRow" style="display:none;"><div class="form-lbl">Role</div>
             <select class="form-select" id="incRole"><option value="">— Select role —</option></select>
           </div>
-          <div class="form-field" id="incNotesRow"><div class="form-lbl">Notes</div><input class="form-input" type="text" id="incNotes" placeholder="Details..."></div>
         </div>
-        <div style="font-size:10px;color:#999;margin-top:6px;">Income is added to the event total and appears on the client statement. If it requires execution, a pending role is created in Services (assign the provider there).</div>
+        <div style="font-size:10px;color:#999;margin-top:6px;">Income is added to the event total and appears on the client statement. Any payment entered here is recorded as a client payment and shown on the amendment. If it requires execution, a pending role is created in Services (assign the provider there).</div>
       </div>
 
       <div class="section-title">Charges (contract + income)</div>
@@ -1445,18 +1453,22 @@ async function saveIncome(){
   const needsRole=document.getElementById('incNeedsRole').checked;
   const role=document.getElementById('incRole').value;
   const notes=document.getElementById('incNotes').value.trim();
+  const payNow=parseFloat(document.getElementById('incPayNow').value)||0;
+  const payMethod=document.getElementById('incPayMethod').value||'Cash';
   if(!concept){showToast('Enter a concept','error');return;}
   if(amount<=0){showToast('Amount is required and cannot be 0','error');return;}
   if(needsRole&&!role){showToast('Select the role that will execute it','error');return;}
-  // Role details: if execution needed, the amendment row IS the role (pending provider).
+  if(payNow>amount){showToast('Payment received cannot exceed the charge amount','error');return;}
   const isOther=(role==='__other__');
+  const detailId=genID('SVC');
+  const isFee=(category==='General'||category==='Fees'||category==='');   // no category = general fee
   const payload={
     action:'saveServiceDetail',
-    'Detail ID':genID('SVC'),
+    'Detail ID':detailId,
     'RES#':currentEvent['RES#'],
     'COT#':currentEvent['COT#'],
     'Event Date':currentEvent['Event Date'],
-    'Division':category,
+    'Division':isFee?'Fees':category,
     'Type':needsRole?'Role':'Income',
     'Item':needsRole?(isOther?'Other':role):concept,
     'Description':needsRole?concept:(notes||concept),
@@ -1471,14 +1483,39 @@ async function saveIncome(){
   showLoading();
   try{
     await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(payload),headers:{'Content-Type':'text/plain'}});
+    // If a payment was captured, register it as a client abono (generic payment).
+    if(payNow>0){
+      const now=new Date();
+      const payDate=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+      const payPayload={
+        action:'savePayment',
+        'Payment ID':genID('PAY'),
+        'RES#':currentEvent['RES#'],
+        'COT#':currentEvent['COT#'],
+        'Client Name':currentEvent['Client Name']||'',
+        'Event Date':currentEvent['Event Date'],
+        'Payment Date':payDate,
+        'Amount':payNow,
+        'Method':payMethod,
+        'Type':'Deposit',
+        'Reference':'',
+        'Notes':'Deposit for: '+concept
+      };
+      await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(payPayload),headers:{'Content-Type':'text/plain'}});
+    }
+    // Reset form
     document.getElementById('incConcept').value='';
     document.getElementById('incAmount').value='';
     document.getElementById('incNotes').value='';
+    document.getElementById('incPayNow').value='';
     document.getElementById('incNeedsRole').checked=false;
     document.getElementById('incRoleRow').style.display='none';
     showToast('Income added','success');
+    // Generate the amendment document for this charge (concept + price + payment captured).
+    generateAmendmentCharge({concept,category:isFee?'':category,amount,payNow,payMethod,notes,isFee});
     await new Promise(r=>setTimeout(r,1400));
     await loadServices();
+    await loadPayments();
     renderPayments();
   }catch(e){showToast('Error adding income','error');}
   hideLoading();
@@ -1890,6 +1927,7 @@ async function updateStatus(newStatus){
     const sl={reserved:'Reserved',completed:'Completed',cancelled:'Cancelled',date_pending:'Date Pending',rescheduled:'Rescheduled'}[st]||newStatus;
     document.getElementById('detailStatusBadge').innerHTML=`<span class="status-badge ${sc}">${sl}</span>`;
     updateDateChangeButton();
+    applyLockState();
     showToast('Status updated to '+sl,'success');
     await loadEvents();
   }catch(e){showToast('Error updating status','error');}
@@ -2274,6 +2312,104 @@ ${balance<=0?'<div class="balance-bar"><span class="balance-lbl">Payment Status<
   if(!win){showToast('Allow popups to generate receipt','error');return;}
   win.document.open();win.document.write(html);win.document.close();
   showToast('Receipt opening...','success');
+}
+
+// #8 Amendment — one document per charge (client-facing). Shows the charge
+// (concept + price), the payment captured at add-time, and the amendment total.
+// Aligned entity (internal/external). Charges with a category live in that
+// category's group; general fees (no category) live under Client & Legal.
+async function generateAmendmentCharge(chg){
+  const e=currentEvent;
+  const ext=isExternalEvent();
+  const ENTITY=ext?'PILAB SOLUTIONS LLC':'CARDONA HALL LLC';
+  const fmtM=n=>'$'+(parseFloat(n)||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});
+  let amdCount=0;
+  try{
+    const res=await fetch(`${SCRIPT_URL}?sheet=Documents&filterKey=RES%23&filterVal=${encodeURIComponent(e['RES#'])}&nocache=`+Date.now());
+    const docs=await res.json();
+    if(Array.isArray(docs))amdCount=docs.filter(d=>d['Type']==='Amendment').length;
+  }catch(err){}
+  const amdNum=`AMD-${e['RES#']}-${String(amdCount+1).padStart(3,'0')}`;
+  const catLabel=chg.isFee?'General Fee':(chg.category||'Additional Service');
+  const win=docOpen();if(!win)return;
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>Amendment — ${e['RES#']}</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>${baseStyles('#C9A84C')}
+.hdr{background:#EDE8DC;border-bottom:3px solid #C9A84C;}
+.ch-name{color:#6b5a2a;}.ch-sub{color:#C9A84C;}.doc-title{color:#6b5a2a;}
+.sec-title{color:#6b5a2a;border-bottom:2px solid #C9A84C;}
+.services-table th{background:#2A2410;color:#E8D9A8;}
+.footer-bar{border-top:2px solid #C9A84C;}
+.type-badge{background:#F8F3E6;border-left:4px solid #C9A84C;border-top:1px solid #C9A84C;border-bottom:1px solid #C9A84C;padding:12px 16px;margin:10px 0;}
+.type-title{font-size:16px;font-weight:700;color:#6b5a2a;font-family:'Cormorant Garamond',serif;}
+.type-sub{font-size:11px;color:#555;margin-top:4px;}
+</style></head><body><div class="doc">
+${docHeader('Contract Amendment',amdNum,ext?'A Pilab Solutions LLC company':'Produced by Pilab Productions','#C9A84C')}
+<div class="type-badge">
+  <div class="type-title">CONTRACT AMENDMENT — ${catLabel.toUpperCase()}</div>
+  <div class="type-sub">This amendment adds the charge below to the agreement for the referenced reservation. It is added to the client statement of account.</div>
+</div>
+<div class="sec">
+  <div class="sec-title">1. Reference</div>
+  <div class="field-grid">
+    <div class="field-item"><div class="field-lbl">Client Name</div><div class="field-val">${e['Client Name']||'—'}</div></div>
+    <div class="field-item"><div class="field-lbl">Reservation #</div><div class="field-val">${e['RES#']||'—'}</div></div>
+    <div class="field-item"><div class="field-lbl">Original Contract Ref.</div><div class="field-val">${e['COT#']||'—'}</div></div>
+    <div class="field-item"><div class="field-lbl">Event Type</div><div class="field-val">${etLabel()}</div></div>
+    <div class="field-item"><div class="field-lbl">Event Date</div><div class="field-val">${fmtDateDoc(e['Event Date'])}</div></div>
+    <div class="field-item"><div class="field-lbl">Issued</div><div class="field-val">${docToday()}</div></div>
+  </div>
+</div>
+<div class="sec">
+  <div class="sec-title">2. Amendment Detail</div>
+  <table class="services-table">
+    <thead><tr><th>Concept</th><th>Category</th><th style="text-align:right">Amount</th></tr></thead>
+    <tbody>
+      <tr><td style="font-weight:600">${chg.concept}${chg.notes?' — '+chg.notes:''}</td><td>${chg.isFee?'General Fee':(chg.category||'—')}</td><td style="text-align:right;font-weight:700;color:#6b5a2a">${fmtM(chg.amount)}</td></tr>
+      ${chg.payNow>0?`<tr><td style="color:#1E5C2E">Payment received for this item (${chg.payMethod})</td><td></td><td style="text-align:right;color:#1E5C2E;font-weight:600">${fmtM(chg.payNow)}</td></tr>`:''}
+      <tr class="total-row"><td colspan="2">Amendment Total</td><td style="text-align:right">${fmtM(chg.amount)}</td></tr>
+    </tbody>
+  </table>
+  <p style="font-size:10px;color:#777;margin-top:8px">This amount is added to the client's statement of account. For the full up-to-date balance, request the Client Receipt (statement of account).</p>
+</div>
+<div class="sec">
+  <div class="sec-title">3. Acknowledgment</div>
+  <p style="font-size:11px;color:#555;margin-bottom:14px">By signing below, the Client agrees to this additional charge and its price. This amendment forms part of the original Service Agreement and does not modify its other terms.</p>
+  ${sigBlock('Authorized — James Cardona · '+ENTITY,'James Cardona · '+ENTITY)}
+</div>
+${docFooter('Productions LLC')}
+</div>
+<script>window.onload=function(){document.title=' ';try{history.replaceState(null,'',' ');}catch(e){}setTimeout(function(){window.print();},1000);};<\/script>
+</body></html>`;
+  docWrite(win,html);
+  // Save document record
+  try{
+    await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify({
+      action:'saveDocument','Document ID':amdNum,'RES#':e['RES#'],'COT#':e['COT#'],
+      'Client Name':e['Client Name'],'Event Date':e['Event Date'],'Type':'Amendment',
+      'Generated Date':new Date().toLocaleDateString('en-US'),'Status':'Draft','Notes':chg.concept
+    }),headers:{'Content-Type':'text/plain'}});
+  }catch(err){}
+  showToast(amdNum+' generated','success');
+}
+
+// Re-generate an amendment from a stored charge (Documents tab card). This is a
+// copy: the charge is shown; the original at-add-time payment is not re-derived.
+function regenAmendmentFromService(idx){
+  const s=currentServices[idx];
+  if(!s){showToast('Charge not found','error');return;}
+  const div=String(s['Division']||'Fees');
+  const isFee=(div==='Fees');
+  generateAmendmentCharge({
+    concept:s['Item']||'Charge',
+    category:isFee?'':div,
+    amount:parseFloat(s['Price'])||0,
+    payNow:0,
+    payMethod:'',
+    notes:s['Description']&&s['Description']!==s['Item']?s['Description']:'',
+    isFee:isFee
+  });
 }
 
 async function generateAmendment(idx){
@@ -2794,19 +2930,22 @@ function renderDocuments(){
   const groups={client:[],venue:[],catering:[],decor:[],ent:[],photo:[],finance:[]};
   DOC_DEFINITIONS.forEach(def=>{ if(groups[def.group])groups[def.group].push(docCard(def)); });
 
-  // Amendments (#23) are ONLY for services added manually AFTER the contract
-  // (Source='manual'). Package-derived roles never generate an amendment.
-  currentServices.filter(s=>String(s['Source']||'').toLowerCase()==='manual').forEach(s=>{
-    const amdId=`amendment_${s['Detail ID']}`;
-    const generated=getDocVersionCount(amdId)>0;
-    groups.client.push(`<div class="doc-card">
+  // Amendments — one card per manually added charge (Source='manual').
+  // Charge WITH a category → its category group. General fee (Fees) → Client & Legal.
+  const DIV_TO_GROUP={Venue:'venue',Catering:'catering',Decor:'decor',Entertainment:'ent',Photo:'photo',Fees:'client'};
+  currentServices.filter(s=>String(s['Source']||'').toLowerCase()==='manual'&&String(s['Type']||'').toLowerCase()!=='role').forEach(s=>{
+    const div=String(s['Division']||'Fees');
+    const grp=DIV_TO_GROUP[div]||'client';
+    const idx=currentServices.indexOf(s);
+    const isFee=(div==='Fees');
+    groups[grp].push(`<div class="doc-card">
       <div class="doc-icon">📎</div>
       <div class="doc-info">
-        <div class="doc-name">Amendment — ${s['Item']||'Service'}</div>
-        <div class="doc-sub">${fmtMoney(s['Price'])} additional service</div>
+        <div class="doc-name">Amendment — ${s['Item']||'Charge'}</div>
+        <div class="doc-sub">${fmtMoney(s['Price'])} · ${isFee?'General fee':div}</div>
       </div>
       <div class="doc-status">
-        <button class="btn btn-outline btn-sm" onclick="generateAmendmentFromDoc(${currentServices.indexOf(s)})">⬇ ${generated?'Copy':'Generate'}</button>
+        <button class="btn btn-outline btn-sm" onclick="regenAmendmentFromService(${idx})">⬇ Generate</button>
       </div>
     </div>`);
   });
@@ -6081,6 +6220,7 @@ async function saveCancellation(){
     currentEvent['_fmCause']=cause;
     closeCancelForm();
     document.getElementById('detailStatusBadge').innerHTML='<span class="status-badge status-cancelled">Cancelled</span>';
+    applyLockState();
     showToast('Event cancelled','success');
     if(fm)generateForceMajeure(); else generateCancellationNotice();
     await loadEvents();
