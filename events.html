@@ -2909,7 +2909,7 @@ const DOC_DEFINITIONS=[
   {id:'date_change',    name:'Date Change Agreement',sub:'Event date change with applicable fee',          group:'client', num:21, condition:()=>true, icon:'📅', canGenerate:true},
   {id:'force_majeure',  name:'Force Majeure Notice', sub:'Event suspension due to extraordinary circumstances', group:'client', num:22, condition:()=>true, icon:'❄️', canGenerate:true},
   // ── VENUE ───────────────────────────────────────────────────────────────────
-  {id:'venue_rules',    name:'Venue Rules & Policies',    sub:'Alcohol policy, conduct, overtime fees, restrictions', group:'venue', num:5, condition:()=>true, icon:'📋', canGenerate:true},
+  {id:'venue_rules',    name:'Venue Rules & Policies',    sub:'Alcohol policy, conduct, overtime fees, restrictions', group:'venue', num:5, condition:()=>!isExternalEvent(), disabledReason:'External event — venue rules apply only to Cardona Hall', icon:'📋', canGenerate:true},
   {id:'venue_staff',    name:'Venue Staff Sheet',         sub:'Internal manager briefing — staff & schedule',        group:'venue', num:6, condition:()=>true, internal:true, icon:'👥', canGenerate:true},
   {id:'staff_summary',  name:'Venue Staff Payment Summary',sub:'Internal — staff payments & signatures',             group:'venue', num:7, condition:()=>true, internal:true, icon:'💵', canGenerate:true},
   // ── CATERING ────────────────────────────────────────────────────────────────
@@ -3921,6 +3921,10 @@ function generateClientContract(){
   const e=currentEvent;
   const copy=isCopy('contract_client');
   const ext=isExternalEvent();
+  // Extra-person charges from Business_Rules (nothing hardcoded).
+  const extraBefore=businessRule('extra_person','before_15d',45);
+  const extraWithin=businessRule('extra_person','within_15d',60);
+  const fmtM0=n=>'$'+(parseFloat(n)||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});
   // Internal (Cardona Hall) → CARDONA HALL LLC. External (services only) → PILAB SOLUTIONS LLC.
   const ENTITY=ext?'PILAB SOLUTIONS LLC':legalEntity('contract_client');
   const ADDR=ext?(e['External Venue Address']||'________________________ (external venue address)'):'72 Hoover Ave, Passaic, NJ 07055';
@@ -3980,7 +3984,7 @@ ${docHeader('Service Agreement',`${e['COT#']} / ${e['RES#']}`,ext?{mode:'pilab',
   <ul class="bullet-list">
     <li>The venue capacity and guest count for this event are governed by the figures confirmed in the signed Reservation.</li>
     <li>Final confirmed guest count must be submitted no later than <strong>15 days before the event</strong>.</li>
-    <li>Additional guests added <strong>15 or more days before the event</strong> are charged <strong>$45 per person</strong>. Additional guests added <strong>within 15 days of the event, or on the event day</strong>, are charged <strong>$60 per person</strong>.</li>
+    <li>Additional guests added <strong>15 or more days before the event</strong> are charged <strong>${fmtM0(extraBefore)} per person</strong>. Additional guests added <strong>within 15 days of the event, or on the event day</strong>, are charged <strong>${fmtM0(extraWithin)} per person</strong>.</li>
     <li>Any additional person is registered as an added service and formalized through a signed Amendment.</li>
     <li>Reductions after the final confirmation date are not permitted — the guaranteed count remains the billing basis.</li>
     <li>Children age 5 and over count as adults for guest count, catering, and venue capacity purposes.</li>
@@ -4175,6 +4179,23 @@ function generateVenueRules(){
   const copy=isCopy('venue_rules');
   const wknd=isWeekend();
   const ENTITY=legalEntity('venue_rules'); // CARDONA HALL LLC
+  // All venue policy values come from Business_Rules (nothing hardcoded).
+  const vr=(k,fb)=>businessRule('venue_rules',k,fb);
+  const ep=(k,fb)=>businessRule('extra_person',k,fb);
+  const extraBefore=ep('before_15d',45);
+  const extraWithin=ep('within_15d',60);
+  const minorPenalty=vr('minor_alcohol_penalty',1000);
+  const conductPct=vr('conduct_penalty_pct',40);
+  const overtimeHr=vr('overtime_hourly',550);
+  const maxEnd=vr('max_end_time','1:00 AM');
+  const storageFee=vr('vendor_storage_fee',50);
+  const disposalHrs=vr('vendor_disposal_hours',72);
+  const musicBefore=vr('music_ends_before',30);
+  const barBefore=vr('bar_closes_before',60);
+  const parkingSpaces=vr('parking_private_spaces',8);
+  const parkingFreeAfter=vr('parking_public_free_after','6:00 PM');
+  const fmtMoney0=n=>'$'+(parseFloat(n)||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});
+  const barBeforeTxt=(parseInt(barBefore,10)===60)?'1 hour':barBefore+' minutes';
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
 <title>Venue Rules & Policies — ${e['RES#']}</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -4197,7 +4218,7 @@ ${docHeader('Venue Rules & Policies',`REF: ${e['RES#']}`,{mode:'cardona',sub:'Ve
   <ul class="bullet-list">
     <li>The maximum capacity for this event is governed by the guest count agreed in the signed Service Agreement.</li>
     <li>Children under the age of 5 do not count toward the guest count. Children age 5 and over count as adults for guest count, catering, and capacity purposes.</li>
-    <li>Any additional person beyond the agreed count is charged according to the established parameters: <strong>$45 per person</strong> if added 15 or more days before the event, and <strong>$60 per person</strong> if added within 15 days of the event or on the event day. Each additional person is formalized through a signed Amendment.</li>
+    <li>Any additional person beyond the agreed count is charged according to the established parameters: <strong>${fmtMoney0(extraBefore)} per person</strong> if added 15 or more days before the event, and <strong>${fmtMoney0(extraWithin)} per person</strong> if added within 15 days of the event or on the event day. Each additional person is formalized through a signed Amendment.</li>
   </ul>
 </div>
 <div class="sec">
@@ -4206,8 +4227,8 @@ ${docHeader('Venue Rules & Policies',`REF: ${e['RES#']}`,{mode:'cardona',sub:'Ve
   <ul class="bullet-list">
     <li>It is the Client's sole responsibility to ensure no minors consume alcohol at any time.</li>
     <li>Cardona Hall reserves the right to request identification from any guest at any time.</li>
-    <li>If alcohol is consumed by a minor, a <strong>$1,000 penalty</strong> will be charged immediately and the event may be terminated without refund.</li>
-    <li>The bar closes <strong>1 hour before</strong> the agreed event end time, without exception.</li>
+    <li>If alcohol is consumed by a minor, a <strong>${fmtMoney0(minorPenalty)} penalty</strong> will be charged immediately and the event may be terminated without refund.</li>
+    <li>The bar closes <strong>${barBeforeTxt} before</strong> the agreed event end time, without exception.</li>
     <li>If the event runs into overtime, the bar remains closed — no exceptions.</li>
     <li>Law enforcement may be called if alcohol policies are violated.</li>
   </ul>
@@ -4217,7 +4238,7 @@ ${docHeader('Venue Rules & Policies',`REF: ${e['RES#']}`,{mode:'cardona',sub:'Ve
   <div class="warn-box">Zero-tolerance: any aggressive conduct, harassment, or physical altercation results in immediate event termination.</div>
   <ul class="bullet-list">
     <li>Any physical altercation or aggressive behavior results in immediate event termination.</li>
-    <li>A penalty of <strong>40% of the total contracted amount</strong> will be charged.</li>
+    <li>A penalty of <strong>${conductPct}% of the total contracted amount</strong> will be charged.</li>
     <li>Law enforcement will be called if venue staff cannot control the situation.</li>
     <li>No refund will be issued if the event is terminated due to a conduct violation.</li>
   </ul>
@@ -4234,11 +4255,11 @@ ${docHeader('Venue Rules & Policies',`REF: ${e['RES#']}`,{mode:'cardona',sub:'Ve
   <div class="sec-title">5. Event Timing & Overtime</div>
   <ul class="bullet-list">
     <li>Events must begin and end at the agreed times stated in the Service Agreement.</li>
-    <li>Music and entertainment must conclude <strong>30 minutes before</strong> the event end time.</li>
-    <li>Overtime is charged at <strong>$650 per hour</strong> (or any portion thereof) — deducted from the security deposit.</li>
+    <li>Music and entertainment must conclude <strong>${musicBefore} minutes before</strong> the event end time.</li>
+    <li>Overtime is charged at <strong>${fmtMoney0(overtimeHr)} per hour</strong> (or any portion thereof) — deducted from the security deposit.</li>
     <li>The bar does not reopen during overtime under any circumstances.</li>
     <li>All vendors (decorators, DJs, photographers, videographers, and any other service provider) must vacate the premises by the agreed event end time stated in their service contract. Overtime charges apply to vendors who remain beyond this time.</li>
-    <li>The absolute maximum event end time is <strong>1:00 AM</strong>. No exceptions.</li>
+    <li>The absolute maximum event end time is <strong>${maxEnd}</strong>. No exceptions.</li>
   </ul>
 </div>
 <div class="sec">
@@ -4264,14 +4285,14 @@ ${docHeader('Venue Rules & Policies',`REF: ${e['RES#']}`,{mode:'cardona',sub:'Ve
     <li>Vendors may not use Cardona Hall waste containers. All waste must be removed at the event conclusion.</li>
     <li>No furniture may be moved without prior written approval.</li>
     <li>Emergency exits and passageways must remain unobstructed at all times.</li>
-    <li>All equipment, materials, and personal property belonging to vendors must be removed from the premises after the event conclusion. Items not removed will be considered abandoned. Cardona Hall reserves the right to charge a <strong>$50 per day storage fee</strong> for any items retained, and to dispose of unclaimed items after <strong>72 hours</strong> without liability.</li>
+    <li>All equipment, materials, and personal property belonging to vendors must be removed from the premises after the event conclusion. Items not removed will be considered abandoned. Cardona Hall reserves the right to charge a <strong>${fmtMoney0(storageFee)} per day storage fee</strong> for any items retained, and to dispose of unclaimed items after <strong>${disposalHrs} hours</strong> without liability.</li>
   </ul>
 </div>
 <div class="sec">
   <div class="sec-title">9. Parking</div>
   <ul class="bullet-list">
-    <li>Cardona Hall provides a private parking lot with <strong>8 spaces</strong>, available on a first-come basis.</li>
-    <li>A public parking lot is located adjacent to the venue. Parking in the public lot is <strong>free after 6:00 PM</strong>.</li>
+    <li>Cardona Hall provides a private parking lot with <strong>${parkingSpaces} spaces</strong>, available on a first-come basis.</li>
+    <li>A public parking lot is located adjacent to the venue. Parking in the public lot is <strong>free after ${parkingFreeAfter}</strong>.</li>
     <li>Cardona Hall is not responsible for vehicles or their contents parked on or off the premises.</li>
   </ul>
 </div>
@@ -4312,10 +4333,10 @@ ${docHeader('Venue Rules & Policies',`REF: ${e['RES#']}`,{mode:'cardona',sub:'Ve
   <table class="cancel-table">
     <thead><tr><th style="text-align:left">Violation</th><th style="text-align:left">Penalty</th></tr></thead>
     <tbody>
-      <tr><td>Alcohol consumed by person under age 21</td><td style="font-weight:600;color:#8B2020">$1,000 — Event may be terminated</td></tr>
-      <tr><td>Physical altercation or aggressive behavior</td><td style="font-weight:600;color:#8B2020">40% of total contracted amount</td></tr>
+      <tr><td>Alcohol consumed by person under age 21</td><td style="font-weight:600;color:#8B2020">${fmtMoney0(minorPenalty)} — Event may be terminated</td></tr>
+      <tr><td>Physical altercation or aggressive behavior</td><td style="font-weight:600;color:#8B2020">${conductPct}% of total contracted amount</td></tr>
       <tr><td>Damage to premises or equipment</td><td style="font-weight:600">Cost of repair — deducted from deposit</td></tr>
-      <tr><td>Overtime beyond agreed end time</td><td style="font-weight:600">$650 per hour</td></tr>
+      <tr><td>Overtime beyond agreed end time</td><td style="font-weight:600">${fmtMoney0(overtimeHr)} per hour</td></tr>
       <tr><td>Unauthorized decorations / wall damage</td><td style="font-weight:600">Partial or full forfeiture of security deposit</td></tr>
       <tr><td>Smoking inside the premises</td><td style="font-weight:600;color:#8B2020">Forfeiture of deposit + event termination</td></tr>
     </tbody>
