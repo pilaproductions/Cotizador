@@ -609,6 +609,20 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
         <div class="summary-card"><div class="summary-lbl">Projected Margin</div><div class="summary-val white" id="plProjMargin">0%</div></div>
       </div>
 
+      <div class="section-title" style="margin-bottom:10px;">Cash Flow</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;">
+        <div class="payments-summary" style="grid-template-columns:1fr 1fr 1fr;margin:0;">
+          <div class="summary-card"><div class="summary-lbl">Client — Billed</div><div class="summary-val white" id="plCliBilled">$0</div></div>
+          <div class="summary-card"><div class="summary-lbl">Client — Received</div><div class="summary-val green" id="plCliReceived">$0</div></div>
+          <div class="summary-card"><div class="summary-lbl">Client — To Collect</div><div class="summary-val red" id="plCliPending">$0</div></div>
+        </div>
+        <div class="payments-summary" style="grid-template-columns:1fr 1fr 1fr;margin:0;">
+          <div class="summary-card"><div class="summary-lbl">Providers — Agreed</div><div class="summary-val white" id="plPrvAgreed">$0</div></div>
+          <div class="summary-card"><div class="summary-lbl">Providers — Paid</div><div class="summary-val green" id="plPrvPaid">$0</div></div>
+          <div class="summary-card"><div class="summary-lbl">Providers — To Pay</div><div class="summary-val" style="color:#E8A030" id="plPrvPending">$0</div></div>
+        </div>
+      </div>
+
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
         <div>
           <div class="section-title">Revenue Breakdown</div>
@@ -1185,8 +1199,8 @@ async function openEvent(resNum){
   document.getElementById('dGuests').textContent=(currentEvent['Guests']||'—')+' guests';
   document.getElementById('dTotal').textContent=fmtMoney(currentEvent['Final Total']);
   document.getElementById('dCot').textContent=currentEvent['COT#']||'—';
-  // Default payment date to today
-  document.getElementById('payDate').value=new Date().toISOString().split('T')[0];
+  // Default payment date to today (LOCAL date, not UTC — toISOString shifts a day)
+  {const n=new Date();document.getElementById('payDate').value=`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`;}
   document.getElementById('listView').style.display='none';
   document.getElementById('detailView').style.display='block';
   // Reset tabs
@@ -1779,14 +1793,17 @@ async function updateStatus(newStatus){
     if(balance>0.01){showToast('Cannot complete — balance due: '+fmtMoney(balance),'error');return;}
   }
   if(!confirm('Mark this event as '+newStatus+'?'))return;
-  const payload={action:'updateQuotationStatus','COT#':currentEvent['COT#'],'RES#':currentEvent['RES#'],'Status':newStatus.toLowerCase(),'Event Status':newStatus.toLowerCase()};
+  const st=newStatus.toLowerCase();
+  const payload={action:'updateQuotationStatus','COT#':currentEvent['COT#'],'RES#':currentEvent['RES#'],'Status':st};
   showLoading();
   try{
     await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(payload),headers:{'Content-Type':'text/plain'}});
-    currentEvent['Event Status']=newStatus.toLowerCase();
-    const sc={reserved:'status-reserved',completed:'status-completed',cancelled:'status-cancelled'}[newStatus.toLowerCase()]||'status-reserved';
-    document.getElementById('detailStatusBadge').innerHTML=`<span class="status-badge ${sc}">${newStatus}</span>`;
-    showToast('Status updated to '+newStatus,'success');
+    currentEvent['Status']=st;
+    const sc={reserved:'status-reserved',completed:'status-completed',cancelled:'status-cancelled',date_pending:'status-date-pending',rescheduled:'status-rescheduled'}[st]||'status-reserved';
+    const sl={reserved:'Reserved',completed:'Completed',cancelled:'Cancelled',date_pending:'Date Pending',rescheduled:'Rescheduled'}[st]||newStatus;
+    document.getElementById('detailStatusBadge').innerHTML=`<span class="status-badge ${sc}">${sl}</span>`;
+    updateDateChangeButton();
+    showToast('Status updated to '+sl,'success');
     await loadEvents();
   }catch(e){showToast('Error updating status','error');}
   hideLoading();
@@ -2047,7 +2064,7 @@ html,body{background:#fff;width:210mm;font-family:'Montserrat',sans-serif;font-s
 .info-item{display:flex;flex-direction:column;gap:3px;}
 .info-lbl{font-size:9px;color:#C9A84C;letter-spacing:1.5px;text-transform:uppercase;opacity:0.8;}
 .info-val{font-size:13px;color:#1a1a1a;font-weight:500;}
-.event-bar{background:#E8DFD0;border-left:3px solid #C9A84C;padding:10px 14px;display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+.event-bar{background:#E8DFD0;border-left:3px solid #C9A84C;padding:10px 14px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
 .eb-lbl{font-size:8px;color:#7a6545;letter-spacing:1.5px;text-transform:uppercase;}
 .eb-val{font-size:13px;font-weight:600;color:#1a1a1a;margin-top:2px;}
 .concept-table{width:100%;border-collapse:collapse;}
@@ -2089,7 +2106,6 @@ html,body{background:#fff;width:210mm;font-family:'Montserrat',sans-serif;font-s
     <div><div class="eb-lbl">Event Type</div><div class="eb-val">${etLabel}</div></div>
     <div><div class="eb-lbl">Date</div><div class="eb-val">${currentDateDisp()}</div></div>
     <div><div class="eb-lbl">Day</div><div class="eb-val">${currentEvent['Day of Week']||'—'}</div></div>
-    <div><div class="eb-lbl">Guests</div><div class="eb-val">${currentEvent['Guests']||'—'}</div></div>
   </div>
 </div>
 <div class="section">
@@ -2507,6 +2523,17 @@ function renderPL(){
   document.getElementById('plProjProfit').textContent=fmtMoney(projProfit);
   document.getElementById('plProjProfit').style.color=projProfit>=0?'#6EC98A':'#E87070';
   document.getElementById('plProjMargin').textContent=projMargin+'%';
+
+  // ── CASH FLOW (informational, totals only) ──
+  const cliBilled=totalRevenue;
+  const cliReceived=getTotalReceived();
+  const cliPending=Math.max(0,cliBilled-cliReceived);
+  document.getElementById('plCliBilled').textContent=fmtMoney(cliBilled);
+  document.getElementById('plCliReceived').textContent=fmtMoney(cliReceived);
+  document.getElementById('plCliPending').textContent=fmtMoney(cliPending);
+  document.getElementById('plPrvAgreed').textContent=fmtMoney(expAgreed);
+  document.getElementById('plPrvPaid').textContent=fmtMoney(expPaid);
+  document.getElementById('plPrvPending').textContent=fmtMoney(expPending);
 
   // Revenue breakdown
   let revRows=`<tr><td>Event Package</td><td style="text-align:right;font-weight:600">${fmtMoney(base)}</td></tr>`;
