@@ -329,7 +329,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
               <option value="Client-Handled">Client-Handled (client does it himself)</option>
             </select>
           </div>
-          <button class="btn btn-gold" onclick="saveService()">Add</button>
+          <button class="btn btn-gold" id="btnSaveService" onclick="saveService()">Add</button>
         </div>
         <div class="form-row" id="svcCustomRow" style="margin-top:10px;display:none">
           <div class="form-field"><div class="form-lbl" id="svcNameLbl">Custom Role Name</div><input class="form-input" type="text" id="svcName" placeholder="e.g. Hora Loca, CO2 Jets..."></div>
@@ -384,7 +384,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
               <option value="Cash">Cash</option><option value="Zelle">Zelle</option><option value="Check">Check</option><option value="Card">Card</option>
             </select>
           </div>
-          <button class="btn btn-gold" onclick="saveExpensePayment()">Save</button>
+          <button class="btn btn-gold" id="btnSaveExpPay" onclick="saveExpensePayment()">Save</button>
         </div>
         <div style="margin-top:8px;display:flex;gap:8px;align-items:center;">
           <div class="form-field" style="flex:1"><div class="form-lbl">Notes</div><input class="form-input" type="text" id="expPayNotes" placeholder="Reference, transaction..."></div>
@@ -398,7 +398,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
         <input type="hidden" id="expPriceExpenseId">
         <div class="form-row" style="grid-template-columns:1fr auto auto;gap:10px;display:grid;align-items:end;">
           <div class="form-field"><div class="form-lbl">Agreed Price</div><input class="form-input" type="number" id="expPriceAmount" placeholder="0.00" min="0"></div>
-          <button class="btn btn-gold" onclick="saveExpensePrice()">Save</button>
+          <button class="btn btn-gold" id="btnSaveExpPrice" onclick="saveExpensePrice()">Save</button>
           <button class="btn btn-ghost btn-sm" onclick="closeExpPriceForm()">Cancel</button>
         </div>
       </div>
@@ -491,7 +491,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
             <input type="hidden" id="opsStatus" value="Confirmed">
             <div style="display:flex;gap:8px">
               <button class="btn btn-outline" onclick="clearOpsForm()">Clear</button>
-              <button class="btn btn-gold" onclick="saveOperation()">Save Logistics</button>
+              <button class="btn btn-gold" id="btnSaveOperation" onclick="saveOperation()">Save Logistics</button>
             </div>
           </div>
         </div>
@@ -1521,14 +1521,15 @@ async function saveIncome(){
     document.getElementById('incPayNow').value='';
     document.getElementById('incNeedsRole').checked=false;
     document.getElementById('incRoleRow').style.display='none';
-    showToast('Income added','success');
     // Amendment document: the backup record is ALWAYS created; ask whether to open
     // it now for printing/saving. It also stays available in the Documents list.
-    const openNow=confirm('Income added and amendment recorded.\n\nOpen the amendment document now to print/save it?');
+    const openNow=window.confirm('Income added and the amendment was recorded in Documents.\n\nOpen the amendment document now to print or save it?');
     await generateAmendmentCharge({concept,category:isFee?'':category,amount,payNow,payMethod,notes,isFee},openNow);
+    showToast('Income added','success');
     await new Promise(r=>setTimeout(r,1400));
     await loadServices();
     await loadPayments();
+    await loadDocuments();
     renderPayments();
   }catch(e){showToast('Error adding income','error');}
   hideLoading();
@@ -1649,6 +1650,7 @@ function renderServices(){
 
 // Assign a provider to a role that was created as pending — opens modal
 function openAssignProviderToRole(detailId){
+  if(!ensureNotLocked())return;
   const s=currentServices.find(x=>x['Detail ID']===detailId);
   if(!s)return;
   const type=normProviderType(s['Provider Type']);
@@ -1678,6 +1680,7 @@ function onAssignTypeChange(){
 }
 function closeAssignProvForm(){document.getElementById('assignProvOverlay').style.display='none';}
 function confirmAssignProvider(){
+  if(!ensureNotLocked())return;
   const detailId=document.getElementById('assignProvDetailId').value;
   const s=currentServices.find(x=>x['Detail ID']===detailId);
   if(!s)return;
@@ -1979,11 +1982,24 @@ function applyLockState(){
       ? '✕ This event is cancelled — operations are disabled. Documents remain available for reference.'
       : (status==='completed' ? '✓ This event is completed — operations are disabled. Documents remain available for reference.' : '');
   }
-  // Operational buttons to disable when locked
-  const opIds=['btnComplete','btnChangeDate','btnCancel','btnSavePayment','btnSaveIncome','btnAddManual','btnAddPackage'];
+  // Operational buttons to disable when locked (Payments, Services, Operations, Expenses)
+  const opIds=['btnComplete','btnChangeDate','btnCancel','btnSavePayment','btnSaveIncome',
+    'btnAddManual','btnAddPackage','btnSaveService','btnSaveOperation','btnSaveExpPay',
+    'btnSaveExpPrice','btnAddExpense'];
   opIds.forEach(id=>{
     const el=document.getElementById(id);
     if(el){el.disabled=locked;el.style.opacity=locked?'0.45':'';el.style.cursor=locked?'not-allowed':'';}
+  });
+  // Dynamic buttons rendered inside tables (Assign/Reassign providers, add-expense,
+  // per-row actions): disable all buttons inside the Services, Operations and
+  // Expenses tab panes when locked.
+  ['tab-services','tab-operations','tab-expenses'].forEach(paneId=>{
+    const pane=document.getElementById(paneId);
+    if(!pane)return;
+    pane.querySelectorAll('button').forEach(b=>{
+      if(locked){b.dataset._lock='1';b.disabled=true;b.style.opacity='0.45';b.style.cursor='not-allowed';}
+      else if(b.dataset._lock){b.disabled=false;b.style.opacity='';b.style.cursor='';delete b.dataset._lock;}
+    });
   });
   // Disable form inputs in Payments (register + income) when locked
   ['payAmount','payDate','payMethod','payType','payReference','payNotes','incConcept','incCategory','incAmount','incNeedsRole','incRole','incNotes'].forEach(id=>{
@@ -2661,6 +2677,7 @@ function setExpensePrice(expenseId,provName,current){
 }
 function closeExpPriceForm(){document.getElementById('expPriceForm').style.display='none';}
 async function saveExpensePrice(){
+  if(!ensureNotLocked())return;
   const expenseId=document.getElementById('expPriceExpenseId').value;
   const price=parseFloat(document.getElementById('expPriceAmount').value);
   if(isNaN(price)||price<0){showToast('Invalid price','error');return;}
@@ -2690,6 +2707,7 @@ function closeExpPayForm(){
 }
 
 async function saveExpensePayment(){
+  if(!ensureNotLocked())return;
   const expenseId=document.getElementById('expPayExpenseId').value;
   const amount=parseFloat(document.getElementById('expPayAmount').value);
   const date=document.getElementById('expPayDate').value;
@@ -2945,22 +2963,23 @@ function renderDocuments(){
   const groups={client:[],venue:[],catering:[],decor:[],ent:[],photo:[],finance:[]};
   DOC_DEFINITIONS.forEach(def=>{ if(groups[def.group])groups[def.group].push(docCard(def)); });
 
-  // Amendments — one card per manually added charge (Source='manual').
-  // Charge WITH a category → its category group. General fee (Fees) → Client & Legal.
+  // Amendments — one card per manually added charge (Source='manual') that has a
+  // price. Includes charges that also created a role (they're still a client charge).
   const DIV_TO_GROUP={Venue:'venue',Catering:'catering',Decor:'decor',Entertainment:'ent',Photo:'photo',Fees:'client'};
-  currentServices.filter(s=>String(s['Source']||'').toLowerCase()==='manual'&&String(s['Type']||'').toLowerCase()!=='role').forEach(s=>{
+  currentServices.filter(s=>String(s['Source']||'').toLowerCase()==='manual'&&(parseFloat(s['Price'])||0)>0).forEach(s=>{
     const div=String(s['Division']||'Fees');
     const grp=DIV_TO_GROUP[div]||'client';
     const idx=currentServices.indexOf(s);
     const isFee=(div==='Fees');
+    const nm=(String(s['Item']||'').toLowerCase()==='other'&&s['Description'])?s['Description']:(s['Item']||'Charge');
     groups[grp].push(`<div class="doc-card">
       <div class="doc-icon">📎</div>
       <div class="doc-info">
-        <div class="doc-name">Amendment — ${s['Item']||'Charge'}</div>
+        <div class="doc-name">Amendment — ${nm}</div>
         <div class="doc-sub">${fmtMoney(s['Price'])} · ${isFee?'General fee':div}</div>
       </div>
       <div class="doc-status">
-        <button class="btn btn-outline btn-sm" onclick="regenAmendmentFromService(${idx})">⬇ Generate</button>
+        <button class="btn btn-outline btn-sm" onclick="regenAmendmentFromService(${idx})">⬇ Copy</button>
       </div>
     </div>`);
   });
@@ -5801,6 +5820,7 @@ function clearOpsForm(){
 }
 
 async function saveOperation(){
+  if(!ensureNotLocked())return;
   const editId='';
   const sel=document.getElementById('opsAssignedRole');
   const detailId=sel.value;
