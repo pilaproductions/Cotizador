@@ -225,7 +225,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
               <option value="Deposit">Deposit</option><option value="Abono">Abono</option><option value="Balance Final">Balance Final</option>
             </select>
           </div>
-          <button class="btn btn-gold" onclick="savePayment()">Save</button>
+          <button class="btn btn-gold" id="btnSavePayment" onclick="savePayment()">Save</button>
         </div>
         <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
           <div class="form-field"><div class="form-lbl">Reference</div><input class="form-input" type="text" id="payReference" placeholder="Transaction ID, check #..."></div>
@@ -250,7 +250,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
           <div class="form-field"><div class="form-lbl">Amount (client)</div>
             <div style="display:flex;align-items:center;gap:6px;"><span style="font-size:13px;color:#555;">$</span><input class="form-input" type="number" id="incAmount" placeholder="0.00" min="0" style="flex:1"></div>
           </div>
-          <button class="btn btn-gold" onclick="saveIncome()">Add</button>
+          <button class="btn btn-gold" id="btnSaveIncome" onclick="saveIncome()">Add</button>
         </div>
         <div class="form-row" style="margin-top:10px;display:grid;grid-template-columns:auto 1fr 1fr;gap:10px;align-items:end;">
           <div class="form-field" style="display:flex;align-items:center;gap:8px;padding-top:18px;">
@@ -277,13 +277,14 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
         <tbody id="paymentsBody"><tr><td colspan="7" class="no-data">No payments registered</td></tr></tbody>
       </table>
 
+      <div id="lockBanner" style="display:none;background:#FBEAEA;border-left:4px solid #CC2200;border-radius:5px;padding:10px 14px;margin:0 0 12px;font-size:12px;color:#8B1500;font-weight:600;"></div>
       <div class="status-section">
         <span class="status-label">Event Status:</span>
         <button class="btn btn-blue btn-sm" id="btnReceipt" onclick="generateReceipt()">⬇ Receipt PDF</button>
         <span class="alert-msg" id="receiptAlert" style="display:none">No payments yet — receipt unavailable</span>
         <button class="btn btn-green btn-sm" id="btnComplete" onclick="updateStatus('Completed')">✓ Mark as Completed</button>
         <button class="btn btn-sm" id="btnChangeDate" style="background:#D4680A;color:#fff" onclick="openDateChangeForm()">📅 Change Date</button>
-        <button class="btn btn-red btn-sm" onclick="openCancelForm()">✕ Cancel Event</button>
+        <button class="btn btn-red btn-sm" id="btnCancel" onclick="openCancelForm()">✕ Cancel Event</button>
         <span class="alert-msg" id="completeAlert" style="display:none">Balance must be $0 to complete</span>
       </div>
     </div>
@@ -1274,6 +1275,7 @@ async function openEvent(resNum){
   const sl={reserved:'Reserved',completed:'Completed',cancelled:'Cancelled',date_pending:'Date Pending',rescheduled:'Rescheduled'}[status]||'Reserved';
   document.getElementById('detailStatusBadge').innerHTML=`<span class="status-badge ${sc}">${sl}</span>`;
   updateDateChangeButton();
+  applyLockState();
   document.getElementById('dEventType').textContent=ET_LABELS[currentEvent['Event Type']]||currentEvent['Event Type']||'—';
   document.getElementById('dEventDate').textContent=fmtDate(currentEvent['Event Date']);
   document.getElementById('dEventDay').textContent=currentEvent['Day of Week']||'—';
@@ -1436,6 +1438,7 @@ function populateIncRoleDropdown(){
 // Add an income: an amendment charge in Event Services Detail. If it requires
 // execution, the same row carries the role (Provider pending → assign in Services).
 async function saveIncome(){
+  if(!ensureNotLocked())return;
   const concept=document.getElementById('incConcept').value.trim();
   const category=document.getElementById('incCategory').value;
   const amount=parseFloat(document.getElementById('incAmount').value)||0;
@@ -1752,6 +1755,7 @@ async function removeService(detailId,itemName){
 }
 
 async function savePayment(){
+  if(!ensureNotLocked())return;
   const amount=parseFloat(document.getElementById('payAmount').value);
   const date=document.getElementById('payDate').value;
   if(!amount||amount<=0){showToast('Enter a valid amount','error');return;}
@@ -1795,6 +1799,7 @@ async function savePayment(){
 }
 
 async function saveService(){
+  if(!ensureNotLocked())return;
   const roleVal=document.getElementById('svcRole').value;
   const customName=document.getElementById('svcName').value.trim();
   const isOther=(roleVal||'').toLowerCase()==='other';
@@ -1869,6 +1874,7 @@ async function saveService(){
 }
 
 async function updateStatus(newStatus){
+  if(window._eventLocked){showToast('This event is already closed','error');return;}
   if(newStatus==='Completed'){
     const balance=getEventTotal()-getTotalReceived();
     if(balance>0.01){showToast('Cannot complete — balance due: '+fmtMoney(balance),'error');return;}
@@ -1908,6 +1914,36 @@ function dcDaysRemaining(){
   const ed=new Date(String(currentEvent['Event Date']).split('T')[0]+'T00:00:00');
   if(isNaN(ed)) return null;
   return Math.floor((ed-today)/(1000*60*60*24));
+}
+// Lock a closed event (cancelled/completed): disable all operational actions,
+// keep documents/consultation available. Grey out, don't hide.
+function applyLockState(){
+  if(!currentEvent)return;
+  const status=(currentEvent['Status']||currentEvent['Event Status']||'').toLowerCase();
+  const locked=(status==='cancelled'||status==='completed');
+  const banner=document.getElementById('lockBanner');
+  if(banner){
+    banner.style.display=locked?'block':'none';
+    banner.textContent=status==='cancelled'
+      ? '✕ This event is cancelled — operations are disabled. Documents remain available for reference.'
+      : (status==='completed' ? '✓ This event is completed — operations are disabled. Documents remain available for reference.' : '');
+  }
+  // Operational buttons to disable when locked
+  const opIds=['btnComplete','btnChangeDate','btnCancel','btnSavePayment','btnSaveIncome','btnAddManual','btnAddPackage'];
+  opIds.forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){el.disabled=locked;el.style.opacity=locked?'0.45':'';el.style.cursor=locked?'not-allowed':'';}
+  });
+  // Disable form inputs in Payments (register + income) when locked
+  ['payAmount','payDate','payMethod','payType','payReference','payNotes','incConcept','incCategory','incAmount','incNeedsRole','incRole','incNotes'].forEach(id=>{
+    const el=document.getElementById(id);if(el)el.disabled=locked;
+  });
+  window._eventLocked=locked;
+}
+// Guard used by operational actions.
+function ensureNotLocked(){
+  if(window._eventLocked){showToast('This event is closed — operation not allowed','error');return false;}
+  return true;
 }
 function updateDateChangeButton(){
   const btn=document.getElementById('btnChangeDate');
@@ -1998,6 +2034,7 @@ function toggleTBD(){
   if(tbd){document.getElementById('dcNewDate').value='';document.getElementById('dcNewDay').textContent='';}
 }
 async function saveDateChange(){
+  if(!ensureNotLocked())return;
   const tbd=document.getElementById('dcTBD').checked;
   const newDate=document.getElementById('dcNewDate').value;
   if(!tbd&&!newDate){showToast('Select the new date or mark "To Be Defined"','error');return;}
@@ -6016,6 +6053,7 @@ function canRecalc(){
   document.getElementById('canRefundNote').textContent=refund>0?'The refund is processed outside the system. Retained amount is saved as the event\'s income.':'No refund — full paid amount retained.';
 }
 async function saveCancellation(){
+  if(!ensureNotLocked())return;
   const fm=document.getElementById('canType').value==='fm';
   const paid=getTotalReceived();
   let refund=parseFloat(document.getElementById('canRefundInput').value)||0;
