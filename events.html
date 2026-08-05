@@ -1274,6 +1274,8 @@ function renderList(){
 async function openEvent(resNum){
   currentEvent=allEvents.find(e=>e['RES#']===resNum);
   if(!currentEvent)return;
+  // Clear per-event state so nothing bleeds from a previously opened event.
+  currentPayments=[];currentServices=[];
   loadBusinessRules();
   loadOriginalDate(resNum);
   document.getElementById('detailRes').textContent=currentEvent['RES#'];
@@ -1314,6 +1316,7 @@ async function openEvent(resNum){
   await deriveAndFreezeRoles();
   // Operations last: it consumes the (now loaded & possibly frozen) Services.
   await loadOperations(true);
+  applyLockState();   // re-apply after all tab data rendered (renderPayments etc. may touch buttons)
   hideLoading();
 }
 
@@ -1371,11 +1374,16 @@ function renderPayments(){
   } else {
     document.getElementById('payType').value='Abono';
   }
-  // Complete button validation
+  // Complete button validation — but never re-enable if the event is locked (closed).
   const completeBtn=document.getElementById('btnComplete');
   const alert=document.getElementById('completeAlert');
-  if(balance>0){completeBtn.disabled=true;completeBtn.style.opacity='0.4';alert.style.display='inline';}
-  else{completeBtn.disabled=false;completeBtn.style.opacity='1';alert.style.display='none';}
+  if(window._eventLocked){
+    completeBtn.disabled=true;completeBtn.style.opacity='0.45';alert.style.display='none';
+  } else if(balance>0){
+    completeBtn.disabled=true;completeBtn.style.opacity='0.4';alert.style.display='inline';
+  } else {
+    completeBtn.disabled=false;completeBtn.style.opacity='1';alert.style.display='none';
+  }
 
   // Receipt quick-access: disabled with reason when there are no payments
   const receiptBtn=document.getElementById('btnReceipt');
@@ -1389,6 +1397,10 @@ function renderPayments(){
       if(receiptAlert)receiptAlert.style.display='none';
     }
   }
+
+  // Charges are independent of payments — always render them (fixes stale charges
+  // from a previously opened event bleeding into one with no payments).
+  renderCharges();
 
   if(!currentPayments.length){
     document.getElementById('paymentsBody').innerHTML='<tr><td colspan="7" class="no-data">No payments registered yet</td></tr>';
@@ -1405,7 +1417,6 @@ function renderPayments(){
     <td style="font-size:11px;color:#888">${p['Notes']||'—'}</td>
   </tr>`).join('');
   document.getElementById('paymentsBody').innerHTML=rows;
-  renderCharges();
 }
 
 // Charges = original contract (Final Total) + amendments (fees + added income/services).
@@ -1511,8 +1522,10 @@ async function saveIncome(){
     document.getElementById('incNeedsRole').checked=false;
     document.getElementById('incRoleRow').style.display='none';
     showToast('Income added','success');
-    // Generate the amendment document for this charge (concept + price + payment captured).
-    generateAmendmentCharge({concept,category:isFee?'':category,amount,payNow,payMethod,notes,isFee});
+    // Amendment document: the backup record is ALWAYS created; ask whether to open
+    // it now for printing/saving. It also stays available in the Documents list.
+    const openNow=confirm('Income added and amendment recorded.\n\nOpen the amendment document now to print/save it?');
+    await generateAmendmentCharge({concept,category:isFee?'':category,amount,payNow,payMethod,notes,isFee},openNow);
     await new Promise(r=>setTimeout(r,1400));
     await loadServices();
     await loadPayments();
@@ -2318,7 +2331,7 @@ ${balance<=0?'<div class="balance-bar"><span class="balance-lbl">Payment Status<
 // (concept + price), the payment captured at add-time, and the amendment total.
 // Aligned entity (internal/external). Charges with a category live in that
 // category's group; general fees (no category) live under Client & Legal.
-async function generateAmendmentCharge(chg){
+async function generateAmendmentCharge(chg,openNow=true){
   const e=currentEvent;
   const ext=isExternalEvent();
   const ENTITY=ext?'PILAB SOLUTIONS LLC':'CARDONA HALL LLC';
@@ -2331,6 +2344,15 @@ async function generateAmendmentCharge(chg){
   }catch(err){}
   const amdNum=`AMD-${e['RES#']}-${String(amdCount+1).padStart(3,'0')}`;
   const catLabel=chg.isFee?'General Fee':(chg.category||'Additional Service');
+  // Save document record ALWAYS (backup exists regardless of whether it's opened now).
+  try{
+    await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify({
+      action:'saveDocument','Document ID':amdNum,'RES#':e['RES#'],'COT#':e['COT#'],
+      'Client Name':e['Client Name'],'Event Date':e['Event Date'],'Type':'Amendment',
+      'Generated Date':new Date().toLocaleDateString('en-US'),'Status':'Draft','Notes':chg.concept
+    }),headers:{'Content-Type':'text/plain'}});
+  }catch(err){}
+  if(!openNow){showToast('Amendment '+amdNum+' recorded','success');return;}
   const win=docOpen();if(!win)return;
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
 <title>Amendment — ${e['RES#']}</title>
@@ -2383,14 +2405,6 @@ ${docFooter('Productions LLC')}
 <script>window.onload=function(){document.title=' ';try{history.replaceState(null,'',' ');}catch(e){}setTimeout(function(){window.print();},1000);};<\/script>
 </body></html>`;
   docWrite(win,html);
-  // Save document record
-  try{
-    await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify({
-      action:'saveDocument','Document ID':amdNum,'RES#':e['RES#'],'COT#':e['COT#'],
-      'Client Name':e['Client Name'],'Event Date':e['Event Date'],'Type':'Amendment',
-      'Generated Date':new Date().toLocaleDateString('en-US'),'Status':'Draft','Notes':chg.concept
-    }),headers:{'Content-Type':'text/plain'}});
-  }catch(err){}
   showToast(amdNum+' generated','success');
 }
 
@@ -2739,6 +2753,7 @@ async function removeExpense(expenseId,providerName){
 
 // ── P&L ──
 function renderPL(){
+  if(!currentEvent)return;
   // ── REVENUE (billed): contract Final Total + extra income (fees/clauses) ──
   const base=parseFloat(currentEvent['Final Total'])||0;
   const extraIncome=getExtraIncome();
