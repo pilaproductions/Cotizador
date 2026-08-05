@@ -283,7 +283,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
         <span class="alert-msg" id="receiptAlert" style="display:none">No payments yet — receipt unavailable</span>
         <button class="btn btn-green btn-sm" id="btnComplete" onclick="updateStatus('Completed')">✓ Mark as Completed</button>
         <button class="btn btn-sm" id="btnChangeDate" style="background:#D4680A;color:#fff" onclick="openDateChangeForm()">📅 Change Date</button>
-        <button class="btn btn-red btn-sm" onclick="updateStatus('Cancelled')">✕ Cancel Event</button>
+        <button class="btn btn-red btn-sm" onclick="openCancelForm()">✕ Cancel Event</button>
         <span class="alert-msg" id="completeAlert" style="display:none">Balance must be $0 to complete</span>
       </div>
     </div>
@@ -781,6 +781,44 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
   </div>
 </div>
 
+<div id="cancelOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10000;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:8px;max-width:520px;width:92%;max-height:90vh;overflow-y:auto;box-shadow:0 12px 40px rgba(0,0,0,0.3);">
+    <div style="background:#CC2200;color:#fff;padding:14px 20px;border-radius:8px 8px 0 0;display:flex;align-items:center;justify-content:space-between;">
+      <span style="font-size:15px;font-weight:700;letter-spacing:0.5px;">✕ Cancel Event</span>
+      <button onclick="closeCancelForm()" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;line-height:1;">✕</button>
+    </div>
+    <div style="padding:20px;">
+      <div style="background:#FFF0EE;border-left:4px solid #CC2200;border-radius:5px;padding:10px 12px;font-size:11px;color:#8B1500;margin-bottom:16px;">
+        This cancels the event and generates the Cancellation Notice. The penalty is retained from what the client already paid; the rest is refunded outside the system.
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+        <div><div style="font-size:11px;color:#555;font-weight:600;margin-bottom:4px;">Contract Total</div><div id="canTotal" style="font-size:15px;font-weight:700;">$0</div></div>
+        <div><div style="font-size:11px;color:#555;font-weight:600;margin-bottom:4px;">Paid by Client</div><div id="canPaid" style="font-size:15px;font-weight:700;color:#1E5C2E;">$0</div></div>
+      </div>
+      <div style="margin-bottom:6px;">
+        <label style="font-size:11px;color:#555;font-weight:600;display:block;margin-bottom:5px;">Cancellation Penalty (auto-filled by policy — editable)</label>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:14px;color:#555;">$</span>
+          <input type="number" id="canPenalty" min="0" step="50" oninput="canRecalc()" style="flex:1;padding:9px;border:1px solid #CCC;border-radius:4px;font-size:13px;">
+        </div>
+        <div id="canPenaltyNote" style="font-size:10px;color:#999;margin-top:4px;"></div>
+      </div>
+      <div style="background:#F7F5F0;border-radius:6px;padding:12px;margin:14px 0;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div><div style="font-size:10px;color:#777;">Retained (penalty)</div><div id="canRetained" style="font-size:14px;font-weight:700;color:#8B1500;">$0</div></div>
+        <div><div style="font-size:10px;color:#777;">Refund to client</div><div id="canRefund" style="font-size:14px;font-weight:700;color:#1E5C2E;">$0</div></div>
+      </div>
+      <div style="margin-bottom:14px;">
+        <label style="font-size:11px;color:#555;font-weight:600;display:block;margin-bottom:5px;">Reason (optional)</label>
+        <input type="text" id="canReason" placeholder="Reason for cancellation..." style="width:100%;padding:9px;border:1px solid #CCC;border-radius:4px;font-size:13px;box-sizing:border-box;">
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:10px;">
+        <button class="btn btn-sm btn-outline" onclick="closeCancelForm()">Cancel</button>
+        <button class="btn btn-sm" style="background:#CC2200;color:#fff;" onclick="saveCancellation()">Cancel Event & Generate Notice</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 const SCRIPT_URL='https://script.google.com/macros/s/AKfycbyUAKZyuX8xcdSTXNkJoagPlaW4fumRWnrDuuARiMntpS76sx_6I-6TYxUpjkhjVIADAQ/exec';
 const ET_LABELS={wedding:'Wedding',quinceanera:'Quinceañera',sweet16:'Sweet 16',baby_shower:'Baby Shower',kids_party:'Kids Party',birthday:'Birthday Party',special_social:'Special Event',special_corporate:'Corporate',bautizo:'Bautizo',graduacion:'Graduation',primera_comunion:'Primera Comunión'};
@@ -1090,9 +1128,9 @@ function providerBadge(v){
   return `<span style="font-size:8px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;padding:1px 6px;border-radius:2px;background:${bg};color:${fg};margin-left:6px">${label}</span>`;
 }
 function fmtDate(d){if(!d)return'—';try{const dt=new Date(d);if(isNaN(dt))return String(d);return dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});}catch{return String(d);}}
-// True original event date: the dedicated column if set, else the current date.
+// True original event date: from the append-only history (_origDate), else current.
 function origEventDate(){
-  const o=currentEvent&&currentEvent['Original Event Date'];
+  const o=currentEvent&&currentEvent['_origDate'];
   if(o&&String(o).trim()!==''&&String(o).trim().toUpperCase()!=='TBD')return o;
   return currentEvent?currentEvent['Event Date']:'';
 }
@@ -1130,6 +1168,21 @@ function getEventTotal(){
 }
 function getTotalReceived(){
   return currentPayments.reduce((s,p)=>s+(parseFloat(p['Amount'])||0),0);
+}
+
+// Original event date derived from the append-only history: the Event Date of the
+// FIRST (oldest) row for this RES# that holds a real date. No dedicated column needed.
+async function loadOriginalDate(resNum){
+  try{
+    const res=await fetch(SCRIPT_URL+'?sheet=Quotations&filterKey=RES%23&filterVal='+encodeURIComponent(resNum)+'&nocache='+Date.now());
+    const rows=await res.json();
+    if(Array.isArray(rows)&&rows.length){
+      for(let i=0;i<rows.length;i++){
+        const d=String(rows[i]['Event Date']||'').trim();
+        if(d&&d.toUpperCase()!=='TBD'){currentEvent['_origDate']=rows[i]['Event Date'];break;}
+      }
+    }
+  }catch(e){/* docs fall back to current date */}
 }
 
 async function loadEvents(){
@@ -1186,6 +1239,7 @@ async function openEvent(resNum){
   currentEvent=allEvents.find(e=>e['RES#']===resNum);
   if(!currentEvent)return;
   loadBusinessRules();
+  loadOriginalDate(resNum);
   document.getElementById('detailRes').textContent=currentEvent['RES#'];
   document.getElementById('detailClient').textContent=currentEvent['Client Name']||'—';
   const status=(currentEvent['Status']||currentEvent['Event Status']||'reserved').toLowerCase();
@@ -1956,13 +2010,6 @@ async function saveDateChange(){
     'Status':newStatus,
     'Date Change Log':logEntry
   };
-  // Preserve the ORIGINAL event date the first time a change happens. On later
-  // changes it's already stored and carried over by the append-only copy.
-  const hasOrig=currentEvent['Original Event Date']&&String(currentEvent['Original Event Date']).trim()!==''&&String(currentEvent['Original Event Date']).trim().toUpperCase()!=='TBD';
-  if(!hasOrig){
-    datePayload['Original Event Date']=currentEvent['Event Date'];
-    currentEvent['Original Event Date']=currentEvent['Event Date'];
-  }
   showLoading();
   try{
     await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(datePayload),headers:{'Content-Type':'text/plain'}});
@@ -2496,7 +2543,12 @@ function renderPL(){
   const base=parseFloat(currentEvent['Final Total'])||0;
   const extraIncome=getExtraIncome();
   const extraTotal=getExtraIncomeTotal();
-  const totalRevenue=base+extraTotal;
+  // For a CANCELLED event, revenue is the RETAINED PENALTY (the event didn't
+  // happen), not the billed total. Refund goes out outside the system.
+  const isCancelled=String(currentEvent['Status']||'').toLowerCase()==='cancelled';
+  const cancelPenalty=parseFloat(currentEvent['Cancellation Penalty']);
+  const cancelRetained=isCancelled&&!isNaN(cancelPenalty)?Math.min(cancelPenalty,getTotalReceived()):0;
+  const totalRevenue=isCancelled?cancelRetained:(base+extraTotal);
 
   // ── EXPENSES (internal only) ──
   const internal=(currentExpenses||[]).filter(e=>isInternalType(e['Provider Type']));
@@ -2536,11 +2588,17 @@ function renderPL(){
   document.getElementById('plPrvPending').textContent=fmtMoney(expPending);
 
   // Revenue breakdown
-  let revRows=`<tr><td>Event Package</td><td style="text-align:right;font-weight:600">${fmtMoney(base)}</td></tr>`;
-  extraIncome.forEach(p=>{
-    revRows+=`<tr><td style="color:#888;font-size:11px">${p['Item']||'Amendment'}${p['Description']?' · '+p['Description']:''}</td><td style="text-align:right;font-weight:600;font-size:11px">${fmtMoney(parseFloat(p['Price'])||0)}</td></tr>`;
-  });
-  revRows+=`<tr style="border-top:1px solid #EEE"><td style="font-weight:700">Total Billed</td><td style="text-align:right;font-weight:700;color:#C9A84C">${fmtMoney(totalRevenue)}</td></tr>`;
+  let revRows='';
+  if(isCancelled){
+    revRows=`<tr><td>Cancellation penalty retained</td><td style="text-align:right;font-weight:600">${fmtMoney(cancelRetained)}</td></tr>`;
+    revRows+=`<tr style="border-top:1px solid #EEE"><td style="font-weight:700">Total (cancelled event)</td><td style="text-align:right;font-weight:700;color:#C9A84C">${fmtMoney(totalRevenue)}</td></tr>`;
+  }else{
+    revRows=`<tr><td>Event Package</td><td style="text-align:right;font-weight:600">${fmtMoney(base)}</td></tr>`;
+    extraIncome.forEach(p=>{
+      revRows+=`<tr><td style="color:#888;font-size:11px">${p['Item']||'Amendment'}${p['Description']?' · '+p['Description']:''}</td><td style="text-align:right;font-weight:600;font-size:11px">${fmtMoney(parseFloat(p['Price'])||0)}</td></tr>`;
+    });
+    revRows+=`<tr style="border-top:1px solid #EEE"><td style="font-weight:700">Total Billed</td><td style="text-align:right;font-weight:700;color:#C9A84C">${fmtMoney(totalRevenue)}</td></tr>`;
+  }
   document.getElementById('plRevenueBody').innerHTML=revRows;
 
   // Expense breakdown (internal only) — Agreed + Paid
@@ -4902,7 +4960,7 @@ ${!isEssential?`<div class="sec">
 <div class="sec">
   <div class="sec-title">7. Acknowledgment</div>
   <p style="font-size:11px;color:#555;margin-bottom:14px">Both parties confirm that the specifications above are complete and agreed upon. Changes after signing require a written Amendment.</p>
-  ${sigBlock('Authorized — James Cardona · Cardona Hall LLC / Pilab Productions LLC','James Cardona · Cardona Hall LLC / Pilab Productions LLC')}
+  ${sigBlock('Authorized — James Cardona · '+ENTITY,'James Cardona · '+ENTITY)}
 </div>
 ${docFooter('Productions LLC · Design & Decor')}
 </div>
@@ -5822,23 +5880,109 @@ ${docFooter('Productions LLC')}
   docWrite(win,html);
 }
 
+// Penalty % by days before event (Contract Section 7), from Business_Rules.
+// Cooling-off: within 72h of signing (Created Date) → flat admin fee only.
+function canComputePenalty(){
+  const e=currentEvent;
+  const total=parseFloat(e['Final Total'])||0;
+  const br=(k,fb)=>parseFloat(businessRule('cancellation',k,fb))||fb;
+  const created=e['Created Date']?new Date(String(e['Created Date']).split('T')[0]+'T00:00:00'):null;
+  if(created&&!isNaN(created)){
+    const hrs=(new Date()-created)/(1000*60*60);
+    if(hrs<=72){const fee=br('admin_fee_72h',200);return {amount:fee,note:'Within 72h of signing — $'+fee+' admin fee only',pct:null};}
+  }
+  const eventDate=(e['Event Date']&&String(e['Event Date']).toUpperCase()!=='TBD')?new Date(String(e['Event Date']).split('T')[0]+'T00:00:00'):null;
+  const days=eventDate?Math.floor((eventDate-new Date())/(1000*60*60*24)):null;
+  let pct=100,note='<15 days — no refund';
+  if(days!==null){
+    if(days>90){pct=br('over_90',25);note='>90 days before event';}
+    else if(days>=60){pct=br('60_90',50);note='60–90 days before event';}
+    else if(days>=30){pct=br('30_59',75);note='30–59 days before event';}
+    else if(days>=15){pct=br('15_29',90);note='15–29 days before event';}
+    else{pct=br('under_15',100);note='<15 days before event';}
+  }
+  return {amount:total*(pct/100),note:note+' ('+pct+'%)',pct:pct};
+}
+function openCancelForm(){
+  if(!currentEvent){showToast('Open an event first','error');return;}
+  const total=parseFloat(currentEvent['Final Total'])||0;
+  const paid=getTotalReceived();
+  const p=canComputePenalty();
+  document.getElementById('canTotal').textContent=fmtMoney(total);
+  document.getElementById('canPaid').textContent=fmtMoney(paid);
+  document.getElementById('canPenalty').value=Math.round(p.amount);
+  document.getElementById('canPenaltyNote').textContent='Policy: '+p.note+'. Editable — adjust or set to 0 for an exception.';
+  document.getElementById('canReason').value='';
+  canRecalc();
+  document.getElementById('cancelOverlay').style.display='flex';
+}
+function closeCancelForm(){document.getElementById('cancelOverlay').style.display='none';}
+function canRecalc(){
+  const paid=getTotalReceived();
+  const penalty=parseFloat(document.getElementById('canPenalty').value)||0;
+  const retained=Math.min(penalty,paid);
+  const refund=Math.max(0,paid-penalty);
+  document.getElementById('canRetained').textContent=fmtMoney(retained);
+  document.getElementById('canRefund').textContent=fmtMoney(refund);
+}
+async function saveCancellation(){
+  const penalty=parseFloat(document.getElementById('canPenalty').value)||0;
+  const reason=document.getElementById('canReason').value.trim();
+  const paid=getTotalReceived();
+  const retained=Math.min(penalty,paid);
+  if(!confirm('Cancel this event?\n\nPenalty retained: '+fmtMoney(retained)+'\nRefund to client: '+fmtMoney(Math.max(0,paid-penalty))+'\n\nThis cannot be undone.'))return;
+  const payload={
+    action:'updateQuotationStatus',
+    'COT#':currentEvent['COT#'],
+    'RES#':currentEvent['RES#'],
+    'Status':'cancelled',
+    'Cancellation Penalty':penalty
+  };
+  showLoading();
+  try{
+    await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(payload),headers:{'Content-Type':'text/plain'}});
+    currentEvent['Status']='cancelled';
+    currentEvent['Cancellation Penalty']=penalty;
+    currentEvent['_canReason']=reason;
+    closeCancelForm();
+    document.getElementById('detailStatusBadge').innerHTML='<span class="status-badge status-cancelled">Cancelled</span>';
+    showToast('Event cancelled','success');
+    generateCancellationNotice();
+    await loadEvents();
+  }catch(e){showToast('Error cancelling event','error');}
+  hideLoading();
+}
+
 function generateCancellationNotice(){
   const win=docOpen();if(!win)return;
   const e=currentEvent;
+  const ext=isExternalEvent();
+  const ENTITY=ext?'PILAB SOLUTIONS LLC':'CARDONA HALL LLC';
   const total=parseFloat(e['Final Total'])||0;
   const paid=currentPayments.reduce((s,p)=>s+(parseFloat(p['Amount'])||0),0);
   const today=new Date();
-  const eventDate=e['Event Date']?new Date(e['Event Date'].split('T')[0]+'T00:00:00'):null;
+  // Original event date from the dedicated column (fallback to current).
+  const origVal=(e['_origDate']&&String(e['_origDate']).trim()!==''&&String(e['_origDate']).trim().toUpperCase()!=='TBD')?e['_origDate']:e['Event Date'];
+  const eventDate=(origVal&&String(origVal).toUpperCase()!=='TBD')?new Date(String(origVal).split('T')[0]+'T00:00:00'):null;
   const daysRemaining=eventDate?Math.floor((eventDate-today)/(1000*60*60*24)):null;
-  let penaltyPct=100,penaltyNote='No refund';
-  if(daysRemaining!==null){
-    if(daysRemaining>90){penaltyPct=25;penaltyNote='Early cancellation';}
-    else if(daysRemaining>=60){penaltyPct=50;penaltyNote='';}
-    else if(daysRemaining>=30){penaltyPct=75;penaltyNote='';}
-    else if(daysRemaining>=15){penaltyPct=90;penaltyNote='';}
-    else{penaltyPct=100;penaltyNote='No refund';}
+  // Penalty: use the SAVED value (editable at cancel time); fall back to policy.
+  const savedPenalty=parseFloat(e['Cancellation Penalty']);
+  let penaltyAmt,penaltyPct,penaltyNote;
+  if(!isNaN(savedPenalty)){
+    penaltyAmt=savedPenalty;
+    penaltyPct=total>0?Math.round(savedPenalty/total*100):null;
+    penaltyNote=e['_canReason']||'Per signed Service Agreement';
+  }else{
+    penaltyPct=100;penaltyNote='No refund';
+    if(daysRemaining!==null){
+      if(daysRemaining>90){penaltyPct=25;}
+      else if(daysRemaining>=60){penaltyPct=50;}
+      else if(daysRemaining>=30){penaltyPct=75;}
+      else if(daysRemaining>=15){penaltyPct=90;}
+      else{penaltyPct=100;}
+    }
+    penaltyAmt=total*(penaltyPct/100);
   }
-  const penaltyAmt=total*(penaltyPct/100);
   const refundAmt=Math.max(0,paid-penaltyAmt);
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
 <title>Cancellation Notice — ${e['RES#']}</title>
@@ -5854,7 +5998,7 @@ function generateCancellationNotice(){
 .type-title{font-size:16px;font-weight:700;color:#CC2200;font-family:'Cormorant Garamond',serif;}
 .type-sub{font-size:11px;color:#555;margin-top:4px;}
 </style></head><body><div class="doc">
-${docHeader('Cancellation Notice',`CAN-${e['RES#']}`,'Produced by Pilab Productions','#CC2200')}
+${docHeader('Cancellation Notice',`CAN-${e['RES#']}`,ext?'A Pilab Solutions LLC company':'Produced by Pilab Productions','#CC2200')}
 <div class="type-badge">
   <div class="type-title">EVENT CANCELLATION</div>
   <div class="type-sub">This document confirms the cancellation of the event referenced below. Penalties apply per the signed Service Agreement.</div>
@@ -5865,7 +6009,7 @@ ${docHeader('Cancellation Notice',`CAN-${e['RES#']}`,'Produced by Pilab Producti
     <div class="field-item"><div class="field-lbl">Client Name</div><div class="field-val">${e['Client Name']||'—'}</div></div>
     <div class="field-item"><div class="field-lbl">Reservation #</div><div class="field-val">${e['RES#']||'—'}</div></div>
     <div class="field-item"><div class="field-lbl">Event Type</div><div class="field-val">${etLabel()}</div></div>
-    <div class="field-item"><div class="field-lbl">Original Event Date</div><div class="field-val">${fmtDateDoc(e['Event Date'])}</div></div>
+    <div class="field-item"><div class="field-lbl">Original Event Date</div><div class="field-val">${fmtDateDoc(origVal)}</div></div>
     <div class="field-item"><div class="field-lbl">Cancellation Date</div><div class="field-val">${docToday()}</div></div>
     <div class="field-item"><div class="field-lbl">Days Before Event</div><div class="field-val">${daysRemaining!==null?daysRemaining+' days':'—'}</div></div>
   </div>
@@ -5877,7 +6021,7 @@ ${docHeader('Cancellation Notice',`CAN-${e['RES#']}`,'Produced by Pilab Producti
     <tbody>
       <tr><td>Total Agreed Contract Amount</td><td style="text-align:right;font-weight:600">${fmtM(total)}</td><td>Original</td></tr>
       <tr><td>Total Paid by Client</td><td style="text-align:right;font-weight:600">${fmtM(paid)}</td><td>Received</td></tr>
-      <tr><td style="font-weight:700;color:#8B1500">Cancellation Penalty (${penaltyPct}%)</td><td style="text-align:right;font-weight:700;color:#8B1500">${fmtM(penaltyAmt)}</td><td style="color:#8B1500;font-weight:600">Retained</td></tr>
+      <tr><td style="font-weight:700;color:#8B1500">Cancellation Penalty${penaltyPct!==null?' ('+penaltyPct+'%)':''}</td><td style="text-align:right;font-weight:700;color:#8B1500">${fmtM(penaltyAmt)}</td><td style="color:#8B1500;font-weight:600">Retained</td></tr>
       <tr class="total-row"><td>Amount to be Refunded to Client</td><td style="text-align:right">${fmtM(refundAmt)}</td><td>${refundAmt>0?'Refund due':'No refund'}</td></tr>
     </tbody>
   </table>
@@ -5913,8 +6057,8 @@ function generateDateChange(){
   const fromFlow=!!e['_dcNewDate'];
   // ORIGINAL date now comes from the dedicated column (robust, works whether the
   // doc is generated right after the change or regenerated later after reload).
-  const origVal=(e['Original Event Date']&&String(e['Original Event Date']).trim()!==''&&String(e['Original Event Date']).trim().toUpperCase()!=='TBD')
-    ? e['Original Event Date'] : null;
+  const origVal=(e['_origDate']&&String(e['_origDate']).trim()!==''&&String(e['_origDate']).trim().toUpperCase()!=='TBD')
+    ? e['_origDate'] : null;
   const origDateStr=origVal?fmtDateDoc(origVal):'';
   const today=new Date();
   // Day-count is based on the ORIGINAL date (pre-change).
@@ -5977,7 +6121,6 @@ ${docHeader('Date Change Amendment',`DCH-${e['RES#']}`,'Produced by Pilab Produc
   <div class="field-grid">
     <div class="field-item"><div class="field-lbl">New Event Date</div><div class="field-val${newDateDisp?'':' field-manual'}">${newDateDisp}</div></div>
     <div class="field-item"><div class="field-lbl">New Day of Week</div><div class="field-val${newDayDisp?'':' field-manual'}">${newDayDisp}</div></div>
-    <div class="field-item"><div class="field-lbl">Availability Confirmed</div><div class="field-val" style="font-size:11px">${availDisp?(availDisp==='Confirmed'?'☑ Yes':'☑ Pending'):'□ Yes &nbsp; □ Pending'}</div></div>
   </div>
 </div>
 <div class="sec">
