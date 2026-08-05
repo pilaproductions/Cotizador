@@ -712,7 +712,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
 <div id="dateChangeOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10000;align-items:center;justify-content:center;">
   <div style="background:#fff;border-radius:8px;max-width:520px;width:92%;max-height:90vh;overflow-y:auto;box-shadow:0 12px 40px rgba(0,0,0,0.3);">
     <div style="background:#D4680A;color:#fff;padding:14px 20px;border-radius:8px 8px 0 0;display:flex;align-items:center;justify-content:space-between;">
-      <span style="font-size:15px;font-weight:700;letter-spacing:0.5px;">📅 Change Event Date</span>
+      <span id="dcModalTitle" style="font-size:15px;font-weight:700;letter-spacing:0.5px;">📅 Change Event Date</span>
       <button onclick="closeDateChangeForm()" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;line-height:1;">✕</button>
     </div>
     <div style="padding:20px;">
@@ -757,16 +757,11 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
         <label style="font-size:11px;color:#555;font-weight:600;display:block;margin-bottom:5px;">Reason / Notes</label>
         <input type="text" id="dcReason" placeholder="e.g. Force majeure — medical circumstance" style="width:100%;padding:9px;border:1px solid #CCC;border-radius:4px;font-size:13px;">
       </div>
-      <div style="margin-bottom:18px;">
-        <label style="font-size:11px;color:#555;font-weight:600;display:block;margin-bottom:5px;">Availability for New Date</label>
-        <select id="dcAvailability" style="width:100%;padding:9px;border:1px solid #CCC;border-radius:4px;font-size:13px;">
-          <option value="Confirmed">Confirmed available</option>
-          <option value="Pending">Pending confirmation</option>
-        </select>
-      </div>
+      <div id="dcAvailWarn" style="margin-bottom:14px;display:none;padding:10px 12px;background:#FFF0EE;border-left:4px solid #CC2200;border-radius:5px;font-size:11px;color:#8B1500;"></div>
+      <div style="display:none;"><select id="dcAvailability"><option value="Confirmed">Confirmed</option></select></div>
       <div style="display:flex;gap:10px;justify-content:flex-end;">
         <button class="btn btn-ghost btn-sm" onclick="closeDateChangeForm()">Cancel</button>
-        <button class="btn btn-sm" style="background:#D4680A;color:#fff;" onclick="saveDateChange()">Save Date Change</button>
+        <button id="dcSaveBtn" class="btn btn-sm" style="background:#D4680A;color:#fff;" onclick="saveDateChange()">Save Date Change</button>
       </div>
     </div>
   </div>
@@ -1820,15 +1815,20 @@ function updateDateChangeButton(){
   const btn=document.getElementById('btnChangeDate');
   if(!btn||!currentEvent)return;
   const status=(currentEvent['Status']||currentEvent['Event Status']||'reserved').toLowerCase();
-  // Hide once the date change is used (rescheduled) or the event is closed
+  // Hide once the date change is used (rescheduled) or the event is closed.
   const hide=['rescheduled','completed','cancelled'].includes(status);
   btn.style.display=hide?'none':'';
+  // When date is pending (TBD), the action is to DEFINE the date, not change it.
+  if(status==='date_pending'){btn.textContent='📅 Define Date';}
+  else{btn.textContent='📅 Change Date';}
 }
 function openDateChangeForm(){
   if(!currentEvent){showToast('Open an event first','error');return;}
-  document.getElementById('dcCurrentDate').textContent=fmtDate(currentEvent['Event Date']);
+  const pending=(currentEvent['Status']||currentEvent['Event Status']||'').toLowerCase()==='date_pending';
+  window._dcDefineMode=pending;
+  document.getElementById('dcCurrentDate').textContent=pending?'To be defined':fmtDate(currentEvent['Event Date']);
   const days=dcDaysRemaining();
-  document.getElementById('dcDaysRemaining').textContent=days!==null?days+' days':'—';
+  document.getElementById('dcDaysRemaining').textContent=(pending||days===null)?'—':days+' days';
   const f=dcComputeFee(days);
   document.getElementById('dcFee').value=f.fee!==null?f.fee:200;
   document.getElementById('dcFeeNote').textContent=f.note;
@@ -1839,17 +1839,60 @@ function openDateChangeForm(){
   document.getElementById('dcReason').value='';
   document.getElementById('dcMethod').value='Cash';
   document.getElementById('dcAvailability').value='Confirmed';
+  document.getElementById('dcAvailWarn').style.display='none';
+  // Define-mode (event is pending): only ask for the date. No fee (already charged),
+  // no TBD option, no reason. Hide those blocks and retitle.
+  const feeBlock=document.getElementById('dcFee').closest('div[style*="margin-bottom"]');
+  const tbdBlock=document.getElementById('dcTBD').closest('div[style*="margin-bottom"]');
+  const reasonBlock=document.getElementById('dcReason').closest('div[style*="margin-bottom"]');
+  if(feeBlock)feeBlock.style.display=pending?'none':'block';
+  if(tbdBlock)tbdBlock.style.display=pending?'none':'block';
+  if(reasonBlock)reasonBlock.style.display=pending?'none':'block';
+  const titleEl=document.getElementById('dcModalTitle');
+  if(titleEl)titleEl.textContent=pending?'Define Event Date':'Change Event Date';
+  const saveBtn=document.getElementById('dcSaveBtn');
+  if(saveBtn)saveBtn.textContent=pending?'Define Date':'Save Date Change';
   document.getElementById('dateChangeOverlay').style.display='flex';
 }
 function closeDateChangeForm(){
   document.getElementById('dateChangeOverlay').style.display='none';
 }
+// Dates already reserved at Cardona Hall (active events only), excluding this event.
+function reservedCardonaDates(){
+  const set={};
+  (allEvents||[]).forEach(ev=>{
+    if(ev['RES#']===currentEvent['RES#'])return;                 // skip self
+    const loc=String(ev['Event Location']||'').toLowerCase();
+    const ext=loc==='external'||String(ev['Venue Tier']||'').toUpperCase()==='EXTERNAL';
+    if(ext)return;                                               // only Cardona Hall
+    const st=String(ev['Status']||ev['Event Status']||'').toLowerCase();
+    if(st==='cancelled')return;                                  // cancelled frees the date
+    const d=String(ev['Event Date']||'').split('T')[0];
+    if(d&&d.toUpperCase()!=='TBD')set[d]=ev['Client Name']||ev['RES#'];
+  });
+  return set;
+}
+function dcCheckAvailability(){
+  const v=document.getElementById('dcNewDate').value;
+  const warn=document.getElementById('dcAvailWarn');
+  if(!v){if(warn)warn.style.display='none';return true;}
+  const taken=reservedCardonaDates();
+  if(taken[v]){
+    document.getElementById('dcAvailability').value='Pending';
+    if(warn){warn.style.display='block';warn.innerHTML='⚠ This date is already reserved at Cardona Hall ('+taken[v]+'). Saving will require double confirmation.';}
+    return false;
+  }
+  document.getElementById('dcAvailability').value='Confirmed';
+  if(warn)warn.style.display='none';
+  return true;
+}
 function onDateChangePick(){
   const v=document.getElementById('dcNewDate').value;
-  if(!v){document.getElementById('dcNewDay').textContent='';return;}
+  if(!v){document.getElementById('dcNewDay').textContent='';document.getElementById('dcAvailWarn').style.display='none';return;}
   const d=new Date(v+'T00:00:00');
   const days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   document.getElementById('dcNewDay').textContent='New day: '+days[d.getDay()];
+  dcCheckAvailability();
 }
 function toggleTBD(){
   const tbd=document.getElementById('dcTBD').checked;
@@ -1860,17 +1903,32 @@ async function saveDateChange(){
   const tbd=document.getElementById('dcTBD').checked;
   const newDate=document.getElementById('dcNewDate').value;
   if(!tbd&&!newDate){showToast('Select the new date or mark "To Be Defined"','error');return;}
+  // Availability: block a date already reserved at Cardona Hall, with double confirm.
+  const _defMode=!!window._dcDefineMode;
+  if((!tbd||_defMode)&&newDate){
+    const taken=reservedCardonaDates();
+    if(taken[newDate]){
+      if(!confirm('This date is already reserved at Cardona Hall ('+taken[newDate]+').\n\nBooking two events on the same day is not standard. Continue anyway?'))return;
+      if(!confirm('Are you sure? There will be TWO events at Cardona Hall on '+newDate+'.\n\nConfirm this exception.'))return;
+    }
+  }
+  const defineMode=!!window._dcDefineMode;
   const days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-  const newDay=tbd?'':days[new Date(newDate+'T00:00:00').getDay()];
-  const fee=parseFloat(document.getElementById('dcFee').value)||0;
-  const reason=document.getElementById('dcReason').value.trim();
+  // Define-mode (event was pending): a real date is required; no fee is charged.
+  if(defineMode&&!newDate){showToast('Select the date','error');return;}
+  const effTbd=defineMode?false:tbd;
+  const newDay=effTbd?'':days[new Date(newDate+'T00:00:00').getDay()];
+  const fee=defineMode?0:(parseFloat(document.getElementById('dcFee').value)||0);
+  const reason=defineMode?'':document.getElementById('dcReason').value.trim();
   const availability=document.getElementById('dcAvailability').value;
-  const oldDate=fmtDate(currentEvent['Event Date']);
-  const newStatus=tbd?'date_pending':'rescheduled';
-  const newDateStored=tbd?'TBD':newDate;
-  const newDateLabel=tbd?'TBD (to be defined)':fmtDate(newDate);
+  const oldDate=defineMode?'TBD (pending)':fmtDate(currentEvent['Event Date']);
+  const newStatus=effTbd?'date_pending':'rescheduled';
+  const newDateStored=effTbd?'TBD':newDate;
+  const newDateLabel=effTbd?'TBD (to be defined)':fmtDate(newDate);
   const stamp=new Date().toLocaleDateString('en-US');
-  const logEntry=`${oldDate} → ${newDateLabel} | Fee: ${fmtMoney(fee)} | Avail: ${availability}${reason?' | '+reason:''} | by James | ${stamp}`;
+  const logEntry=defineMode
+    ?`Date defined: ${newDateLabel} | Avail: ${availability} | by James | ${stamp}`
+    :`${oldDate} → ${newDateLabel} | Fee: ${fmtMoney(fee)} | Avail: ${availability}${reason?' | '+reason:''} | by James | ${stamp}`;
 
   const datePayload={
     action:'updateEventDate',
