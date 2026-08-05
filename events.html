@@ -788,32 +788,59 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
       <button onclick="closeCancelForm()" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;line-height:1;">✕</button>
     </div>
     <div style="padding:20px;">
-      <div style="background:#FFF0EE;border-left:4px solid #CC2200;border-radius:5px;padding:10px 12px;font-size:11px;color:#8B1500;margin-bottom:16px;">
-        This cancels the event and generates the Cancellation Notice. The penalty is retained from what the client already paid; the rest is refunded outside the system.
+      <div style="margin-bottom:16px;">
+        <label style="font-size:11px;color:#555;font-weight:600;display:block;margin-bottom:6px;">Cancellation Type</label>
+        <select id="canType" onchange="onCanTypeChange()" style="width:100%;padding:9px;border:1px solid #CCC;border-radius:4px;font-size:13px;">
+          <option value="normal">Normal — client's decision</option>
+          <option value="fm">Force Majeure — grave documented cause</option>
+        </select>
       </div>
+
+      <div id="fmCauseRow" style="display:none;margin-bottom:16px;">
+        <label style="font-size:11px;color:#555;font-weight:600;display:block;margin-bottom:6px;">Force Majeure Cause</label>
+        <select id="fmCause" onchange="canComputeFill()" style="width:100%;padding:9px;border:1px solid #CCC;border-radius:4px;font-size:13px;">
+          <option value="client_death">Client — Death (honoree / 1st-degree relative)</option>
+          <option value="client_accident">Client — Serious accident or illness (honoree / 1st-degree)</option>
+          <option value="business_disaster">Business — Disaster / pandemic / government order</option>
+          <option value="business_venue">Business — Serious venue failure</option>
+        </select>
+        <div style="font-size:10px;color:#999;margin-top:5px;">Requires supporting documentation. Only for grave circumstances that make rescheduling impossible. Reschedulable cases go through Date Change.</div>
+      </div>
+
+      <div id="canInfoNormal" style="background:#FFF0EE;border-left:4px solid #CC2200;border-radius:5px;padding:10px 12px;font-size:11px;color:#8B1500;margin-bottom:16px;">
+        Cancels the event and generates the Cancellation Notice. The penalty is retained from what the client already paid; the rest (if any) is refunded outside the system.
+      </div>
+      <div id="canInfoFM" style="display:none;background:#EBF7EF;border-left:4px solid #1A7A3C;border-radius:5px;padding:10px 12px;font-size:11px;color:#0D4A22;margin-bottom:16px;">
+        Cancels the event under Force Majeure and generates the Force Majeure Notice. A partial refund applies per policy (on amounts paid), minus the administrative fee. Retained amount covers committed costs.
+      </div>
+
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
         <div><div style="font-size:11px;color:#555;font-weight:600;margin-bottom:4px;">Contract Total</div><div id="canTotal" style="font-size:15px;font-weight:700;">$0</div></div>
         <div><div style="font-size:11px;color:#555;font-weight:600;margin-bottom:4px;">Paid by Client</div><div id="canPaid" style="font-size:15px;font-weight:700;color:#1E5C2E;">$0</div></div>
       </div>
+
       <div style="margin-bottom:6px;">
-        <label style="font-size:11px;color:#555;font-weight:600;display:block;margin-bottom:5px;">Cancellation Penalty (auto-filled by policy — editable)</label>
+        <label id="canAmountLbl" style="font-size:11px;color:#555;font-weight:600;display:block;margin-bottom:5px;">Refund to client (auto-filled by policy — editable)</label>
         <div style="display:flex;align-items:center;gap:10px;">
           <span style="font-size:14px;color:#555;">$</span>
-          <input type="number" id="canPenalty" min="0" step="50" oninput="canRecalc()" style="flex:1;padding:9px;border:1px solid #CCC;border-radius:4px;font-size:13px;">
+          <input type="number" id="canRefundInput" min="0" step="50" oninput="canRecalc()" style="flex:1;padding:9px;border:1px solid #CCC;border-radius:4px;font-size:13px;">
         </div>
         <div id="canPenaltyNote" style="font-size:10px;color:#999;margin-top:4px;"></div>
       </div>
+
       <div style="background:#F7F5F0;border-radius:6px;padding:12px;margin:14px 0;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-        <div><div style="font-size:10px;color:#777;">Retained (penalty)</div><div id="canRetained" style="font-size:14px;font-weight:700;color:#8B1500;">$0</div></div>
-        <div><div style="font-size:10px;color:#777;">Refund to client</div><div id="canRefund" style="font-size:14px;font-weight:700;color:#1E5C2E;">$0</div></div>
+        <div><div style="font-size:10px;color:#777;">Retained by business</div><div id="canRetained" style="font-size:15px;font-weight:700;color:#8B1500;">$0</div></div>
+        <div><div style="font-size:10px;color:#777;">Refund to client</div><div id="canRefund" style="font-size:15px;font-weight:700;color:#1E5C2E;">$0</div></div>
       </div>
+      <div id="canRefundNote" style="font-size:10px;color:#999;margin-bottom:12px;"></div>
+
       <div style="margin-bottom:14px;">
-        <label style="font-size:11px;color:#555;font-weight:600;display:block;margin-bottom:5px;">Reason (optional)</label>
-        <input type="text" id="canReason" placeholder="Reason for cancellation..." style="width:100%;padding:9px;border:1px solid #CCC;border-radius:4px;font-size:13px;box-sizing:border-box;">
+        <label style="font-size:11px;color:#555;font-weight:600;display:block;margin-bottom:5px;">Reason / documentation reference (optional)</label>
+        <input type="text" id="canReason" placeholder="Reason, certificate reference..." style="width:100%;padding:9px;border:1px solid #CCC;border-radius:4px;font-size:13px;box-sizing:border-box;">
       </div>
       <div style="display:flex;justify-content:flex-end;gap:10px;">
         <button class="btn btn-sm btn-outline" onclick="closeCancelForm()">Cancel</button>
-        <button class="btn btn-sm" style="background:#CC2200;color:#fff;" onclick="saveCancellation()">Cancel Event & Generate Notice</button>
+        <button id="canConfirmBtn" class="btn btn-sm" style="background:#CC2200;color:#fff;" onclick="saveCancellation()">Cancel Event & Generate Notice</button>
       </div>
     </div>
   </div>
@@ -3730,7 +3757,19 @@ ${ext?`<div class="sec">
 
 <div class="sec">
   <div class="sec-title">15. Force Majeure</div>
-  <p style="font-size:12.5px;color:#555">Neither party shall be liable for failure to perform due to circumstances beyond their reasonable control (natural disasters, government restrictions, public health emergencies, building damage). If ${ENTITY} cancels due to force majeure, all payments will be refunded within 14 business days. Force majeure claims by the client must be supported by written documentation (medical certificate, death certificate, official report).</p>
+  <p style="font-size:12.5px;color:#555;margin-bottom:8px">A "Force Majeure Event" refers to extraordinary circumstances beyond the reasonable control of either party that make it impossible or unreasonable to hold the Event, and which cannot be resolved by rescheduling. Force Majeure applies only in the following cases, and requires supporting documentation:</p>
+  <p style="font-size:12px;color:#555;margin-bottom:6px"><strong>Client-side Force Majeure:</strong> The death, serious accident, or grave illness of the honoree or a first-degree relative (parents, children, or spouse) of the Client, that makes holding or rescheduling the Event impossible. Acceptable documentation includes a death certificate, medical certificate, or police report.</p>
+  <p style="font-size:12px;color:#555;margin-bottom:6px"><strong>Business-side Force Majeure:</strong> Natural disaster, pandemic, government order prohibiting the gathering, or a serious venue failure not attributable to negligence, that prevents ${ENTITY} from holding the Event.</p>
+  <p style="font-size:12px;color:#555;margin-bottom:6px"><strong>Not covered by Force Majeure:</strong> Circumstances that allow the Event to be rescheduled (handled under the Date Change policy), scheduling conflicts, financial hardship, change of plans, or disputes between the parties.</p>
+  <p style="font-size:12px;color:#555;margin-bottom:6px"><strong>Refund upon Force Majeure:</strong> Where a Force Majeure Event is confirmed and documented, a partial refund of amounts already paid applies, calculated on the total paid to date, according to the time remaining before the Event:</p>
+  <table class="services-table" style="margin-bottom:8px"><thead><tr><th>Time before Event</th><th style="text-align:right">Client-side refund</th><th style="text-align:right">Business-side refund</th></tr></thead><tbody>
+    <tr><td>More than 90 days</td><td style="text-align:right">80%</td><td style="text-align:right">100%</td></tr>
+    <tr><td>60 to 90 days</td><td style="text-align:right">60%</td><td style="text-align:right">90%</td></tr>
+    <tr><td>30 to 59 days</td><td style="text-align:right">40%</td><td style="text-align:right">80%</td></tr>
+    <tr><td>15 to 29 days</td><td style="text-align:right">20%</td><td style="text-align:right">70%</td></tr>
+    <tr><td>Less than 15 days</td><td style="text-align:right">0%</td><td style="text-align:right">50%</td></tr>
+  </tbody></table>
+  <p style="font-size:12px;color:#555">A non-refundable administrative fee of $150 is deducted from the refund amount in all Force Majeure cases. The refund is processed within a reasonable period after documentation is verified. Any amount not refunded is retained by ${ENTITY} to cover committed costs and the reserved date.</p>
 </div>
 
 <div class="sec">
@@ -5880,8 +5919,7 @@ ${docFooter('Productions LLC')}
   docWrite(win,html);
 }
 
-// Penalty % by days before event (Contract Section 7), from Business_Rules.
-// Cooling-off: within 72h of signing (Created Date) → flat admin fee only.
+// Normal cancellation penalty (Contract Section 7): % of TOTAL, capped to paid.
 function canComputePenalty(){
   const e=currentEvent;
   const total=parseFloat(e['Final Total'])||0;
@@ -5903,51 +5941,110 @@ function canComputePenalty(){
   }
   return {amount:total*(pct/100),note:note+' ('+pct+'%)',pct:pct};
 }
+// Force Majeure refund: % of PAID (client or business table) minus admin fee.
+function canComputeFM(){
+  const e=currentEvent;
+  const paid=getTotalReceived();
+  const cause=document.getElementById('fmCause').value;
+  const isBusiness=cause.indexOf('business')===0;
+  const prefix=isBusiness?'business_':'client_';
+  const br=(k,fb)=>parseFloat(businessRule('force_majeure',prefix+k,fb))||fb;
+  const fee=parseFloat(businessRule('force_majeure','admin_fee',150))||150;
+  const eventDate=(e['Event Date']&&String(e['Event Date']).toUpperCase()!=='TBD')?new Date(String(e['Event Date']).split('T')[0]+'T00:00:00'):null;
+  const days=eventDate?Math.floor((eventDate-new Date())/(1000*60*60*24)):null;
+  const defB={over_90:100,'60_90':90,'30_59':80,'15_29':70,under_15:50};
+  const defC={over_90:80,'60_90':60,'30_59':40,'15_29':20,under_15:0};
+  const def=isBusiness?defB:defC;
+  let pct=def.under_15,note='<15 days';
+  if(days!==null){
+    if(days>90){pct=br('over_90',def.over_90);note='>90 days';}
+    else if(days>=60){pct=br('60_90',def['60_90']);note='60–90 days';}
+    else if(days>=30){pct=br('30_59',def['30_59']);note='30–59 days';}
+    else if(days>=15){pct=br('15_29',def['15_29']);note='15–29 days';}
+    else{pct=br('under_15',def.under_15);note='<15 days';}
+  }
+  const refund=Math.max(0,(paid*(pct/100))-fee);
+  return {refund,pct,fee,note:note+' ('+pct+'% of paid − $'+fee+' fee)',isBusiness};
+}
+function onCanTypeChange(){
+  const fm=document.getElementById('canType').value==='fm';
+  document.getElementById('fmCauseRow').style.display=fm?'block':'none';
+  document.getElementById('canInfoNormal').style.display=fm?'none':'block';
+  document.getElementById('canInfoFM').style.display=fm?'block':'none';
+  document.getElementById('canConfirmBtn').style.background=fm?'#1A7A3C':'#CC2200';
+  document.getElementById('canConfirmBtn').textContent=fm?'Cancel (Force Majeure) & Generate Notice':'Cancel Event & Generate Notice';
+  canComputeFill();
+}
+// Fill the editable amount (refund) from the applicable policy.
+function canComputeFill(){
+  const paid=getTotalReceived();
+  const fm=document.getElementById('canType').value==='fm';
+  const input=document.getElementById('canRefundInput');
+  const lbl=document.getElementById('canAmountLbl');
+  const note=document.getElementById('canPenaltyNote');
+  if(fm){
+    const r=canComputeFM();
+    lbl.textContent='Refund to client (auto-filled by policy — editable)';
+    input.value=Math.round(r.refund);
+    note.textContent='Policy: '+r.note+'. Editable for exceptions.';
+  }else{
+    const p=canComputePenalty();
+    const refund=Math.max(0,paid-p.amount);
+    lbl.textContent='Refund to client (auto-filled by policy — editable)';
+    input.value=Math.round(refund);
+    note.textContent='Penalty policy: '+p.note+' on contract total, capped to amount paid. Normally $0 refund. Editable.';
+  }
+  canRecalc();
+}
 function openCancelForm(){
   if(!currentEvent){showToast('Open an event first','error');return;}
-  const total=parseFloat(currentEvent['Final Total'])||0;
-  const paid=getTotalReceived();
-  const p=canComputePenalty();
-  document.getElementById('canTotal').textContent=fmtMoney(total);
-  document.getElementById('canPaid').textContent=fmtMoney(paid);
-  document.getElementById('canPenalty').value=Math.round(p.amount);
-  document.getElementById('canPenaltyNote').textContent='Policy: '+p.note+'. Editable — adjust or set to 0 for an exception.';
+  document.getElementById('canTotal').textContent=fmtMoney(parseFloat(currentEvent['Final Total'])||0);
+  document.getElementById('canPaid').textContent=fmtMoney(getTotalReceived());
+  document.getElementById('canType').value='normal';
   document.getElementById('canReason').value='';
-  canRecalc();
+  onCanTypeChange();
   document.getElementById('cancelOverlay').style.display='flex';
 }
 function closeCancelForm(){document.getElementById('cancelOverlay').style.display='none';}
 function canRecalc(){
   const paid=getTotalReceived();
-  const penalty=parseFloat(document.getElementById('canPenalty').value)||0;
-  const retained=Math.min(penalty,paid);
-  const refund=Math.max(0,paid-penalty);
+  let refund=parseFloat(document.getElementById('canRefundInput').value)||0;
+  if(refund>paid)refund=paid;                       // can't refund more than paid
+  const retained=Math.max(0,paid-refund);
   document.getElementById('canRetained').textContent=fmtMoney(retained);
   document.getElementById('canRefund').textContent=fmtMoney(refund);
+  document.getElementById('canRefundNote').textContent=refund>0?'The refund is processed outside the system. Retained amount is saved as the event\'s income.':'No refund — full paid amount retained.';
 }
 async function saveCancellation(){
-  const penalty=parseFloat(document.getElementById('canPenalty').value)||0;
-  const reason=document.getElementById('canReason').value.trim();
+  const fm=document.getElementById('canType').value==='fm';
   const paid=getTotalReceived();
-  const retained=Math.min(penalty,paid);
-  if(!confirm('Cancel this event?\n\nPenalty retained: '+fmtMoney(retained)+'\nRefund to client: '+fmtMoney(Math.max(0,paid-penalty))+'\n\nThis cannot be undone.'))return;
+  let refund=parseFloat(document.getElementById('canRefundInput').value)||0;
+  if(refund>paid)refund=paid;
+  const retained=Math.max(0,paid-refund);
+  const reason=document.getElementById('canReason').value.trim();
+  const cause=fm?document.getElementById('fmCause').value:'';
+  const label=fm?'Force Majeure':'Cancellation';
+  if(!confirm('Cancel this event ('+label+')?\n\nRetained: '+fmtMoney(retained)+'\nRefund to client: '+fmtMoney(refund)+'\n\nThis cannot be undone.'))return;
   const payload={
     action:'updateQuotationStatus',
     'COT#':currentEvent['COT#'],
     'RES#':currentEvent['RES#'],
     'Status':'cancelled',
-    'Cancellation Penalty':penalty
+    'Cancellation Penalty':retained      // retained = business income for P&L
   };
   showLoading();
   try{
     await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(payload),headers:{'Content-Type':'text/plain'}});
     currentEvent['Status']='cancelled';
-    currentEvent['Cancellation Penalty']=penalty;
+    currentEvent['Cancellation Penalty']=retained;
     currentEvent['_canReason']=reason;
+    currentEvent['_canRefund']=refund;
+    currentEvent['_canRetained']=retained;
+    currentEvent['_fmCause']=cause;
     closeCancelForm();
     document.getElementById('detailStatusBadge').innerHTML='<span class="status-badge status-cancelled">Cancelled</span>';
     showToast('Event cancelled','success');
-    generateCancellationNotice();
+    if(fm)generateForceMajeure(); else generateCancellationNotice();
     await loadEvents();
   }catch(e){showToast('Error cancelling event','error');}
   hideLoading();
@@ -5983,7 +6080,8 @@ function generateCancellationNotice(){
     }
     penaltyAmt=total*(penaltyPct/100);
   }
-  const refundAmt=Math.max(0,paid-penaltyAmt);
+  const refundAmt=!isNaN(parseFloat(e['_canRefund']))?parseFloat(e['_canRefund']):Math.max(0,paid-penaltyAmt);
+  const retainedAmt=!isNaN(parseFloat(e['_canRetained']))?parseFloat(e['_canRetained']):Math.min(penaltyAmt,paid);
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
 <title>Cancellation Notice — ${e['RES#']}</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -6021,7 +6119,7 @@ ${docHeader('Cancellation Notice',`CAN-${e['RES#']}`,ext?'A Pilab Solutions LLC 
     <tbody>
       <tr><td>Total Agreed Contract Amount</td><td style="text-align:right;font-weight:600">${fmtM(total)}</td><td>Original</td></tr>
       <tr><td>Total Paid by Client</td><td style="text-align:right;font-weight:600">${fmtM(paid)}</td><td>Received</td></tr>
-      <tr><td style="font-weight:700;color:#8B1500">Cancellation Penalty${penaltyPct!==null?' ('+penaltyPct+'%)':''}</td><td style="text-align:right;font-weight:700;color:#8B1500">${fmtM(penaltyAmt)}</td><td style="color:#8B1500;font-weight:600">Retained</td></tr>
+      <tr><td style="font-weight:700;color:#8B1500">Amount Retained by Business</td><td style="text-align:right;font-weight:700;color:#8B1500">${fmtM(retainedAmt)}</td><td style="color:#8B1500;font-weight:600">Retained</td></tr>
       <tr class="total-row"><td>Amount to be Refunded to Client</td><td style="text-align:right">${fmtM(refundAmt)}</td><td>${refundAmt>0?'Refund due':'No refund'}</td></tr>
     </tbody>
   </table>
@@ -6152,10 +6250,15 @@ ${docFooter('Productions LLC')}
 function generateForceMajeure(){
   const win=docOpen();if(!win)return;
   const e=currentEvent;
+  const ext=isExternalEvent();
+  const ENTITY=ext?'PILAB SOLUTIONS LLC':'CARDONA HALL LLC';
   const paid=currentPayments.reduce((s,p)=>s+(parseFloat(p['Amount'])||0),0);
-  const eventDate=e['Event Date']?new Date(e['Event Date'].split('T')[0]+'T00:00:00'):null;
-  const deadline=eventDate?new Date(eventDate.getTime()+(6*30*24*60*60*1000)):null;
-  const deadlineStr=deadline?deadline.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}):'[6 months from event date]';
+  const refundAmt=!isNaN(parseFloat(e['_canRefund']))?parseFloat(e['_canRefund']):0;
+  const retainedAmt=!isNaN(parseFloat(e['_canRetained']))?parseFloat(e['_canRetained']):Math.max(0,paid-refundAmt);
+  const fmFee=parseFloat(businessRule('force_majeure','admin_fee',150))||150;
+  const causeMap={client_death:'Client — Death (honoree / 1st-degree relative)',client_accident:'Client — Serious accident or illness (honoree / 1st-degree)',business_disaster:'Business — Disaster / pandemic / government order',business_venue:'Business — Serious venue failure'};
+  const causeLabel=causeMap[e['_fmCause']]||'—';
+  const origVal=origEventDate();
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
 <title>Force Majeure — ${e['RES#']}</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -6169,13 +6272,11 @@ function generateForceMajeure(){
 .type-badge{background:#EBF7EF;border-left:4px solid #1A7A3C;border-top:1px solid #1A7A3C;border-bottom:1px solid #1A7A3C;padding:12px 16px;margin:10px 0;}
 .type-title{font-size:16px;font-weight:700;color:#1A7A3C;font-family:'Cormorant Garamond',serif;}
 .type-sub{font-size:11px;color:#555;margin-top:4px;}
-.check-item{padding:5px 0 5px 20px;font-size:11px;color:#333;position:relative;border-bottom:0.5px solid #EEE;}
-.check-item:before{content:"□";position:absolute;left:0;color:#1A7A3C;font-weight:700;}
 </style></head><body><div class="doc">
-${docHeader('Force Majeure — Event Freeze',`FMJ-${e['RES#']}`,'Produced by Pilab Productions','#1A7A3C')}
+${docHeader('Force Majeure Notice',`FMJ-${e['RES#']}`,ext?'A Pilab Solutions LLC company':'Produced by Pilab Productions','#1A7A3C')}
 <div class="type-badge">
-  <div class="type-title">FORCE MAJEURE — EVENT FREEZE</div>
-  <div class="type-sub">This document confirms the temporary suspension of the event due to extraordinary circumstances beyond the client's control. Standard cancellation penalties are waived.</div>
+  <div class="type-title">FORCE MAJEURE — EVENT CANCELLATION</div>
+  <div class="type-sub">This document confirms the cancellation of the event due to a grave, documented Force Majeure circumstance that makes rescheduling impossible. A partial refund applies per the signed Service Agreement.</div>
 </div>
 <div class="sec">
   <div class="sec-title">1. Contract Reference</div>
@@ -6183,50 +6284,43 @@ ${docHeader('Force Majeure — Event Freeze',`FMJ-${e['RES#']}`,'Produced by Pil
     <div class="field-item"><div class="field-lbl">Client Name</div><div class="field-val">${e['Client Name']||'—'}</div></div>
     <div class="field-item"><div class="field-lbl">Reservation #</div><div class="field-val">${e['RES#']||'—'}</div></div>
     <div class="field-item"><div class="field-lbl">Event Type</div><div class="field-val">${etLabel()}</div></div>
-    <div class="field-item"><div class="field-lbl">Original Event Date</div><div class="field-val">${fmtDateDoc(e['Event Date'])}</div></div>
+    <div class="field-item"><div class="field-lbl">Original Event Date</div><div class="field-val">${fmtDateDoc(origVal)}</div></div>
     <div class="field-item"><div class="field-lbl">Total Paid to Date</div><div class="field-val">${fmtM(paid)}</div></div>
-    <div class="field-item"><div class="field-lbl">Freeze Date</div><div class="field-val">${docToday()}</div></div>
+    <div class="field-item"><div class="field-lbl">Notice Date</div><div class="field-val">${docToday()}</div></div>
   </div>
 </div>
 <div class="sec">
   <div class="sec-title">2. Force Majeure Circumstance</div>
   <div class="field-grid" style="margin-bottom:10px">
-    <div class="field-item"><div class="field-lbl">Nature of Circumstance</div><div class="field-val field-manual"></div></div>
+    <div class="field-item"><div class="field-lbl">Cause Category</div><div class="field-val">${causeLabel}</div></div>
     <div class="field-item"><div class="field-lbl">Date of Occurrence</div><div class="field-val field-manual"></div></div>
   </div>
   <div class="field-item" style="margin-bottom:10px">
     <div class="field-lbl">Documentation Provided</div>
-    <div class="field-val" style="font-size:11px">□ Medical certificate &nbsp; □ Death certificate &nbsp; □ Police report &nbsp; □ Other: ___________</div>
+    <div class="field-val" style="font-size:11px">□ Medical certificate &nbsp; □ Death certificate &nbsp; □ Police report &nbsp; □ Official order &nbsp; □ Other: ___________</div>
   </div>
   <div class="field-item">
-    <div class="field-lbl">Additional Details</div>
-    <div class="field-val field-manual" style="min-height:32px"></div>
+    <div class="field-lbl">Details${e['_canReason']?': '+e['_canReason']:''}</div>
+    <div class="field-val field-manual" style="min-height:28px">${e['_canReason']||''}</div>
   </div>
 </div>
 <div class="sec">
-  <div class="sec-title">3. Event Freeze Terms</div>
-  <div class="info-box">
-    <p style="font-size:11px;color:#0D4A22;font-weight:700;margin-bottom:6px">FREEZE CONDITIONS — Standard cancellation penalties WAIVED</p>
-    <div class="check-item">All payments made to date (${fmtM(paid)}) are retained and credited toward the rescheduled event.</div>
-    <div class="check-item">The client has <strong>6 months</strong> from the original event date to reschedule (deadline: ${deadlineStr}).</div>
-    <div class="check-item">A <strong>$200 administrative fee</strong> applies at the time of rescheduling.</div>
-    <div class="check-item">If the client does not reschedule within 6 months, the standard cancellation policy applies from the original event date.</div>
-    <div class="check-item">Supporting documentation must be provided before this freeze takes effect.</div>
-  </div>
+  <div class="sec-title">3. Refund Calculation</div>
+  <table class="services-table">
+    <thead><tr><th>Concept</th><th style="text-align:right">Amount</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>Total Paid by Client</td><td style="text-align:right;font-weight:600">${fmtM(paid)}</td><td>Received</td></tr>
+      <tr><td>Administrative Fee</td><td style="text-align:right;font-weight:600">${fmtM(fmFee)}</td><td>Non-refundable</td></tr>
+      <tr><td style="font-weight:700;color:#0D4A22">Amount Retained by Business</td><td style="text-align:right;font-weight:700;color:#0D4A22">${fmtM(retainedAmt)}</td><td style="color:#0D4A22;font-weight:600">Retained</td></tr>
+      <tr class="total-row"><td>Amount to be Refunded to Client</td><td style="text-align:right">${fmtM(refundAmt)}</td><td>${refundAmt>0?'Refund due':'No refund'}</td></tr>
+    </tbody>
+  </table>
+  <p style="font-size:10px;color:#777;margin-top:8px">Refund calculated on amounts paid, per the Force Majeure policy in the signed Service Agreement, less the administrative fee. The refund is processed outside the standard payment system after documentation is verified.</p>
 </div>
 <div class="sec">
-  <div class="sec-title">4. Rescheduling Process</div>
-  <div class="field-grid">
-    <div class="field-item"><div class="field-lbl">Reschedule Deadline</div><div class="field-val" style="color:#1A7A3C;font-weight:700">${deadlineStr}</div></div>
-    <div class="field-item"><div class="field-lbl">Admin Fee at Reschedule</div><div class="field-val">$200.00 — Non-refundable</div></div>
-    <div class="field-item"><div class="field-lbl">Preferred New Date (if known)</div><div class="field-val field-manual"></div></div>
-    <div class="field-item"><div class="field-lbl">Contact Preference</div><div class="field-val" style="font-size:11px">□ Phone &nbsp; □ WhatsApp &nbsp; □ Email</div></div>
-  </div>
-</div>
-<div class="sec">
-  <div class="sec-title">5. Acknowledgment</div>
-  <p style="font-size:11px;color:#555;margin-bottom:14px">By signing below, both parties confirm the extraordinary circumstances described in this document and agree to the event freeze terms. This document is an official amendment to the original Service Agreement.</p>
-  ${sigBlock('Authorized — James Cardona · Cardona Hall LLC / Pilab Productions LLC','James Cardona · Cardona Hall LLC / Pilab Productions LLC')}
+  <div class="sec-title">4. Acknowledgment</div>
+  <p style="font-size:11px;color:#555;margin-bottom:14px">By signing below, both parties confirm the Force Majeure circumstance described and documented herein, and agree to the cancellation and refund terms. This document is an official amendment to the original Service Agreement.</p>
+  ${sigBlock('Authorized — James Cardona · '+ENTITY,'James Cardona · '+ENTITY)}
 </div>
 ${docFooter('Productions LLC')}
 </div>
