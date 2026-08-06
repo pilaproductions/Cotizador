@@ -1399,18 +1399,23 @@ function renderPayments(){
   document.getElementById('sumReceived').textContent=fmtMoney(received);
   document.getElementById('sumBalance').textContent=fmtMoney(Math.max(0,balance));
   document.getElementById('sumCount').textContent=currentPayments.length;
-  // A contract "Deposit" is the first payment toward the contract. Service Deposits
-  // (captured in Add Income) don't count. Once a Deposit exists, disable the option.
+  // Payment type rules: the FIRST contract payment is always a Deposit. Once a
+  // contract payment exists, Deposit is removed from the dropdown (only Abono /
+  // Balance Final remain). Service Deposits (from Add Income) don't count as
+  // contract payments.
   const contractPays=(currentPayments||[]).filter(p=>String(p['Type']||'')!=='Service Deposit');
-  const hasDeposit=contractPays.some(p=>String(p['Type']||'')==='Deposit');
+  const hasContractPay=contractPays.length>0;
   const payTypeSel=document.getElementById('payType');
-  const depOpt=payTypeSel?payTypeSel.querySelector('option[value="Deposit"]'):null;
-  if(depOpt){depOpt.disabled=hasDeposit;}
-  if(!hasDeposit){
-    payTypeSel.value='Deposit';
-  } else {
-    if(payTypeSel.value==='Deposit')payTypeSel.value='Abono';
-    else payTypeSel.value=payTypeSel.value||'Abono';
+  if(payTypeSel){
+    if(!hasContractPay){
+      // First payment: only Deposit is offered.
+      payTypeSel.innerHTML='<option value="Deposit">Deposit</option>';
+      payTypeSel.value='Deposit';
+    } else {
+      // Subsequent payments: no Deposit option.
+      payTypeSel.innerHTML='<option value="Abono">Abono</option><option value="Balance Final">Balance Final</option>';
+      if(payTypeSel.value==='Deposit')payTypeSel.value='Abono';
+    }
   }
   // Complete button validation — but never re-enable if the event is locked (closed).
   const completeBtn=document.getElementById('btnComplete');
@@ -1559,16 +1564,18 @@ async function saveIncome(){
     document.getElementById('incPayNow').value='';
     document.getElementById('incNeedsRole').checked=false;
     document.getElementById('incRoleRow').style.display='none';
-    // Amendment document: the backup record is ALWAYS created; ask whether to open
-    // it now for printing/saving. It also stays available in the Documents list.
-    const openNow=window.confirm('Income added and the amendment was recorded in Documents.\n\nOpen the amendment document now to print or save it?');
-    await generateAmendmentCharge({concept,category:isFee?'':category,amount,payNow,payMethod,notes,isFee},openNow);
-    showToast('Income added','success');
+    // Reload data first, then hide the spinner, THEN ask about the document — so the
+    // confirm dialog is never hidden behind the loading overlay.
     await new Promise(r=>setTimeout(r,1400));
     await loadServices();
     await loadPayments();
     await loadDocuments();
     renderPayments();
+    hideLoading();
+    showToast('Income added','success');
+    const openNow=window.confirm('Income added and the amendment was recorded in Documents.\n\nOpen the amendment document now to print or save it?');
+    await generateAmendmentCharge({concept,category:isFee?'':category,amount,payNow,payMethod,notes,isFee},openNow);
+    return;
   }catch(e){showToast('Error adding income','error');}
   hideLoading();
 }
@@ -2469,13 +2476,18 @@ function regenAmendmentFromService(idx){
   if(!s){showToast('Charge not found','error');return;}
   const div=String(s['Division']||'Fees');
   const isFee=(div==='Fees');
+  // When the income created a role: Item=role (operational), Description=concept
+  // (client-facing). The amendment is for the CLIENT — show the concept, not the role.
+  const hasRole=String(s['Type']||'').toLowerCase()==='role';
+  const concept=hasRole?(s['Description']||s['Item']||'Charge'):(s['Item']||'Charge');
+  const extraNotes=hasRole?'':(s['Description']&&s['Description']!==s['Item']?s['Description']:'');
   generateAmendmentCharge({
-    concept:s['Item']||'Charge',
+    concept:concept,
     category:isFee?'':div,
     amount:parseFloat(s['Price'])||0,
     payNow:0,
     payMethod:'',
-    notes:s['Description']&&s['Description']!==s['Item']?s['Description']:'',
+    notes:extraNotes,
     isFee:isFee
   });
 }
@@ -3009,7 +3021,9 @@ function renderDocuments(){
     const grp=DIV_TO_GROUP[div]||'client';
     const idx=currentServices.indexOf(s);
     const isFee=(div==='Fees');
-    const nm=(String(s['Item']||'').toLowerCase()==='other'&&s['Description'])?s['Description']:(s['Item']||'Charge');
+    // Client-facing: show the concept (Description when a role was created), not the role.
+    const hasRole=String(s['Type']||'').toLowerCase()==='role';
+    const nm=hasRole?(s['Description']||s['Item']||'Charge'):((String(s['Item']||'').toLowerCase()==='other'&&s['Description'])?s['Description']:(s['Item']||'Charge'));
     groups[grp].push(`<div class="doc-card">
       <div class="doc-icon">📎</div>
       <div class="doc-info">
@@ -3207,11 +3221,6 @@ function fmtTime(t){
   return String(t);
 }
 
-// Business_Rules time values arrive already formatted by the backend (Apps Script
-// formats serialized-date times in the Sheet timezone). Pass through as-is.
-function fmtTimeVal(v){
-  return (v===undefined||v===null)?'':String(v);
-}
 // Convert "HH:MM" (24h) to "H:MM AM/PM".
 function fmtTime12(t){
   const hm=fmtTime(t);
@@ -4204,13 +4213,13 @@ function generateVenueRules(){
   const minorPenalty=vr('minor_alcohol_penalty',1000);
   const conductPct=vr('conduct_penalty_pct',40);
   const overtimeHr=vr('overtime_hourly',550);
-  const maxEnd=fmtTimeVal(vr('max_end_time','1:00 AM'));
+  const maxEnd=vr('max_end_time','1:00 AM');
   const storageFee=vr('vendor_storage_fee',50);
   const disposalHrs=vr('vendor_disposal_hours',72);
   const musicBefore=vr('music_ends_before',30);
   const barBefore=vr('bar_closes_before',60);
   const parkingSpaces=vr('parking_private_spaces',8);
-  const parkingFreeAfter=fmtTimeVal(vr('parking_public_free_after','6:00 PM'));
+  const parkingFreeAfter=vr('parking_public_free_after','6:00 PM');
   const fmtMoney0=n=>'$'+(parseFloat(n)||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});
   const barBeforeTxt=(parseInt(barBefore,10)===60)?'1 hour':barBefore+' minutes';
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
