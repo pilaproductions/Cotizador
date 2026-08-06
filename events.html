@@ -101,6 +101,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
 .method-badge{display:inline-block;padding:1px 7px;font-size:9px;font-weight:600;letter-spacing:1px;text-transform:uppercase;background:var(--gray-light);color:var(--gray);border:1px solid #DDD;}
 .type-deposit{background:#EAF4ED;color:var(--green);border-color:#A8D5B5;}
 .type-abono{background:var(--gold-pale);color:#8B6914;border-color:var(--gold-border);}
+.type-service{background:#EAF0F7;color:#2C5F8A;border-color:#B8D0E8;}
 .type-balance{background:#EEF3FF;color:var(--blue);border-color:#BFD0F0;}
 .no-data{text-align:center;padding:30px;color:#AAA;font-size:11px;font-style:italic;}
 .status-section{margin-top:20px;padding-top:16px;border-top:1px solid #E8E8E8;display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
@@ -1398,11 +1399,18 @@ function renderPayments(){
   document.getElementById('sumReceived').textContent=fmtMoney(received);
   document.getElementById('sumBalance').textContent=fmtMoney(Math.max(0,balance));
   document.getElementById('sumCount').textContent=currentPayments.length;
-  // Auto-select Deposit if first payment
-  if(currentPayments.length===0){
-    document.getElementById('payType').value='Deposit';
+  // A contract "Deposit" is the first payment toward the contract. Service Deposits
+  // (captured in Add Income) don't count. Once a Deposit exists, disable the option.
+  const contractPays=(currentPayments||[]).filter(p=>String(p['Type']||'')!=='Service Deposit');
+  const hasDeposit=contractPays.some(p=>String(p['Type']||'')==='Deposit');
+  const payTypeSel=document.getElementById('payType');
+  const depOpt=payTypeSel?payTypeSel.querySelector('option[value="Deposit"]'):null;
+  if(depOpt){depOpt.disabled=hasDeposit;}
+  if(!hasDeposit){
+    payTypeSel.value='Deposit';
   } else {
-    document.getElementById('payType').value='Abono';
+    if(payTypeSel.value==='Deposit')payTypeSel.value='Abono';
+    else payTypeSel.value=payTypeSel.value||'Abono';
   }
   // Complete button validation — but never re-enable if the event is locked (closed).
   const completeBtn=document.getElementById('btnComplete');
@@ -1436,7 +1444,7 @@ function renderPayments(){
     document.getElementById('paymentsBody').innerHTML='<tr><td colspan="7" class="no-data">No payments registered yet</td></tr>';
     return;
   }
-  const tc={'Deposit':'type-deposit','Abono':'type-abono','Balance Final':'type-balance','Date Change Fee':'type-balance'};
+  const tc={'Deposit':'type-deposit','Abono':'type-abono','Service Deposit':'type-service','Balance Final':'type-balance','Date Change Fee':'type-balance'};
   const rows=currentPayments.map(p=>`<tr>
     <td style="font-size:10px;color:#AAA">${p['Payment ID']||'—'}</td>
     <td>${fmtDate(p['Payment Date'])}</td>
@@ -1538,7 +1546,7 @@ async function saveIncome(){
         'Payment Date':payDate,
         'Amount':payNow,
         'Method':payMethod,
-        'Type':'Deposit',
+        'Type':'Service Deposit',
         'Reference':'',
         'Notes':'Deposit for: '+concept
       };
@@ -3199,6 +3207,11 @@ function fmtTime(t){
   return String(t);
 }
 
+// Business_Rules time values arrive already formatted by the backend (Apps Script
+// formats serialized-date times in the Sheet timezone). Pass through as-is.
+function fmtTimeVal(v){
+  return (v===undefined||v===null)?'':String(v);
+}
 // Convert "HH:MM" (24h) to "H:MM AM/PM".
 function fmtTime12(t){
   const hm=fmtTime(t);
@@ -3934,12 +3947,16 @@ function generateClientContract(){
   // Contract = initial agreement at reservation. Uses Final Total (no post-contract
   // extra income; reschedule/extra charges live in their own documents/amendments).
   const total=parseFloat(e['Final Total'])||0;
-  const received=getTotalReceived();
+  // Contract = initial agreement. Its Payment Schedule lists only payments toward
+  // the contract itself — NOT deposits captured for post-contract added services
+  // (Type 'Service Deposit'), which belong to their own amendments.
+  const contractPayments=(currentPayments||[]).filter(p=>String(p['Type']||'')!=='Service Deposit');
+  const received=contractPayments.reduce((s,p)=>s+(parseFloat(p['Amount'])||0),0);
   const balance=total-received;
   const fmtBal=(received<=0)?'<span style="color:#CC2200;font-weight:600">'+fmtM(total)+' (full amount — no deposit yet)</span>':'<span style="color:'+(balance<=0?'#1E5C2E':'#CC2200')+';font-weight:600">'+fmtM(balance)+'</span>';
   const fmtDep=(received<=0)?'<span style="color:#999">$0 — pending</span>':'<span style="color:#1E5C2E;font-weight:600">'+fmtM(received)+'</span>';
   const ACCEPTED_METHODS='Cash / Zelle / Check / Card';
-  const paidMethods=[...new Set((currentPayments||[]).map(p=>String(p['Method']||'').trim()).filter(Boolean))];
+  const paidMethods=[...new Set((contractPayments||[]).map(p=>String(p['Method']||'').trim()).filter(Boolean))];
   const depMethod=(received<=0)?'—':(paidMethods.length?paidMethods.join(', '):ACCEPTED_METHODS);
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
 <title>Service Agreement — ${e['RES#']}</title>
@@ -4003,8 +4020,8 @@ ${docHeader('Service Agreement',`${e['COT#']} / ${e['RES#']}`,ext?{mode:'pilab',
   <table class="services-table">
     <thead><tr><th>Date</th><th>Type</th><th>Method</th><th style="text-align:right">Amount</th></tr></thead>
     <tbody>
-      ${(currentPayments&&currentPayments.length)
-        ? currentPayments.map(p=>`<tr><td>${fmtDateDoc(p['Payment Date'])}</td><td>${p['Type']||'Payment'}</td><td>${p['Method']||'—'}</td><td style="text-align:right;font-weight:600;color:#1E5C2E">${fmtM(p['Amount'])}</td></tr>`).join('')
+      ${(contractPayments&&contractPayments.length)
+        ? contractPayments.map(p=>`<tr><td>${fmtDateDoc(p['Payment Date'])}</td><td>${p['Type']||'Payment'}</td><td>${p['Method']||'—'}</td><td style="text-align:right;font-weight:600;color:#1E5C2E">${fmtM(p['Amount'])}</td></tr>`).join('')
         : `<tr><td colspan="4" style="color:#999;font-style:italic;text-align:center;padding:10px">No payments recorded yet</td></tr>`}
       <tr class="total-row"><td colspan="3">TOTAL RECEIVED</td><td style="text-align:right;color:#1E5C2E">${fmtM(received)}</td></tr>
       <tr class="total-row"><td colspan="3">OUTSTANDING BALANCE${balance>0?' — due 15 days before event':''}</td><td style="text-align:right;color:${balance<=0?'#1E5C2E':'#CC2200'}">${fmtM(balance)}</td></tr>
@@ -4187,13 +4204,13 @@ function generateVenueRules(){
   const minorPenalty=vr('minor_alcohol_penalty',1000);
   const conductPct=vr('conduct_penalty_pct',40);
   const overtimeHr=vr('overtime_hourly',550);
-  const maxEnd=vr('max_end_time','1:00 AM');
+  const maxEnd=fmtTimeVal(vr('max_end_time','1:00 AM'));
   const storageFee=vr('vendor_storage_fee',50);
   const disposalHrs=vr('vendor_disposal_hours',72);
   const musicBefore=vr('music_ends_before',30);
   const barBefore=vr('bar_closes_before',60);
   const parkingSpaces=vr('parking_private_spaces',8);
-  const parkingFreeAfter=vr('parking_public_free_after','6:00 PM');
+  const parkingFreeAfter=fmtTimeVal(vr('parking_public_free_after','6:00 PM'));
   const fmtMoney0=n=>'$'+(parseFloat(n)||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});
   const barBeforeTxt=(parseInt(barBefore,10)===60)?'1 hour':barBefore+' minutes';
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
