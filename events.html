@@ -6802,7 +6802,6 @@ ${docFooter('Pilab Productions LLC')}
   docWrite(win,html);
   logDocGenerated('provider_receipt',`${exp['Provider Name']||''} · ${fmtM(paid)}`);
 }
-
 // ── PROVIDER AGREEMENT (per provider, from Expenses) ──────────────────────────
 function generateProviderAgreement(expenseId,directExp){
   const exp=directExp||currentExpenses.find(x=>x['Expense ID']===expenseId);
