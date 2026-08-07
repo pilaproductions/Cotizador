@@ -5202,7 +5202,34 @@ ${docHeader('Event Manager Sheet',`${e['RES#']}`,{mode:'cardona',sub:'INTERNAL �
   </div>
 </div>
 <div class="sec">
-  <div class="sec-title">2. Team & Key Contacts</div>
+  <div class="sec-title">2. What's Included</div>
+  ${(()=>{
+    const cc={Venue:'#8B6914',Catering:'#1A5C2E',Decor:'#7A5C10',Entertainment:'#9C1060',Photo:'#006B82'};
+    const cateringPlan=['collection','luxury'].includes((e['Catering Line']||'').toLowerCase())?(e['Catering Plan']||e['Catering Line']):'';
+    const decorPlan=(e['Decor Plan']&&e['Decor Plan']!=='na')?e['Decor Plan']:'';
+    const entPlan=(e['Entertainment Plan']&&e['Entertainment Plan']!=='na')?e['Entertainment Plan']:'';
+    const photoPlan=(e['Photo Plan']&&e['Photo Plan']!=='na')?e['Photo Plan']:((e['Photo Tier']&&e['Photo Tier']!=='na')?e['Photo Tier']:'');
+    // Only contracted categories are shown (no N/A rows).
+    const items=[
+      ['Venue',(e['Venue Tier']||''),'Venue Rules'],
+      ['Catering',cateringPlan,'Catering BEO'],
+      ['Decor',decorPlan,'Decor Requirements'],
+      ['Entertainment',entPlan,'Music & Program Request'],
+      ['Photo',photoPlan,'Event Coverage / Photo Shoot'],
+    ].filter(([cat,plan])=>String(plan||'').trim());
+    if(!items.length)return '<div style="font-size:11px;color:#AAA;font-style:italic">No services contracted.</div>';
+    return `<table class="staff-table">
+      <thead><tr><th>Category</th><th>Plan</th><th>Reference Document</th></tr></thead>
+      <tbody>${items.map(([cat,plan,doc])=>`<tr>
+        <td><span style="font-size:10px;font-weight:700;color:#fff;background:${cc[cat]||'#555'};padding:2px 8px;border-radius:3px">${cat}</span></td>
+        <td style="font-weight:500">${titleCase(plan)}</td>
+        <td style="font-size:10px;color:#777">${doc}</td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+  })()}
+</div>
+<div class="sec">
+  <div class="sec-title">3. Team & Key Contacts</div>
   ${(()=>{
     const getPhone=(provId)=>{
       const p=allDirectoryProviders&&allDirectoryProviders.find(p=>p['Provider ID']===provId);
@@ -5229,24 +5256,28 @@ ${docHeader('Event Manager Sheet',`${e['RES#']}`,{mode:'cardona',sub:'INTERNAL �
     };
     const rows=sorted.length?sorted.map(op=>{
       const note=noteFor(op['Provider Name'],op['Provider ID']);
+      const cc={Venue:'#8B6914',Staff:'#8B6914',Catering:'#1A5C2E',Decor:'#7A5C10',Entertainment:'#9C1060',Photo:'#006B82'};
+      const cat=op['Category']||'';
+      const catBadge=cat?`<span style="font-size:9px;font-weight:700;color:#fff;background:${cc[cat]||'#555'};padding:1px 7px;border-radius:3px">${cat}</span>`:'—';
       return `<tr>
         <td style="font-weight:600;color:#333">${op['Role']||'—'}</td>
         <td style="font-weight:500">${op['Provider Name']||mLine('','write name')}</td>
+        <td>${catBadge}</td>
         <td style="font-size:10px;color:#555">${typeOf(op)}</td>
         <td>${mLine(getPhone(op['Provider ID']),'—')}</td>
         <td style="text-align:center">${op['Arrival Time']?fmtTime(op['Arrival Time']):mLine('','__:__')}</td>
         <td style="text-align:center">${op['Departure Time']?fmtTime(op['Departure Time']):mLine('','__:__')}</td>
-      </tr>${note?`<tr><td colspan="6" style="font-size:10px;color:#777;padding:2px 8px 6px;border-bottom:1px solid #EEE">📝 ${note}</td></tr>`:''}`;
-    }).join(''):`<tr><td colspan="6" style="color:#AAA;font-style:italic;font-size:10px">None assigned yet</td></tr>`;
+      </tr>${note?`<tr><td colspan="7" style="font-size:10px;color:#777;padding:2px 8px 6px;border-bottom:1px solid #EEE">📝 ${note}</td></tr>`:''}`;
+    }).join(''):`<tr><td colspan="7" style="color:#AAA;font-style:italic;font-size:10px">None assigned yet</td></tr>`;
     return `
       <table class="staff-table">
-        <thead><tr><th>Role</th><th>Name</th><th>Type</th><th>Phone</th><th>Arrival</th><th>Departure</th></tr></thead>
+        <thead><tr><th>Role</th><th>Name</th><th>Category</th><th>Type</th><th>Phone</th><th>Arrival</th><th>Departure</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>`;
   })()}
 </div>
 <div class="sec">
-  <div class="sec-title">3. Task Agenda by Phase</div>
+  <div class="sec-title">4. Task Agenda by Phase</div>
   ${(()=>{
     const taskOps=currentOperations.filter(op=>op['Task Name']&&String(op['Task Name']).trim());
     // Resolve each task's phase from Task Templates (by name + category). Default
@@ -5259,85 +5290,42 @@ ${docHeader('Event Manager Sheet',`${e['RES#']}`,{mode:'cardona',sub:'INTERNAL �
     };
     const DAY_PHASES=['Setup','During Event','Closing'];
     const phaseColors={'Setup':'#8B6914','During Event':'#1A5C2E','Closing':'#B5560A'};
+    const cc={Venue:'#8B6914',Staff:'#8B6914',Catering:'#1A5C2E',Decor:'#7A5C10',Entertainment:'#9C1060',Photo:'#006B82'};
     const byPhase={};
     taskOps.forEach(op=>{ let p=phaseOf(op); if(!DAY_PHASES.includes(p))p='Setup'; (byPhase[p]=byPhase[p]||[]).push(op); });
-    const blankRows=Array.from({length:3}).map(()=>`<tr>
-      <td style="border-bottom:1px solid #DDD;height:22px"></td>
-      <td style="border-bottom:1px solid #DDD"></td>
-      <td style="border-bottom:1px solid #DDD"></td>
-      <td style="border-bottom:1px solid #DDD"></td>
-      <td style="text-align:center">□</td>
-    </tr>`).join('');
-    return DAY_PHASES.map(phase=>{
+    const phasesHtml=DAY_PHASES.map(phase=>{
       const list=byPhase[phase]||[];
       const color=phaseColors[phase];
-      const rows=list.map(op=>`<tr>
+      const rows=list.length?list.map(op=>{
+        const cat=op['Category']||'';
+        const catBadge=cat?`<span style="font-size:9px;font-weight:700;color:#fff;background:${cc[cat]||'#555'};padding:1px 7px;border-radius:3px">${cat}</span>`:'—';
+        return `<tr>
         <td style="font-weight:500">${op['Task Name']||'—'}</td>
-        <td><span style="font-size:9px;background:#F0F0F0;color:#555;padding:1px 6px;border-radius:2px">${op['Category']||'—'}</span></td>
+        <td>${catBadge}</td>
         <td>${op['Provider Name']||'—'}</td>
         <td style="font-size:11px;color:#777">${op['Task Start Time']||'—'}</td>
         <td style="text-align:center">□</td>
-      </tr>`).join('');
+      </tr>`;}).join(''):`<tr><td colspan="5" style="color:#AAA;font-style:italic;font-size:10px">No tasks in this phase</td></tr>`;
       return `
       <div style="margin-top:12px">
         <div style="background:${color};color:#fff;padding:5px 12px;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;border-radius:3px">${phase}</div>
         <table class="staff-table" style="margin-top:4px">
           <thead><tr><th>Task</th><th>Category</th><th>Assigned</th><th>Duration</th><th style="text-align:center;width:34px">✓</th></tr></thead>
-          <tbody>${rows||''}${phase==='Setup'?blankRows:''}</tbody>
+          <tbody>${rows}</tbody>
         </table>
       </div>`;
     }).join('');
+    // Additional tasks: a lined note area for hand-written extra tasks, visually
+    // distinct from the phase tables above.
+    const additional=`
+      <div style="margin-top:16px">
+        <div style="font-size:10px;font-weight:700;color:#555;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Additional Tasks (write in)</div>
+        <div style="border:1px dashed #CCC;border-radius:4px;padding:10px 12px;background:#FAFAF7">
+          ${Array.from({length:4}).map(()=>`<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px dashed #E0E0E0"><span style="color:#CCC;font-size:12px">□</span><span style="flex:1;border-bottom:1px solid transparent">&nbsp;</span></div>`).join('')}
+        </div>
+      </div>`;
+    return phasesHtml+additional;
   })()}
-</div>
-<div class="sec">
-  <div class="sec-title">4. What's Included</div>
-  <table class="staff-table">
-    <thead><tr><th>Division</th><th>Plan</th><th>Provider</th><th>Document</th></tr></thead>
-    <tbody>
-      ${(()=>{
-        // Provider(s) per category from Expenses. Internal -> list provider names; External/Client -> "External".
-        const provFor=(cat)=>{
-          const exps=(currentExpenses||[]).filter(ex=>(ex['Category']||'').toLowerCase()===cat.toLowerCase());
-          if(!exps.length)return '—';
-          const internal=exps.filter(ex=>isInternalType(ex['Provider Type']));
-          const nonInternal=exps.filter(ex=>!isInternalType(ex['Provider Type']));
-          const names=[...new Set(internal.map(ex=>ex['Provider Name']).filter(Boolean))];
-          if(names.length)return names.join(', ');
-          if(nonInternal.length)return 'External';
-          return '—';
-        };
-        // A category has an "Other" (custom) role if any of its services/operations carry one.
-        const hasOtherRole=(cat)=>{
-          const list=(currentServices||[]).filter(s=>(s['Division']||'').toLowerCase()===cat.toLowerCase());
-          return list.some(s=>(s['Item']||'').toLowerCase()==='other'||(s['Is Custom']==='true'));
-        };
-        // Document per category — only shown if the category is contracted (has a plan).
-        // RULE: if a role is "Other", its document is ONLY the Provider Agreement.
-        const cateringPlan=['collection','luxury'].includes((e['Catering Line']||'').toLowerCase())?(e['Catering Plan']||e['Catering Line']):'';
-        const decorPlan=(e['Decor Plan']&&e['Decor Plan']!=='na')?e['Decor Plan']:'';
-        const entPlan=(e['Entertainment Plan']&&e['Entertainment Plan']!=='na')?e['Entertainment Plan']:'';
-        const photoPlan=(e['Photo Plan']&&e['Photo Plan']!=='na')?e['Photo Plan']:((e['Photo Tier']&&e['Photo Tier']!=='na')?e['Photo Tier']:'');
-        const docFor=(cat,plan,reqDoc)=>{
-          if(hasOtherRole(cat))return 'Provider Agreement';
-          if(!plan)return '';                 // not contracted -> no document
-          return reqDoc;
-        };
-        const rows=[
-          ['Venue & Host', e['Venue Tier']||'', 'James Cardona', hasOtherRole('Venue')?'Provider Agreement':''],
-          ['Catering', cateringPlan, provFor('Catering'), docFor('Catering',cateringPlan,'Catering BEO')],
-          ['Design & Decor', decorPlan, provFor('Decor'), docFor('Decor',decorPlan,'Decor Requirements')],
-          ['Entertainment', entPlan, provFor('Entertainment'), docFor('Entertainment',entPlan,'Music & Program Request')],
-          ['Photo & Video', photoPlan, provFor('Photo'), docFor('Photo',photoPlan,'Event Coverage / Photo Shoot Session')],
-        ];
-        return rows.map(([div,plan,prov,doc])=>`<tr>
-          <td style="font-weight:600">${div}</td>
-          <td>${plan||'N/A'}</td>
-          <td>${prov||'—'}</td>
-          <td style="font-size:10px;color:#777">${doc||'—'}</td>
-        </tr>`).join('');
-      })()}
-    </tbody>
-  </table>
 </div>
 <div class="sec">
   <div class="sec-title">5. Manager Notes</div>
@@ -5917,15 +5905,24 @@ async function loadCatalogs(){
 }
 
 // ── PROVIDER SEARCH (Expenses style) ─────────────────────────────────────────
-// Build the dropdown from ALL roles in Services (with or without provider)
+// Build the dropdown from Services roles that DON'T yet have a saved operation
+// (arrival/departure). Once a role is managed it drops off here and shows below
+// in the operations cards (edit it from there).
 function populateOpsAssignedRoles(){
   const sel=document.getElementById('opsAssignedRole');
   if(!sel)return;
   const cur=sel.value;
-  const roles=(currentServices||[]);
+  // A role is "managed" when it has an operation row with an arrival time.
+  const managed=new Set((currentOperations||[])
+    .filter(op=>String(op['Arrival Time']||'').trim())
+    .map(op=>`${op['Provider Name']||''}||${op['Category']||''}`));
+  const roles=(currentServices||[]).filter(s=>{
+    const key=`${s['Provider Name']||''}||${s['Division']||''}`;
+    return !managed.has(key);
+  });
   let html='<option value="">— Select —</option>';
   if(!roles.length){
-    html='<option value="">No roles in Services yet</option>';
+    html='<option value="">All roles have been assigned</option>';
   }else{
     roles.forEach(s=>{
       const type=normProviderType(s['Provider Type']);
