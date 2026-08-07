@@ -435,11 +435,11 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
               </select>
             </div>
             <div class="form-field">
-              <div class="form-lbl">Arrival</div>
+              <div class="form-lbl">Arrival <span style="color:#CC2200">*</span></div>
               <input class="form-input" type="time" id="opsArrival">
             </div>
             <div class="form-field">
-              <div class="form-lbl">Departure</div>
+              <div class="form-lbl">Departure <span style="color:#CC2200">*</span></div>
               <input class="form-input" type="time" id="opsDeparture">
             </div>
           </div>
@@ -482,7 +482,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
               </div>
               <div class="form-field">
                 <div class="form-lbl">Duration</div>
-                <input class="form-input" type="text" id="opsTaskDuration" placeholder="e.g. 30 min" style="width:110px">
+                <select class="form-select" id="opsTaskDuration" style="width:130px"></select>
               </div>
               <button class="btn btn-outline btn-sm" onclick="addCustomTask()">+ Add</button>
             </div>
@@ -493,6 +493,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
           <div style="display:flex;align-items:center;justify-content:flex-end;margin-top:12px;padding-top:10px;border-top:1px solid #DDD">
             <input type="hidden" id="opsStatus" value="Confirmed">
             <div style="display:flex;gap:8px">
+              <button class="btn btn-outline" onclick="cancelOpsForm()">Cancel</button>
               <button class="btn btn-outline" onclick="clearOpsForm()">Clear</button>
               <button class="btn btn-gold" id="btnSaveOperation" onclick="saveOperation()">Save Logistics</button>
             </div>
@@ -557,7 +558,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
             </div>
             <div class="form-field">
               <div class="form-lbl">Default Duration</div>
-              <input class="form-input" type="text" id="tmplDuration" placeholder="e.g. 30 min">
+              <select class="form-select" id="tmplDuration"></select>
             </div>
             <div class="form-field" style="display:flex;align-items:flex-end">
               <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:600;color:#8B6914">
@@ -1175,6 +1176,12 @@ function fmtMoney(n){return '$'+(parseFloat(n)||0).toLocaleString('en-US',{minim
 //                   requirement, no receipt.
 const PROVIDER_TYPES=['Internal Staff','Internal Vendor','External Vendor','Client-Handled'];
 // Legacy 3-value data → new 4-value model (Internal defaults to Internal Staff).
+// Standard task-duration options (single source of truth for the Task Templates
+// form and the custom-task field in Operations).
+const DURATION_OPTIONS=['5 min','10 min','15 min','20 min','30 min','45 min','1 h','1 h 30 min','2 h','3 h','4 h','5 h','6 h','7 h','8 h','During event'];
+function durationOptionsHtml(selected){
+  return DURATION_OPTIONS.map(o=>`<option value="${o}"${String(selected||'')===o?' selected':''}>${o}</option>`).join('');
+}
 function normProviderType(v){
   const s=String(v||'').trim().toLowerCase();
   if(s==='internal'||s==='internal staff'||s==='')return 'Internal Staff';
@@ -5216,14 +5223,21 @@ ${docHeader('Venue Staff Sheet',`${e['RES#']}`,{mode:'cardona',sub:'INTERNAL —
     const typeOf=(op)=>normProviderType(op['Provider Type']||svcType(op['Provider Name'],op['Provider ID']));
     const typeOrder={'Internal Staff':0,'Internal Vendor':1,'External Vendor':2,'Client-Handled':3};
     const sorted=allProv.slice().sort((a,b)=>(typeOrder[typeOf(a)]??9)-(typeOrder[typeOf(b)]??9));
-    const rows=sorted.length?sorted.map(op=>`<tr>
+    const noteFor=(name,pid)=>{
+      const op=(currentOperations||[]).find(o=>((o['Provider Name']||'')===(name||'')||(pid&&o['Provider ID']===pid))&&String(o['Notes']||'').trim());
+      return op?String(op['Notes']).trim():'';
+    };
+    const rows=sorted.length?sorted.map(op=>{
+      const note=noteFor(op['Provider Name'],op['Provider ID']);
+      return `<tr>
         <td style="font-weight:600;color:#333">${op['Role']||'—'}</td>
         <td style="font-weight:500">${op['Provider Name']||mLine('','write name')}</td>
         <td style="font-size:10px;color:#555">${typeOf(op)}</td>
         <td>${mLine(getPhone(op['Provider ID']),'—')}</td>
         <td style="text-align:center">${op['Arrival Time']?fmtTime(op['Arrival Time']):mLine('','__:__')}</td>
         <td style="text-align:center">${op['Departure Time']?fmtTime(op['Departure Time']):mLine('','__:__')}</td>
-      </tr>`).join(''):`<tr><td colspan="6" style="color:#AAA;font-style:italic;font-size:10px">None assigned yet</td></tr>`;
+      </tr>${note?`<tr><td colspan="6" style="font-size:10px;color:#777;padding:2px 8px 6px;border-bottom:1px solid #EEE">📝 ${note}</td></tr>`:''}`;
+    }).join(''):`<tr><td colspan="6" style="color:#AAA;font-style:italic;font-size:10px">None assigned yet</td></tr>`;
     return `
       <table class="staff-table">
         <thead><tr><th>Role</th><th>Name</th><th>Type</th><th>Phone</th><th>Arrival</th><th>Departure</th></tr></thead>
@@ -5931,19 +5945,34 @@ function onOpsAssignedRoleSelect(){
   document.getElementById('opsTaskSectionTitle').textContent=`Tasks for ${s['Provider Name']}`;
   opsPendingTasks=[];
   renderOpsPendingTasks();
-  renderOpsTaskCheckboxes(cat);
+  renderOpsTaskCheckboxes(cat,s['Provider Name']);
 }
 
-function renderOpsTaskCheckboxes(category){
+function renderOpsTaskCheckboxes(category,providerName){
   const container=document.getElementById('opsTaskCheckboxes');
   if(!container)return;
   const cat=(category||'').toLowerCase();
   // Staff and Venue both use Staff templates
   const templateCat=cat==='venue'?'staff':cat;
+  // Tasks already assigned to THIS provider (any of their operation rows) — exclude
+  // them from the checklist; they're already assigned, only new ones can be added.
+  const assignedNames=new Set((currentOperations||[])
+    .filter(op=>(op['Provider Name']||'')===(providerName||'')&&op['Task Name'])
+    .map(op=>String(op['Task Name']).trim().toLowerCase()));
   const tasks=currentTaskTemplates.filter(t=>(t['Task Name']||'').trim()&&
-    (t['Category']||'').toLowerCase()===templateCat);
+    (t['Category']||'').toLowerCase()===templateCat&&
+    !assignedNames.has(String(t['Task Name']||'').trim().toLowerCase()))
+    .sort((a,b)=>{ // default (⭐) first, then by name
+      const da=String(a['Default']||'').toUpperCase()==='Y'?0:1;
+      const db=String(b['Default']||'').toUpperCase()==='Y'?0:1;
+      if(da!==db)return da-db;
+      return String(a['Task Name']||'').localeCompare(String(b['Task Name']||''));
+    });
+  // Populate the custom-task duration dropdown (standard options).
+  const durSel=document.getElementById('opsTaskDuration');
+  if(durSel&&!durSel.options.length)durSel.innerHTML=durationOptionsHtml('30 min');
   if(!tasks.length){
-    container.innerHTML=`<div style="font-size:11px;color:#AAA;font-style:italic;margin-bottom:6px">No templates for category "${category}". Add them in Task Templates tab.</div>`;
+    container.innerHTML=`<div style="font-size:11px;color:#AAA;font-style:italic;margin-bottom:6px">No more template tasks to add for this provider. Use "Custom Task" below to add a new one.</div>`;
     return;
   }
   // Select All / Deselect All toggle
@@ -5969,14 +5998,29 @@ function toggleAllTasks(checked){
   document.querySelectorAll('.ops-task-cb').forEach(cb=>cb.checked=checked);
 }
 
-function addCustomTask(){
+async function addCustomTask(){
   const name=(document.getElementById('opsCustomTask').value||'').trim();
   if(!name){showToast('Enter a task name','error');return;}
   const dur=document.getElementById('opsTaskDuration').value||'';
   opsPendingTasks.push({name,duration:dur,custom:true});
   document.getElementById('opsCustomTask').value='';
-  document.getElementById('opsTaskDuration').value='';
   renderOpsPendingTasks();
+  // Also save it as a reusable Task Template (normal, not default) for the current
+  // category — unless an identical template already exists.
+  const cat=document.getElementById('opsCategory')?.value||'Staff';
+  const templateCat=(cat||'').toLowerCase()==='venue'?'Staff':cat;
+  const exists=(currentTaskTemplates||[]).some(t=>
+    (t['Task Name']||'').trim().toLowerCase()===name.toLowerCase()&&
+    (t['Category']||'').toLowerCase()===String(templateCat).toLowerCase());
+  if(!exists){
+    try{
+      await fetch(SCRIPT_URL,{method:'POST',body:JSON.stringify({
+        action:'saveTaskTemplate','Task ID':`TASK-${Date.now()}`,'Category':templateCat,
+        'Task Name':name,'Default Duration':dur,'Default':'N','Notes':''
+      })});
+      await loadOperations();
+    }catch(e){}
+  }
 }
 
 function renderOpsPendingTasks(){
@@ -6017,6 +6061,12 @@ function showOpsForm(opId=null){
 
 function hideOpsForm(){}
 
+// Cancel an in-progress edit/assignment: reset the form without saving anything.
+function cancelOpsForm(){
+  clearOpsForm();
+  showToast('Cancelled','success');
+}
+
 function clearOpsForm(){
   const a=document.getElementById('opsAssignedRole');if(a)a.value='';
   document.getElementById('opsRole').value='';
@@ -6032,7 +6082,7 @@ function clearOpsForm(){
   document.getElementById('opsTasksList').innerHTML='';
   document.getElementById('opsCustomTask').value='';
   const durEl=document.getElementById('opsTaskDuration');
-  if(durEl)durEl.value='';
+  if(durEl&&durEl.options.length)durEl.value='30 min';
   opsPendingTasks=[];
 }
 
@@ -6051,6 +6101,8 @@ async function saveOperation(){
   const desc=s['Item']||'';
   const arrival=document.getElementById('opsArrival').value;
   const departure=document.getElementById('opsDeparture').value;
+  if(!arrival){showToast('Arrival time is required','error');return;}
+  if(!departure){showToast('Departure time is required','error');return;}
   const status=document.getElementById('opsStatus').value;
   const notes=document.getElementById('opsNotes').value;
 
@@ -6156,30 +6208,31 @@ function renderOperations(){
     const status=hasProvider?'Confirmed':'Pending';
     const sColor=hasProvider?'#1E5C2E':'#C99000';
     const _pt=normProviderType(g.ptype);const tBadge={'Internal Staff':['Internal Staff','#EAF4ED','#1E5C2E'],'Internal Vendor':['Internal Vendor','#E0F2F0','#0A6B60'],'External Vendor':['External Vendor','#FFF1E0','#B5560A'],'Client-Handled':['Client-Handled','#E8E0F0','#6A3FA0']}[_pt];
-    return `<div style="background:#FAFAFA;border:1px solid #EEE;border-radius:4px;padding:10px 14px;margin-bottom:8px">
-      <div style="display:flex;align-items:flex-start;gap:10px">
-        <div style="flex:1">
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
-            <span style="font-size:13px;font-weight:700;color:#222">${hasProvider?g.name:'<span style="color:#C99000;font-style:italic">Pending provider</span>'}</span>
-            ${g.role?`<span style="font-size:10px;background:#EEE;color:#555;padding:2px 6px;border-radius:3px">${g.role}</span>`:''}
-            <span style="font-size:8px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;padding:1px 6px;border-radius:2px;background:${tBadge[1]};color:${tBadge[2]}">${tBadge[0]}</span>
-            <span style="font-size:10px;font-weight:700;color:${sColor};letter-spacing:1px;text-transform:uppercase">${status}</span>
-          </div>
-          <div style="display:flex;gap:14px;font-size:11px;color:#777;flex-wrap:wrap;margin-bottom:6px">
-            ${g.arrival?`<span>🕐 Arrives: <strong>${fmtTime(g.arrival)}</strong></span>`:''}
-            ${g.departure?`<span>🕐 Departs: <strong>${fmtTime(g.departure)}</strong></span>`:''}
-          </div>
-          ${g.tasks.length?`<div style="margin-top:6px">
-            ${g.tasks.map(t=>`<div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:11px;border-bottom:0.5px solid #F0F0F0">
-              <span style="flex:1">📋 ${t['Task Name']}</span>
-              ${t['Task Start Time']?`<span style="color:#888;font-size:10px;background:#F0F0F0;padding:1px 5px;border-radius:2px">${t['Task Start Time']}</span>`:''}
-              <button onclick="deleteOperation('${t['Operation ID']}')" style="background:none;border:none;cursor:pointer;color:#CC2200;font-size:12px;padding:0 2px" title="Remove task">✕</button>
-            </div>`).join('')}
-          </div>`:''}
+    const opId=(currentOperations.find(o=>o['Provider Name']===g.name&&o['Category']===g.cat)||{})['Operation ID']||'';
+    const cardId='opcard-'+Math.random().toString(36).slice(2,9);
+    // Compact card: header (name, role, type, status, times, #tasks) + expandable
+    // body with the task list. Rendered in a responsive grid by renderSection.
+    return `<div style="background:#fff;border:1px solid #E6E6E6;border-radius:6px;padding:10px 12px;box-shadow:0 1px 2px rgba(0,0,0,0.04)">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:700;color:#222;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${hasProvider?g.name:'<span style=\"color:#C99000;font-style:italic\">Pending</span>'}</div>
+          <div style="font-size:10px;color:#777;margin-top:1px">${g.role||'—'}</div>
         </div>
-        <div style="display:flex;gap:6px;flex-shrink:0">
-          <button class="btn btn-outline btn-sm" onclick="showOpsForm('${(currentOperations.find(o=>o['Provider Name']===g.name&&o['Category']===g.cat)||{})['Operation ID']||''}')">Edit</button>
-        </div>
+        <span style="font-size:7px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;padding:2px 5px;border-radius:2px;background:${tBadge[1]};color:${tBadge[2]};white-space:nowrap">${tBadge[0]}</span>
+      </div>
+      <div style="display:flex;gap:10px;font-size:10px;color:#777;margin-top:6px;flex-wrap:wrap">
+        <span>🕐 ${g.arrival?fmtTime(g.arrival):'--:--'} → ${g.departure?fmtTime(g.departure):'--:--'}</span>
+        <span style="color:${sColor};font-weight:700">${status}</span>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid #F0F0F0">
+        <button onclick="document.getElementById('${cardId}').style.display=document.getElementById('${cardId}').style.display==='none'?'block':'none'" style="background:none;border:none;cursor:pointer;font-size:10px;color:#8B6914;font-weight:600;padding:0">📋 ${g.tasks.length} task${g.tasks.length===1?'':'s'} ▾</button>
+        <button class="btn btn-outline btn-sm" onclick="showOpsForm('${opId}')" style="font-size:10px;padding:3px 10px">Edit</button>
+      </div>
+      <div id="${cardId}" style="display:none;margin-top:8px">
+        ${g.tasks.length?g.tasks.map(t=>`<div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:10px;border-bottom:0.5px solid #F5F5F5">
+          <span style="flex:1">${t['Task Name']}</span>
+          <button onclick="deleteOperation('${t['Operation ID']}')" style="background:none;border:none;cursor:pointer;color:#CC2200;font-size:11px;padding:0 2px" title="Remove task">✕</button>
+        </div>`).join(''):'<div style="font-size:10px;color:#AAA;font-style:italic">No tasks</div>'}
       </div>
     </div>`;
   };
@@ -6199,7 +6252,9 @@ function renderOperations(){
       const color=catColors[cat]||'#555';
       inner+=`<div style="margin-bottom:14px">
         <div style="font-size:10px;font-weight:700;color:${color};letter-spacing:1.5px;text-transform:uppercase;padding:4px 0;border-bottom:1px solid #EEE;margin-bottom:8px">${cat}</div>
-        ${provs.map(renderGroup).join('')}
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px">
+          ${provs.map(renderGroup).join('')}
+        </div>
       </div>`;
     });
     return `<div style="margin-bottom:24px">
@@ -6253,13 +6308,13 @@ function showTemplateForm(taskId=null){
     if(t){
       document.getElementById('tmplCategory').value=t['Category']||'Staff';
       document.getElementById('tmplName').value=t['Task Name']||'';
-      document.getElementById('tmplDuration').value=t['Default Duration']||'';
+      document.getElementById('tmplDuration').innerHTML=durationOptionsHtml(t['Default Duration']||'');
       document.getElementById('tmplDefault').checked=String(t['Default']||'').toUpperCase()==='Y';
     }
   } else {
     document.getElementById('tmplCategory').value='Staff';
     document.getElementById('tmplName').value='';
-    document.getElementById('tmplDuration').value='';
+    document.getElementById('tmplDuration').innerHTML=durationOptionsHtml('30 min');
     document.getElementById('tmplDefault').checked=false;
   }
 }
