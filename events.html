@@ -2949,7 +2949,7 @@ const DOC_DEFINITIONS=[
   {id:'force_majeure',  name:'Force Majeure Notice', sub:'Event suspension due to extraordinary circumstances', group:'client', num:22, condition:()=>true, icon:'❄️', canGenerate:true},
   // ── VENUE ───────────────────────────────────────────────────────────────────
   {id:'venue_rules',    name:'Venue Rules & Policies',    sub:'Alcohol policy, conduct, overtime fees, restrictions', group:'venue', num:5, condition:()=>!isExternalEvent(), disabledReason:'External event — venue rules apply only to Cardona Hall', icon:'📋', canGenerate:true},
-  {id:'venue_staff',    name:'Venue Staff Sheet',         sub:'Internal manager briefing — staff & schedule',        group:'venue', num:6, condition:()=>true, internal:true, icon:'👥', canGenerate:true},
+  {id:'venue_staff',    name:'Event Manager Sheet',       sub:'Internal master guide — included services, contacts & task agenda', group:'venue', num:6, condition:()=>true, internal:true, icon:'👥', canGenerate:true},
   {id:'staff_summary',  name:'Venue Staff Payment Summary',sub:'Internal — staff payments & signatures',             group:'venue', num:7, condition:()=>true, internal:true, icon:'💵', canGenerate:true},
   // ── CATERING ────────────────────────────────────────────────────────────────
   {id:'menu_selection', name:'Menu Selection Form',  sub:'Client selects dishes based on their catering plan', group:'catering', num:9,  condition:()=>hasCatering(), disabledReason:'No catering line contracted', icon:'📋', canGenerate:true},
@@ -5173,7 +5173,7 @@ function generateVenueStaff(){
   const e=currentEvent;
   const copy=isCopy('venue_staff');
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
-<title>Staff Sheet — ${e['RES#']}</title>
+<title>Event Manager Sheet — ${e['RES#']}</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>${baseStyles(PALETTES.venue)}
 .internal-bar{background:#1A0000;border-left:4px solid #CC0000;border-top:1px solid #CC0000;border-bottom:1px solid #CC0000;padding:8px 14px;margin:10px 0;font-size:11px;font-weight:700;color:#FF6666;letter-spacing:1px;}
@@ -5185,8 +5185,8 @@ function generateVenueStaff(){
 </style></head><body>
 ${copy?copyWatermark():''}
 <div class="doc">
-${docPageOpen('CARDONA HALL','Venue Staff Sheet — INTERNAL',`REF: ${e['RES#']}`)}
-${docHeader('Venue Staff Sheet',`${e['RES#']}`,{mode:'cardona',sub:'INTERNAL — Manager Copy'})}
+${docPageOpen('CARDONA HALL','Event Manager Sheet — INTERNAL',`REF: ${e['RES#']}`)}
+${docHeader('Event Manager Sheet',`${e['RES#']}`,{mode:'cardona',sub:'INTERNAL — Manager Copy'})}
 <div class="internal-bar">INTERNAL DOCUMENT — NOT FOR CLIENT DISTRIBUTION · Manager briefing — print and bring to event</div>
 <div class="sec">
   <div class="sec-title">1. Event Overview</div>
@@ -5202,7 +5202,7 @@ ${docHeader('Venue Staff Sheet',`${e['RES#']}`,{mode:'cardona',sub:'INTERNAL —
   </div>
 </div>
 <div class="sec">
-  <div class="sec-title">2. Provider & Staff Assignment</div>
+  <div class="sec-title">2. Team & Key Contacts</div>
   ${(()=>{
     const getPhone=(provId)=>{
       const p=allDirectoryProviders&&allDirectoryProviders.find(p=>p['Provider ID']===provId);
@@ -5246,36 +5246,51 @@ ${docHeader('Venue Staff Sheet',`${e['RES#']}`,{mode:'cardona',sub:'INTERNAL —
   })()}
 </div>
 <div class="sec">
-  <div class="sec-title">3. Event Timeline & Setup Tasks</div>
-  <table class="staff-table">
-    <thead><tr><th>Task</th><th>Assigned</th><th>Role</th><th>Duration</th><th>Details</th><th style="text-align:center;width:34px">✓</th></tr></thead>
-    <tbody>
-      ${(()=>{
-        const taskOps=currentOperations.filter(op=>op['Task Name']&&String(op['Task Name']).trim());
-        const taskRows=taskOps.map(op=>`<tr>
-          <td style="font-weight:500">${op['Task Name']||'—'}</td>
-          <td>${op['Provider Name']||'—'}</td>
-          <td style="font-size:10px;color:#777">${op['Role']||'—'}</td>
-          <td style="font-size:11px;color:#777">${op['Task Start Time']||'—'}</td>
-          <td style="border-bottom:1px solid #DDD"></td>
-          <td style="text-align:center">□</td>
-        </tr>`).join('');
-        // 5 blank manual rows for tasks/setup items not registered in the system
-        const blankRows=Array.from({length:5}).map(()=>`<tr>
-          <td style="border-bottom:1px solid #DDD;height:24px"></td>
-          <td style="border-bottom:1px solid #DDD"></td>
-          <td style="border-bottom:1px solid #DDD"></td>
-          <td style="border-bottom:1px solid #DDD"></td>
-          <td style="border-bottom:1px solid #DDD"></td>
-          <td style="text-align:center">□</td>
-        </tr>`).join('');
-        return taskRows+blankRows;
-      })()}
-    </tbody>
-  </table>
+  <div class="sec-title">3. Task Agenda by Phase</div>
+  ${(()=>{
+    const taskOps=currentOperations.filter(op=>op['Task Name']&&String(op['Task Name']).trim());
+    // Resolve each task's phase from Task Templates (by name + category). Default
+    // to Setup when a template/phase isn't found. Only day-of phases are shown here.
+    const phaseOf=(op)=>{
+      const t=(currentTaskTemplates||[]).find(t=>
+        String(t['Task Name']||'').trim().toLowerCase()===String(op['Task Name']||'').trim().toLowerCase());
+      const ph=t?String(t['Phase']||'').trim():'';
+      return ph||'Setup';
+    };
+    const DAY_PHASES=['Setup','During Event','Closing'];
+    const phaseColors={'Setup':'#8B6914','During Event':'#1A5C2E','Closing':'#B5560A'};
+    const byPhase={};
+    taskOps.forEach(op=>{ let p=phaseOf(op); if(!DAY_PHASES.includes(p))p='Setup'; (byPhase[p]=byPhase[p]||[]).push(op); });
+    const blankRows=Array.from({length:3}).map(()=>`<tr>
+      <td style="border-bottom:1px solid #DDD;height:22px"></td>
+      <td style="border-bottom:1px solid #DDD"></td>
+      <td style="border-bottom:1px solid #DDD"></td>
+      <td style="border-bottom:1px solid #DDD"></td>
+      <td style="text-align:center">□</td>
+    </tr>`).join('');
+    return DAY_PHASES.map(phase=>{
+      const list=byPhase[phase]||[];
+      const color=phaseColors[phase];
+      const rows=list.map(op=>`<tr>
+        <td style="font-weight:500">${op['Task Name']||'—'}</td>
+        <td><span style="font-size:9px;background:#F0F0F0;color:#555;padding:1px 6px;border-radius:2px">${op['Category']||'—'}</span></td>
+        <td>${op['Provider Name']||'—'}</td>
+        <td style="font-size:11px;color:#777">${op['Task Start Time']||'—'}</td>
+        <td style="text-align:center">□</td>
+      </tr>`).join('');
+      return `
+      <div style="margin-top:12px">
+        <div style="background:${color};color:#fff;padding:5px 12px;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;border-radius:3px">${phase}</div>
+        <table class="staff-table" style="margin-top:4px">
+          <thead><tr><th>Task</th><th>Category</th><th>Assigned</th><th>Duration</th><th style="text-align:center;width:34px">✓</th></tr></thead>
+          <tbody>${rows||''}${phase==='Setup'?blankRows:''}</tbody>
+        </table>
+      </div>`;
+    }).join('');
+  })()}
 </div>
 <div class="sec">
-  <div class="sec-title">4. Services Contracted</div>
+  <div class="sec-title">4. What's Included</div>
   <table class="staff-table">
     <thead><tr><th>Division</th><th>Plan</th><th>Provider</th><th>Document</th></tr></thead>
     <tbody>
