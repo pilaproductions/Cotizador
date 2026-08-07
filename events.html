@@ -234,7 +234,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
           <div class="form-field"><div class="form-lbl">Notes</div><input class="form-input" type="text" id="payNotes" placeholder="Additional notes..."></div>
         </div>
       </div>
-      
+
       <div class="add-form" style="border-left:3px solid #C9A84C;">
         <div class="add-form-title">+ Add Income (extra charge / service)</div>
         <div class="form-row" style="display:grid;grid-template-columns:1.4fr 1fr 0.8fr auto;gap:10px;align-items:end;">
@@ -2481,12 +2481,18 @@ function regenAmendmentFromService(idx){
   const hasRole=String(s['Type']||'').toLowerCase()==='role';
   const concept=hasRole?(s['Description']||s['Item']||'Charge'):(s['Item']||'Charge');
   const extraNotes=hasRole?'':(s['Description']&&s['Description']!==s['Item']?s['Description']:'');
+  // Recover the payment captured for this charge: the Service Deposit whose Notes
+  // reads "Deposit for: <concept>". Abonos are generic, so this is the link.
+  const wanted='Deposit for: '+concept;
+  const payMatch=(currentPayments||[]).find(p=>String(p['Type']||'')==='Service Deposit'&&String(p['Notes']||'')===wanted);
+  const payNow=payMatch?(parseFloat(payMatch['Amount'])||0):0;
+  const payMethod=payMatch?(payMatch['Method']||''):'';
   generateAmendmentCharge({
     concept:concept,
     category:isFee?'':div,
     amount:parseFloat(s['Price'])||0,
-    payNow:0,
-    payMethod:'',
+    payNow:payNow,
+    payMethod:payMethod,
     notes:extraNotes,
     isFee:isFee
   });
@@ -3956,10 +3962,10 @@ function generateClientContract(){
   // Contract = initial agreement at reservation. Uses Final Total (no post-contract
   // extra income; reschedule/extra charges live in their own documents/amendments).
   const total=parseFloat(e['Final Total'])||0;
-  // Contract = initial agreement. Its Payment Schedule lists only payments toward
-  // the contract itself — NOT deposits captured for post-contract added services
-  // (Type 'Service Deposit'), which belong to their own amendments.
-  const contractPayments=(currentPayments||[]).filter(p=>String(p['Type']||'')!=='Service Deposit');
+  // Contract = initial agreement at signing. Its Payment Schedule shows only the
+  // initial Deposit — abonos and service deposits come AFTER the contract and are
+  // not part of it.
+  const contractPayments=(currentPayments||[]).filter(p=>String(p['Type']||'')==='Deposit');
   const received=contractPayments.reduce((s,p)=>s+(parseFloat(p['Amount'])||0),0);
   const balance=total-received;
   const fmtBal=(received<=0)?'<span style="color:#CC2200;font-weight:600">'+fmtM(total)+' (full amount — no deposit yet)</span>':'<span style="color:'+(balance<=0?'#1E5C2E':'#CC2200')+';font-weight:600">'+fmtM(balance)+'</span>';
@@ -6802,6 +6808,7 @@ ${docFooter('Pilab Productions LLC')}
   docWrite(win,html);
   logDocGenerated('provider_receipt',`${exp['Provider Name']||''} · ${fmtM(paid)}`);
 }
+
 // ── PROVIDER AGREEMENT (per provider, from Expenses) ──────────────────────────
 function generateProviderAgreement(expenseId,directExp){
   const exp=directExp||currentExpenses.find(x=>x['Expense ID']===expenseId);
