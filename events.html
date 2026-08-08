@@ -7073,15 +7073,9 @@ function generateVenueStaffFromOps(){generateVenueStaff();logDocGenerated('venue
 function generateStaffSummary(){
   const win=docOpen();if(!win)return;
   const e=currentEvent;
-  // Internal Staff only (by provider type). One row per provider, from Expenses.
-  const staffExpenses=currentExpenses.filter(ex=>normProviderType(ex['Provider Type'])==='Internal Staff');
-  const seen=new Set();
-  const staffRows=staffExpenses.filter(ex=>{
-    const key=ex['Provider ID']||ex['Provider Name'];
-    if(seen.has(key))return false;
-    seen.add(key);
-    return true;
-  });
+  // Internal Staff only (by provider type). One row PER SERVICE (Detail ID) — a
+  // provider with several roles/services is paid per role, so each is its own line.
+  const staffRows=currentExpenses.filter(ex=>normProviderType(ex['Provider Type'])==='Internal Staff');
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
 <title></title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -7109,9 +7103,11 @@ ${docHeader('Staff Payment Summary',e['RES#'],{mode:'cardona',sub:'INTERNAL — 
     <tbody>
       ${staffRows.length?staffRows.map((exp)=>{
         const agreed=parseFloat(exp['Agreed Amount'])||0;
+        const role=exp['Role']||'—';
+        const desc=exp['Description']&&String(exp['Description']).trim()&&String(exp['Description']).toLowerCase()!==String(role).toLowerCase()?' — '+exp['Description']:'';
         return `<tr>
           <td style="font-weight:600;height:48px">${exp['Provider Name']||'—'}</td>
-          <td>${exp['Role']||exp['Description']||'—'}</td>
+          <td>${role}${desc}</td>
           <td style="text-align:right;font-weight:600">${agreed?fmtM(agreed):'—'}</td>
           <td><div class="sig-mini"></div></td>
         </tr>`;
