@@ -3055,7 +3055,25 @@ function renderDocuments(){
     </div>`);
   });
 
-  // Decor Contracts — one card per provider group (provider + type). Internal Staff excluded.
+  // Time-change amendments — recorded in Documents with Notes "Time change: ...".
+  // One card each, in Client & Legal, regenerated from the stored note.
+  (currentDocuments||[]).filter(d=>d['Type']==='Amendment'&&String(d['Notes']||'').startsWith('Time change:')).forEach(d=>{
+    const note=String(d['Notes']||'');
+    const disp=note.replace(/^Time change:\s*/,'');
+    const enc=encodeURIComponent(note);
+    groups.client.push(`<div class="doc-card">
+      <div class="doc-icon">🕐</div>
+      <div class="doc-info">
+        <div class="doc-name">Amendment — Time Change</div>
+        <div class="doc-sub">${disp}</div>
+      </div>
+      <div class="doc-status">
+        <button class="btn btn-outline btn-sm" onclick="regenTimeChangeAmendment('${enc}')">⬇ Copy</button>
+      </div>
+    </div>`);
+  });
+
+  // Decor Contracts — one card per provider group (provider + type).
   if(hasDecor()){
     const dgroups=providerContractGroups('Decor');
     if(!dgroups.length){
@@ -3305,6 +3323,15 @@ async function saveEventTime(){
   hideLoading();
 }
 // Simple time-change amendment (Client & Legal). Records the schedule change.
+// Regenerate from the stored Documents note ("Time change: <prev> → <new>").
+function regenTimeChangeAmendment(note){
+  const decoded=decodeURIComponent(note||'');
+  const body=String(decoded).replace(/^Time change:\s*/,'');
+  const parts=body.split('→');
+  const prevDisp=(parts[0]||'').trim();
+  const newDisp=(parts[1]||'').trim();
+  generateTimeChangeAmendment(prevDisp,newDisp,true);
+}
 async function generateTimeChangeAmendment(prevDisp,newDisp,openNow=true){
   const e=currentEvent;
   const ext=isExternalEvent();
@@ -5908,7 +5935,7 @@ async function loadCatalogs(){
 // Build the dropdown from Services roles that DON'T yet have a saved operation
 // (arrival/departure). Once a role is managed it drops off here and shows below
 // in the operations cards (edit it from there).
-function populateOpsAssignedRoles(){
+function populateOpsAssignedRoles(includeDetailId){
   const sel=document.getElementById('opsAssignedRole');
   if(!sel)return;
   const cur=sel.value;
@@ -5917,9 +5944,16 @@ function populateOpsAssignedRoles(){
     .filter(op=>String(op['Arrival Time']||'').trim())
     .map(op=>`${op['Provider Name']||''}||${op['Category']||''}`));
   const roles=(currentServices||[]).filter(s=>{
+    // Keep the role being edited even if it's already managed.
+    if(includeDetailId&&s['Detail ID']===includeDetailId)return true;
     const key=`${s['Provider Name']||''}||${s['Division']||''}`;
     return !managed.has(key);
   });
+  // Show the concept: for a manual "Other" role, use its Description, not "other".
+  const label=(s)=>{
+    const item=String(s['Item']||'');
+    return (item.toLowerCase()==='other'&&s['Description'])?s['Description']:item;
+  };
   let html='<option value="">— Select —</option>';
   if(!roles.length){
     html='<option value="">All roles have been assigned</option>';
@@ -5927,7 +5961,7 @@ function populateOpsAssignedRoles(){
     roles.forEach(s=>{
       const type=normProviderType(s['Provider Type']);
       const prov=(s['Provider Name']||'').trim()||'Pending';
-      html+=`<option value="${s['Detail ID']}">${s['Item']||''} — ${prov} (${type})</option>`;
+      html+=`<option value="${s['Detail ID']}">${label(s)} — ${prov} (${type})</option>`;
     });
   }
   sel.innerHTML=html;
@@ -6059,10 +6093,16 @@ function showOpsForm(opId=null){
   if(opId){
     const op=currentOperations.find(o=>o['Operation ID']===opId);
     if(op){
-      // Try to match the assigned-role select by provider name
+      // Match the assigned-role select by provider name + category.
+      const match=(currentServices||[]).find(s=>(s['Provider Name']||'')===(op['Provider Name']||'')&&(s['Division']||'')===(op['Category']||''))
+        ||(currentServices||[]).find(s=>(s['Provider Name']||'')===(op['Provider Name']||''));
       const sel=document.getElementById('opsAssignedRole');
-      const match=(currentServices||[]).find(s=>(s['Provider Name']||'')===(op['Provider Name']||''));
-      if(match){sel.value=match['Detail ID'];onOpsAssignedRoleSelect();}
+      if(match){
+        // Rebuild the dropdown INCLUDING this (already-managed) role, then select it.
+        populateOpsAssignedRoles(match['Detail ID']);
+        sel.value=match['Detail ID'];
+        onOpsAssignedRoleSelect();
+      }
       document.getElementById('opsArrival').value=fmtTime(op['Arrival Time'])||'';
       document.getElementById('opsDeparture').value=fmtTime(op['Departure Time'])||'';
       document.getElementById('opsStatus').value=op['Status']||'Pending';
