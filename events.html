@@ -1158,26 +1158,30 @@ function resolveCateringRange(guests,ranges){
 }
 // Rows of {category,count} for a tier, in sheet order, using the resolved range.
 function cateringCategoriesFor(tier,rangeKey,quantities){
+  const t=String(tier||'').trim().toLowerCase();
   return (quantities||[])
-    .filter(q=>(q['Tier']||'')===tier)
+    .filter(q=>String(q['Tier']||'').trim().toLowerCase()===t)
     .map(q=>({category:q['Category'],count:parseInt(q[rangeKey])||0}))
     .filter(x=>x.count>0);
 }
 // Tier meta (line, includes, model, cost unit) from Catering_Tiers.
 function cateringTierMeta(tier,tiers){
-  return (tiers||[]).find(t=>(t['Tier']||'')===tier)||null;
+  const t=String(tier||'').trim().toLowerCase();
+  return (tiers||[]).find(x=>String(x['Tier']||'').trim().toLowerCase()===t)||null;
 }
 // Fixed dishes from Menu_Catalog for a given line (Classic), grouped by category.
 function catalogDishesForLine(line,catalog,tier){
   // Fixed (Classic) menus differ by TIER (Traditional / International), while the
   // Line stays "Classic". Match a dish if its Available_Lines includes the tier
-  // (preferred) OR the line (fallback, keeps older data working).
+  // (preferred) OR the line (fallback). Case-insensitive.
+  const ln=String(line||'').trim().toLowerCase();
+  const tr=String(tier||'').trim().toLowerCase();
   const byCat={};
   (catalog||[]).forEach(d=>{
     if(!d['Dish_ID'])return; // skip note/blank rows
     if((d['Active']||'').toUpperCase()==='NO')return;
-    const avail=(d['Available_Lines']||'').split(',').map(x=>x.trim());
-    const match=(tier&&avail.includes(tier))||avail.includes(line);
+    const avail=(d['Available_Lines']||'').split(',').map(x=>x.trim().toLowerCase());
+    const match=(tr&&avail.includes(tr))||avail.includes(ln);
     if(match){
       const c=d['Category']||'Other';
       (byCat[c]=byCat[c]||[]).push(d);
@@ -5043,8 +5047,8 @@ async function generateMenuSelection(){
   const e=currentEvent;
   const line=(e['Catering Line']||'').toLowerCase();
   const cLineRaw=e['Catering Line']||'';
-  // Determine the line label and the tier
-  const isClassic=(cLineRaw==='classic'||line==='classic');
+  // Determine the line label and the tier (case-insensitive)
+  const isClassic=(line==='classic');
   const tier=e['Catering Plan']||(isClassic?'Traditional':'Essential');
   const guests=parseInt(e['Guests'])||0;
   showLoading();
@@ -5056,6 +5060,7 @@ async function generateMenuSelection(){
   const ENTITY=legalEntity('menu_selection'); // CARDONA HALL LLC
 
   const meta=cateringTierMeta(tier,data.tiers);
+  const tierName=meta?(meta['Tier']||tier):tier; // proper casing for display
   const lineName=meta?meta['Line']:(isClassic?'Classic':'Collection');
   const model=meta?(meta['Model']||'choice'):'choice';
   const includes=meta?(meta['Includes']||''):'';
@@ -5084,14 +5089,24 @@ async function generateMenuSelection(){
     return Array.from({length:count},(_,i)=>`
       <tr>
         <td style="color:#AAA;font-size:10px;width:28px;text-align:center">${i+1}</td>
-        <td style="border-bottom:1px solid #EEEEEE;padding:8px 10px"></td>
-        <td style="border-bottom:1px solid #EEEEEE;padding:8px 10px;font-size:10px;color:#AAA"></td>
-        <td style="border-bottom:1px solid #EEEEEE;padding:8px 10px"></td>
+        <td style="border-bottom:1px solid #CCC;padding:14px 10px"></td>
+        <td style="border-bottom:1px solid #CCC;padding:14px 10px;font-size:10px;color:#AAA"></td>
+        <td style="border-bottom:1px solid #CCC;padding:14px 10px"></td>
       </tr>`).join('');
   };
 
   // Build the plan summary line from the resolved categories + includes.
-  const planSummary=cats.map(c=>`${c.category}: ${c.count}`).join(' · ')+(includes?` · Includes: ${includes}`:'');
+  // "What's included" breakdown for the plan card: one line per category with how
+  // many the client must choose (choice) or how many come included (fixed), plus
+  // the non-choice inclusions (Softdrinks, Cafe).
+  const inclusions=(includes||'').split(',').map(x=>x.trim()).filter(Boolean);
+  const planItemsHtml=cats.map(c=>`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #D8E8DD">
+      <span style="font-weight:600;color:#1A5C2E">${c.category}</span>
+      <span style="color:#555">${isFixed?`${c.count} included`:`choose ${c.count}`}</span>
+    </div>`).join('')
+    +inclusions.map(inc=>`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #D8E8DD">
+      <span style="font-weight:600;color:#1A5C2E">${inc}</span><span style="color:#555">included</span>
+    </div>`).join('');
 
   // Section title labels per category (for the column header naming)
   const colName={'Main Course':'Dish Name','Salads':'Salad Name','Salad Bar':'Salad Name','Sides':'Side Dish Name','Dessert':'Dessert Name','Jugo Natural':'Juice Flavor','Appetizers':'Appetizer Name','Special Dish':'Special Dish'};
@@ -5132,16 +5147,17 @@ ${docHeader('Menu Selection Form',e['RES#'],{mode:'cardona',sub:'Catering by Noc
     <div class="field-item"><div class="field-lbl">Client Name</div><div class="field-val">${e['Client Name']||'—'}</div></div>
     <div class="field-item"><div class="field-lbl">Event Date</div><div class="field-val">${fmtDateDoc(e['Event Date'])}</div></div>
     <div class="field-item"><div class="field-lbl">Guests</div><div class="field-val">${guests}</div></div>
-    <div class="field-item"><div class="field-lbl">Catering Plan</div><div class="field-val">${tier} ${lineName}</div></div>
-    <div class="field-item"><div class="field-lbl">Buffet Open Time</div><div class="field-val" style="border-bottom:1px solid #CCC;padding-bottom:3px;min-height:18px">&nbsp;</div></div>
+    <div class="field-item"><div class="field-lbl">Catering Plan</div><div class="field-val">${tierName} ${lineName}</div></div>
+    <div class="field-item" style="grid-column:span 2"><div class="field-lbl">Buffet Open Time</div><div class="field-val" style="border-bottom:1px solid #999;padding-bottom:4px;min-height:22px">&nbsp;</div></div>
   </div>
 </div>
 
 <div class="sec">
-  <div class="sec-title" style="color:#1A5C2E;border-bottom:2px solid #1A5C2E">Your Plan</div>
+  <div class="sec-title" style="color:#1A5C2E;border-bottom:2px solid #1A5C2E">Your Plan — What's Included</div>
   <div class="plan-card">
-    <div class="plan-name">${tier} ${lineName} · ${rangeKey}</div>
-    <div class="plan-detail">${planSummary||'—'}</div>
+    <div class="plan-name">${tierName} ${lineName}</div>
+    <div class="plan-detail" style="margin-bottom:8px">${isFixed?'This plan comes with a fixed menu (shown below).':'Choose the dishes for each category below, using your Menu Guide.'}</div>
+    ${planItemsHtml}
   </div>
 </div>
 
