@@ -235,8 +235,9 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
         </div>
       </div>
 
-      <div class="add-form" style="border-left:3px solid #C9A84C;">
+      <div class="add-form" style="border-left:3px solid #C9A84C;" id="incomeForm">
         <div class="add-form-title">+ Add Income (extra charge / service)</div>
+        <div id="incDepositNotice" style="display:none;background:#FBF3E0;border:1px solid #E5C878;border-radius:4px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:#8B6914;font-weight:600">⚠ Register the initial deposit first — extra charges can only be added once the client has paid the deposit.</div>
         <div class="form-row" style="display:grid;grid-template-columns:1.4fr 1fr 0.8fr auto;gap:10px;align-items:end;">
           <div class="form-field"><div class="form-lbl">Concept</div><input class="form-input" type="text" id="incConcept" placeholder="e.g. Extra hour, Microphone, Hora Loca..."></div>
           <div class="form-field"><div class="form-lbl">Category</div>
@@ -366,6 +367,29 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
         <div class="summary-card"><div class="summary-lbl">Total Agreed</div><div class="summary-val white" id="expSumAgreed">$0</div></div>
         <div class="summary-card"><div class="summary-lbl">Total Paid Out</div><div class="summary-val red" id="expSumPaid">$0</div></div>
         <div class="summary-card"><div class="summary-lbl">Pending Payments</div><div class="summary-val" style="color:#E8A030" id="expSumPending">$0</div></div>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+        <button class="btn btn-outline btn-sm" id="btnAddManualExpense" onclick="toggleManualExpenseForm()">+ Add Expense</button>
+      </div>
+      <div id="manualExpenseForm" class="add-form" style="display:none;margin-bottom:16px;border-left:3px solid #C9A84C">
+        <div class="add-form-title">+ Add Expense (direct cost — not a role)</div>
+        <div class="form-row" style="display:grid;grid-template-columns:1fr 1.4fr 0.8fr auto;gap:10px;align-items:end">
+          <div class="form-field"><div class="form-lbl">Category</div>
+            <select class="form-select" id="mexCategory">
+              <option value="Venue">Venue</option>
+              <option value="Catering">Catering</option>
+              <option value="Decor">Decor</option>
+              <option value="Entertainment">Entertainment</option>
+              <option value="Photo">Photo</option>
+            </select>
+          </div>
+          <div class="form-field"><div class="form-lbl">Concept</div><input class="form-input" type="text" id="mexConcept" placeholder="e.g. Food, extra flowers..."></div>
+          <div class="form-field"><div class="form-lbl">Amount</div>
+            <div style="display:flex;align-items:center;gap:6px"><span style="font-size:13px;color:#555">$</span><input class="form-input" type="number" id="mexAmount" placeholder="0.00" min="0" style="flex:1"></div>
+          </div>
+          <button class="btn btn-gold" id="btnSaveManualExpense" onclick="saveManualExpense()">Add</button>
+        </div>
       </div>
 
       <div id="expensesGrouped"><div style="color:#AAA;font-size:12px;padding:20px 0;font-style:italic">No internal providers yet — assign them in Services</div></div>
@@ -1422,6 +1446,15 @@ function renderPayments(){
   // contract payments.
   const contractPays=(currentPayments||[]).filter(p=>String(p['Type']||'')!=='Service Deposit');
   const hasContractPay=contractPays.length>0;
+  // Income (extra charges) can only be added once a Deposit has been paid. Disable
+  // the whole Add Income form until then.
+  const hasDeposit=(currentPayments||[]).some(p=>String(p['Type']||'')==='Deposit');
+  const incNotice=document.getElementById('incDepositNotice');
+  if(incNotice)incNotice.style.display=hasDeposit?'none':'block';
+  ['incConcept','incCategory','incAmount','incNeedsRole','incRole','incNotes','incPayNow','incPayMethod','btnSaveIncome'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el&&!window._eventLocked){el.disabled=!hasDeposit;el.style.opacity=hasDeposit?'':'0.5';}
+  });
   const payTypeSel=document.getElementById('payType');
   if(payTypeSel){
     if(!hasContractPay){
@@ -1518,6 +1551,9 @@ function populateIncRoleDropdown(){
 // execution, the same row carries the role (Provider pending → assign in Services).
 async function saveIncome(){
   if(!ensureNotLocked())return;
+  // Reinforcement: no income without a paid deposit.
+  const hasDeposit=(currentPayments||[]).some(p=>String(p['Type']||'')==='Deposit');
+  if(!hasDeposit){showToast('Register the initial deposit first','error');return;}
   const concept=document.getElementById('incConcept').value.trim();
   const category=document.getElementById('incCategory').value;
   const amount=parseFloat(document.getElementById('incAmount').value)||0;
@@ -2047,7 +2083,7 @@ function applyLockState(){
   // Operational buttons to disable when locked (Payments, Services, Operations, Expenses)
   const opIds=['btnComplete','btnChangeDate','btnEditTime','btnCancel','btnSavePayment','btnSaveIncome',
     'btnAddManual','btnAddPackage','btnSaveService','btnSaveOperation','btnSaveExpPay',
-    'btnSaveExpPrice','btnAddExpense'];
+    'btnSaveExpPrice','btnAddExpense','btnAddManualExpense','btnSaveManualExpense'];
   opIds.forEach(id=>{
     const el=document.getElementById(id);
     if(el){el.disabled=locked;el.style.opacity=locked?'0.45':'';el.style.cursor=locked?'not-allowed':'';}
@@ -2698,9 +2734,9 @@ async function loadExpenses(){
 }
 
 function renderExpenses(){
-  // Internal providers only. Grouped by Type (Internal Staff / Internal Vendor),
-  // then by Category. Clean model: payments never exceed Agreed (no overpaid).
-  const list=currentExpenses.filter(e=>isInternalType(e['Provider Type']));
+  // Internal providers + direct costs (manual expenses). Grouped by Type, then Category.
+  // Clean model: payments never exceed Agreed (no overpaid).
+  const list=currentExpenses.filter(e=>isInternalType(e['Provider Type'])||String(e['Provider Type']||'')==='Direct Cost');
   const totalAgreed=list.reduce((s,e)=>s+(parseFloat(e['Agreed Amount'])||0),0);
   const totalPaid=list.reduce((s,e)=>s+(parseFloat(e['Amount Paid'])||0),0);
   const pending=list.reduce((s,e)=>{const b=(parseFloat(e['Agreed Amount'])||0)-(parseFloat(e['Amount Paid'])||0);return s+(b>0?b:0);},0);
@@ -2712,7 +2748,7 @@ function renderExpenses(){
   const container=document.getElementById('expensesGrouped');
   if(!container)return;
   if(!list.length){
-    container.innerHTML='<div style="color:#AAA;font-size:12px;padding:20px 0;font-style:italic">No internal providers yet — assign them in Services</div>';
+    container.innerHTML='<div style="color:#AAA;font-size:12px;padding:20px 0;font-style:italic">No expenses yet — assign providers in Services or use "+ Add Expense"</div>';
     return;
   }
   const catColors={Venue:'#8B6914',Staff:'#8B6914',Catering:'#1A5C2E',Decor:'#7A5C10',Entertainment:'#9C1060',Photo:'#006B82'};
@@ -2774,7 +2810,11 @@ function renderExpenses(){
   };
   const staff=list.filter(e=>normType(e['Provider Type'])==='Internal Staff');
   const vendor=list.filter(e=>normType(e['Provider Type'])==='Internal Vendor');
-  container.innerHTML=sectionHtml('Internal Staff',staff,'#8B6914')+sectionHtml('Internal Vendor',vendor,'#0A6B60');
+  // Direct costs (manual expenses not tied to a role) — their own section.
+  const direct=currentExpenses.filter(e=>String(e['Provider Type']||'')==='Direct Cost');
+  container.innerHTML=sectionHtml('Internal Staff',staff,'#8B6914')
+    +sectionHtml('Internal Vendor',vendor,'#0A6B60')
+    +sectionHtml('Other Expenses',direct,'#555555');
 }
 
 function setExpensePrice(expenseId,provName,current){
@@ -2785,6 +2825,53 @@ function setExpensePrice(expenseId,provName,current){
   document.getElementById('expPriceForm').scrollIntoView({behavior:'smooth'});
 }
 function closeExpPriceForm(){document.getElementById('expPriceForm').style.display='none';}
+function toggleManualExpenseForm(){
+  const f=document.getElementById('manualExpenseForm');
+  if(!f)return;
+  f.style.display=f.style.display==='none'?'block':'none';
+}
+// Direct cost not tied to a role (e.g. food). Same payment flow as any expense.
+async function saveManualExpense(){
+  if(!ensureNotLocked())return;
+  const category=document.getElementById('mexCategory').value;
+  const concept=(document.getElementById('mexConcept').value||'').trim();
+  const amount=parseFloat(document.getElementById('mexAmount').value)||0;
+  if(!concept){showToast('Enter a concept','error');return;}
+  if(amount<=0){showToast('Amount is required and cannot be 0','error');return;}
+  const payload={
+    action:'saveExpense',
+    'Expense ID':'EXP-'+Date.now(),
+    'RES#':currentEvent['RES#'],
+    'COT#':currentEvent['COT#'],
+    'Event Date':currentEvent['Event Date'],
+    'Provider ID':'',
+    'Provider Name':concept,
+    'Category':category,
+    'Role':concept,
+    'Description':concept,
+    'Agreed Amount':amount,
+    'Amount Paid':0,
+    'Payment Date':'',
+    'Method':'',
+    'Type':'Direct Cost',
+    'Status':'Pending',
+    'Notes':'',
+    'Provider Type':'Direct Cost',
+    'Detail ID':''
+  };
+  showLoading();
+  try{
+    await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(payload),headers:{'Content-Type':'text/plain'}});
+    document.getElementById('mexConcept').value='';
+    document.getElementById('mexAmount').value='';
+    document.getElementById('manualExpenseForm').style.display='none';
+    await new Promise(r=>setTimeout(r,1200));
+    await loadExpenses();
+    showToast('Expense added','success');
+  }catch(e){showToast('Error adding expense','error');}
+  hideLoading();
+}
+
 async function saveExpensePrice(){
   if(!ensureNotLocked())return;
   const expenseId=document.getElementById('expPriceExpenseId').value;
@@ -2896,8 +2983,8 @@ function renderPL(){
   const cancelRetained=isCancelled&&!isNaN(cancelPenalty)?Math.min(cancelPenalty,getTotalReceived()):0;
   const totalRevenue=isCancelled?cancelRetained:(base+extraTotal);
 
-  // ── EXPENSES (internal only) ──
-  const internal=(currentExpenses||[]).filter(e=>isInternalType(e['Provider Type']));
+  // ── EXPENSES (internal providers + direct costs) ──
+  const internal=(currentExpenses||[]).filter(e=>isInternalType(e['Provider Type'])||String(e['Provider Type']||'')==='Direct Cost');
   const expPaid=internal.reduce((s,e)=>s+(parseFloat(e['Amount Paid'])||0),0);
   const expAgreed=internal.reduce((s,e)=>s+(parseFloat(e['Agreed Amount'])||0),0);
   const expPending=internal.reduce((s,e)=>{const b=(parseFloat(e['Agreed Amount'])||0)-(parseFloat(e['Amount Paid'])||0);return s+(b>0?b:0);},0);
@@ -7073,9 +7160,9 @@ function generateVenueStaffFromOps(){generateVenueStaff();logDocGenerated('venue
 function generateStaffSummary(){
   const win=docOpen();if(!win)return;
   const e=currentEvent;
-  // Internal Staff only (by provider type). One row PER SERVICE (Detail ID) — a
-  // provider with several roles/services is paid per role, so each is its own line.
-  const staffRows=currentExpenses.filter(ex=>normProviderType(ex['Provider Type'])==='Internal Staff');
+  // Internal Staff only (by provider type), one row PER SERVICE (Detail ID).
+  // Records without an agreed price (0) are not shown — the doc lists what will be paid.
+  const staffRows=currentExpenses.filter(ex=>normProviderType(ex['Provider Type'])==='Internal Staff'&&(parseFloat(ex['Agreed Amount'])||0)>0);
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
 <title></title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
