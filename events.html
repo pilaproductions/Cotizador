@@ -1168,12 +1168,17 @@ function cateringTierMeta(tier,tiers){
   return (tiers||[]).find(t=>(t['Tier']||'')===tier)||null;
 }
 // Fixed dishes from Menu_Catalog for a given line (Classic), grouped by category.
-function catalogDishesForLine(line,catalog){
+function catalogDishesForLine(line,catalog,tier){
+  // Fixed (Classic) menus differ by TIER (Traditional / International), while the
+  // Line stays "Classic". Match a dish if its Available_Lines includes the tier
+  // (preferred) OR the line (fallback, keeps older data working).
   const byCat={};
   (catalog||[]).forEach(d=>{
     if(!d['Dish_ID'])return; // skip note/blank rows
-    const lines=(d['Available_Lines']||'').split(',').map(x=>x.trim());
-    if((d['Active']||'').toUpperCase()!=='NO' && lines.includes(line)){
+    if((d['Active']||'').toUpperCase()==='NO')return;
+    const avail=(d['Available_Lines']||'').split(',').map(x=>x.trim());
+    const match=(tier&&avail.includes(tier))||avail.includes(line);
+    if(match){
       const c=d['Category']||'Other';
       (byCat[c]=byCat[c]||[]).push(d);
     }
@@ -5056,7 +5061,7 @@ async function generateMenuSelection(){
   const includes=meta?(meta['Includes']||''):'';
   const isFixed=(model==='fixed');
   const rangeKey=resolveCateringRange(guests,data.ranges);
-  const fixedDishes=isFixed?catalogDishesForLine(lineName,data.catalog):{};
+  const fixedDishes=isFixed?catalogDishesForLine(lineName,data.catalog,tier):{};
   // Fixed (Classic) tiers have no tray quantities — derive categories from the
   // catalog dishes. Choice tiers read categories/counts from Catering_Quantities.
   const cats=isFixed
@@ -5093,10 +5098,10 @@ async function generateMenuSelection(){
 
   const sectionsHtml=cats.map(c=>{
     const cn=colName[c.category]||'Item';
-    const optTxt=isFixed?'included':`${c.count} option${c.count>1?'s':''}`;
+    const optTxt=isFixed?'included':`choose ${c.count}`;
     return `<div class="sec">
-      <div class="sec-title">${c.category} — ${optTxt}</div>
-      ${c.category==='Main Course'?`<p style="font-size:10px;color:#777;margin-bottom:8px">Write the dish name as it appears in your Menu Guide. Include the cuisine section (Colombian, Caribbean, Italian, etc.).</p>`:''}
+      <div class="sec-title" style="color:#1A5C2E;border-bottom:2px solid #1A5C2E">${c.category} — <span style="color:#8B6914">${optTxt}</span></div>
+      ${!isFixed?`<p style="font-size:10px;color:#777;margin-bottom:8px">Write ${c.count} choice${c.count>1?'s':''} from your Menu Guide${c.category==='Main Course'?' — include the cuisine section (Colombian, Caribbean, Italian, etc.)':''}.</p>`:''}
       <table class="sel-table">
         <thead><tr><th>#</th><th>${cn}</th><th>Cuisine / Section</th><th>Notes</th></tr></thead>
         <tbody>${sectionRows(c.category,c.count)}</tbody>
@@ -5108,31 +5113,32 @@ async function generateMenuSelection(){
 <title>Menu Selection — ${e['RES#']}</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>${baseStyles(PALETTES.venue)}
-.plan-card{background:#FBF5E6;border-left:4px solid #C9A84C;border-top:1px solid #C9A84C;border-bottom:1px solid #C9A84C;padding:12px 16px;margin:10px 0;}
-.plan-name{font-size:16px;font-weight:700;color:#8B6914;font-family:'Cormorant Garamond',serif;margin-bottom:4px;}
+.plan-card{background:#EAF4ED;border-left:4px solid #1A5C2E;border-top:1px solid #1A5C2E;border-bottom:1px solid #1A5C2E;padding:12px 16px;margin:10px 0;}
+.plan-name{font-size:16px;font-weight:700;color:#1A5C2E;font-family:'Cormorant Garamond',serif;margin-bottom:4px;}
 .plan-detail{font-size:11px;color:#555;}
 .sel-table{width:100%;border-collapse:collapse;margin-top:8px;}
-.sel-table th{background:#1A1A1A;color:#C9A84C;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:8px 10px;text-align:left;}
+.sel-table th{background:#1A5C2E;color:#fff;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:8px 10px;text-align:left;}
 .sel-table td{vertical-align:middle;}
+.sel-table .sec-title{color:#1A5C2E;}
 </style></head><body>
 ${copy?copyWatermark():''}
 <div class="doc">
 ${docPageOpen('CARDONA HALL','Menu Selection Form',`REF: ${e['RES#']}`)}
 ${docHeader('Menu Selection Form',e['RES#'],{mode:'cardona',sub:'Catering by Noches de Colombia'})}
-<div class="notice-bar">${isFixed?'This is a fixed menu — the dishes below are included with your plan. Return this form at least 14 days before your event to confirm.':'Use the Cardona Hall Menu Guide to choose your dishes, then write your selections below. Return this completed form at least 14 days before your event.'}</div>
+<div class="notice-bar" style="border-left-color:#1A5C2E">${isFixed?'This is a fixed menu — the dishes below are included with your plan. Return this form at least 14 days before your event to confirm.':'Use the Cardona Hall Menu Guide to choose your dishes, then write your selections below. Return this completed form at least 14 days before your event.'}</div>
 
 <div class="sec">
   <div class="field-grid">
     <div class="field-item"><div class="field-lbl">Client Name</div><div class="field-val">${e['Client Name']||'—'}</div></div>
     <div class="field-item"><div class="field-lbl">Event Date</div><div class="field-val">${fmtDateDoc(e['Event Date'])}</div></div>
-    <div class="field-item"><div class="field-lbl">Guests</div><div class="field-val">${guests} · ${rangeKey}</div></div>
+    <div class="field-item"><div class="field-lbl">Guests</div><div class="field-val">${guests}</div></div>
     <div class="field-item"><div class="field-lbl">Catering Plan</div><div class="field-val">${tier} ${lineName}</div></div>
-    <div class="field-item"><div class="field-lbl">Buffet Open Time</div><div class="field-val" style="border-bottom:1px solid #CCC;padding-bottom:3px">___________ (your choice)</div></div>
+    <div class="field-item"><div class="field-lbl">Buffet Open Time</div><div class="field-val" style="border-bottom:1px solid #CCC;padding-bottom:3px;min-height:18px">&nbsp;</div></div>
   </div>
 </div>
 
 <div class="sec">
-  <div class="sec-title">Your Plan</div>
+  <div class="sec-title" style="color:#1A5C2E;border-bottom:2px solid #1A5C2E">Your Plan</div>
   <div class="plan-card">
     <div class="plan-name">${tier} ${lineName} · ${rangeKey}</div>
     <div class="plan-detail">${planSummary||'—'}</div>
@@ -5193,7 +5199,7 @@ async function generateCateringBEO(){
   const includes=meta?(meta['Includes']||''):'';
   const isFixed=(model==='fixed');
   const rangeKey=resolveCateringRange(guests,data.ranges);
-  const fixedDishes=isFixed?catalogDishesForLine(lineName,data.catalog):{};
+  const fixedDishes=isFixed?catalogDishesForLine(lineName,data.catalog,tier):{};
   // For a fixed (Classic) tier there are no tray quantities — derive the categories
   // (and their dish counts) from the catalog dishes themselves. For choice tiers,
   // categories and counts come from Catering_Quantities by range.
