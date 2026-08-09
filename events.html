@@ -943,8 +943,8 @@ function isExternalEvent(){
 // Loaded only when a catering document (#9/#10) is generated AND the event has
 // food. Cached for the session so a second catering doc doesn't refetch.
 let _cateringCache=null;
-async function loadCateringData(){
-  if(_cateringCache)return _cateringCache;
+async function loadCateringData(force){
+  if(_cateringCache&&!force)return _cateringCache;
   const get=async(sheet)=>{
     try{
       const r=await fetch(SCRIPT_URL+'?sheet='+encodeURIComponent(sheet)+'&nocache='+Date.now());
@@ -5063,7 +5063,7 @@ async function generateMenuSelection(){
   const guests=parseInt(e['Guests'])||0;
   showLoading();
   let data;
-  try{ data=await loadCateringData(); }catch(err){ data={tiers:[],quantities:[],ranges:[],catalog:[]}; }
+  try{ data=await loadCateringData(true); }catch(err){ data={tiers:[],quantities:[],ranges:[],catalog:[]}; }
   hideLoading();
   const win=docOpen();if(!win)return;
   const copy=isCopy('menu_selection');
@@ -5213,7 +5213,7 @@ async function generateCateringBEO(){
   const guests=parseInt(e['Guests'])||0;
   showLoading();
   let data;
-  try{ data=await loadCateringData(); }catch(err){ data={tiers:[],quantities:[],ranges:[],catalog:[]}; }
+  try{ data=await loadCateringData(true); }catch(err){ data={tiers:[],quantities:[],ranges:[],catalog:[]}; }
   hideLoading();
   const win=docOpen();if(!win)return;
   const copy=isCopy('catering_beo');
@@ -5238,14 +5238,14 @@ async function generateCateringBEO(){
   // Classic is per_portion (no trays) — shows by guest count instead.
   const traySummaryRows=cats.map(c=>{
     if(isFixed){
-      return `<tr><td style="font-weight:600">${c.category}</td><td class="tray-num">—</td><td style="border-bottom:1px solid #DDD"></td><td>Fixed menu</td></tr>`;
+      return `<tr><td style="font-weight:600">${c.category}</td><td class="tray-num"></td><td style="border-bottom:1px solid #DDD"></td><td></td></tr>`;
     }
     return `<tr><td style="font-weight:600">${c.category}</td><td class="tray-num">${c.count}</td><td style="border-bottom:1px solid #DDD"></td><td></td></tr>`;
   }).join('');
 
   // Non-choice inclusions (Softdrinks, Cafe).
   const inclRows=(includes||'').split(',').map(x=>x.trim()).filter(Boolean).map(inc=>
-    `<tr><td style="font-weight:600">${inc}</td><td class="tray-num">—</td><td style="border-bottom:1px solid #DDD"></td><td>Included</td></tr>`
+    `<tr><td style="font-weight:600">${inc}</td><td class="tray-num"></td><td style="border-bottom:1px solid #DDD"></td><td>Included</td></tr>`
   ).join('');
 
   // Dish selection rows: one row per tray/dish the client chooses.
@@ -5259,7 +5259,7 @@ async function generateCateringBEO(){
         <td style="color:#AAA;font-size:10px;text-align:center">${i+1}</td>
         <td>${c.category}</td>
         <td style="font-weight:500">${d['Dish_Name']||''}</td>
-        <td style="font-size:10px;color:#777">${d['Cuisine']||''}</td>
+        <td style="border-bottom:1px solid #DDD"></td>
       </tr>`).join('');
     }
     return Array.from({length:c.count},(_,i)=>`<tr>
@@ -5343,10 +5343,9 @@ ${docHeader('Banquet Event Order',`BEO-${e['RES#']}`,{mode:'cardona',sub:'Cateri
 
 <div class="sec">
   <div class="sec-title" style="color:#1A5C2E;border-bottom:2px solid #1A5C2E">Special Instructions</div>
-  <div class="field-grid">
-    <div class="field-item"><div class="field-lbl">Cake (if contracted)</div><div class="field-val" style="border-bottom:1px solid #CCC;min-height:18px"></div></div>
-    <div class="field-item"><div class="field-lbl">Special requests</div><div class="field-val" style="border-bottom:1px solid #CCC;min-height:18px"></div></div>
-  </div>
+  <div class="field-item" style="margin-bottom:14px"><div class="field-lbl">Cake (if contracted)</div><div class="field-val" style="border-bottom:1px solid #CCC;min-height:22px"></div></div>
+  <div class="field-lbl">Special requests</div>
+  <div style="border:1px solid #CCC;border-radius:4px;min-height:80px;margin-top:4px"></div>
 </div>
 
 <div class="sec">
