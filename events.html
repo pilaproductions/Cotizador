@@ -2772,11 +2772,17 @@ function renderExpenses(){
     const agreed=parseFloat(e['Agreed Amount'])||0;
     const paid=parseFloat(e['Amount Paid'])||0;
     const balance=agreed-paid;
-    const noPrice=agreed<=0;
-    const isPaid=!noPrice&&balance<=0;
-    const statusColor=noPrice?'#C99000':balance<=0?'#6EC98A':(paid>0?'#E8A030':'#E87070');
-    const statusLabel=noPrice?'No price':balance<=0?'Paid':(paid>0?'Partial':'Pending');
-    const canPay=balance>0&&!noPrice;
+    // A price is "assigned" when Status advanced past the untouched state, or a
+    // payment exists. This distinguishes "not priced yet" from "priced at 0".
+    const st=String(e['Status']||'').trim().toLowerCase();
+    const hasPrice=['priced','partial','paid'].includes(st)||paid>0;
+    const noPrice=!hasPrice;
+    // Paid when the recorded status is 'paid' (covers the Agreed 0 case: it stays
+    // payable until a 0 payment is registered, which sets Status to Paid).
+    const isPaid=st==='paid';
+    const statusColor=noPrice?'#C99000':isPaid?'#6EC98A':(paid>0?'#E8A030':'#E87070');
+    const statusLabel=noPrice?'No price':isPaid?'Paid':(paid>0?'Partial':'Pending');
+    const canPay=hasPrice&&!isPaid;
     const cat=e['Category']||'';
     const catBadge=cat?`<span style="font-size:9px;font-weight:700;color:#fff;background:${catColors[cat]||'#555'};padding:1px 7px;border-radius:3px">${cat}</span>`:'—';
     return `<tr>
@@ -2888,7 +2894,7 @@ async function saveExpensePrice(){
   if(isNaN(price)||price<0){showToast('Invalid price','error');return;}
   showLoading();
   try{
-    await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify({action:'updateExpense','Expense ID':expenseId,'Agreed Amount':price}),headers:{'Content-Type':'text/plain'}});
+    await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify({action:'updateExpense','Expense ID':expenseId,'Agreed Amount':price,'Status':'Priced'}),headers:{'Content-Type':'text/plain'}});
     closeExpPriceForm();
     showToast('Price updated','success');
     await new Promise(r=>setTimeout(r,1200));
@@ -2901,7 +2907,7 @@ function openExpPayForm(expenseId,providerName,balance){
   document.getElementById('expPayExpenseId').value=expenseId;
   document.getElementById('expPayFormTitle').textContent=`Register Payment → ${providerName}`;
   document.getElementById('expPayDate').value=new Date().toISOString().split('T')[0];
-  document.getElementById('expPayAmount').value=balance>0?balance:'';
+  document.getElementById('expPayAmount').value=balance>0?balance:0;
   document.getElementById('expPayNotes').value='';
   document.getElementById('expPayForm').style.display='block';
   document.getElementById('expPayForm').scrollIntoView({behavior:'smooth'});
@@ -2916,7 +2922,11 @@ async function saveExpensePayment(){
   const expenseId=document.getElementById('expPayExpenseId').value;
   const amount=parseFloat(document.getElementById('expPayAmount').value);
   const date=document.getElementById('expPayDate').value;
-  if(!amount||amount<=0){showToast('Enter a valid amount','error');return;}
+  const expForAmt=currentExpenses.find(e=>e['Expense ID']===expenseId);
+  const agreedForAmt=expForAmt?(parseFloat(expForAmt['Agreed Amount'])||0):0;
+  // Normally amount must be > 0. Exception: an Agreed of 0 is paid with a 0 payment.
+  if(isNaN(amount)||amount<0){showToast('Enter a valid amount','error');return;}
+  if(amount<=0&&agreedForAmt>0){showToast('Enter a valid amount','error');return;}
   if(!date){showToast('Select a date','error');return;}
   const today=new Date();today.setHours(0,0,0,0);
   if(new Date(date+'T00:00:00')>today){showToast('Payment date cannot be in the future','error');return;}
@@ -5228,14 +5238,14 @@ async function generateCateringBEO(){
   // Classic is per_portion (no trays) — shows by guest count instead.
   const traySummaryRows=cats.map(c=>{
     if(isFixed){
-      return `<tr><td style="font-weight:600">${c.category}</td><td class="tray-num">—</td><td style="text-align:center">${guests}</td><td>Per portion · fixed menu</td></tr>`;
+      return `<tr><td style="font-weight:600">${c.category}</td><td class="tray-num">—</td><td style="border-bottom:1px solid #DDD"></td><td>Fixed menu</td></tr>`;
     }
-    return `<tr><td style="font-weight:600">${c.category}</td><td class="tray-num">${c.count}</td><td style="text-align:center">${c.count*PORTIONS_PER_TRAY}</td><td>~${PORTIONS_PER_TRAY} portions/tray</td></tr>`;
+    return `<tr><td style="font-weight:600">${c.category}</td><td class="tray-num">${c.count}</td><td style="border-bottom:1px solid #DDD"></td><td></td></tr>`;
   }).join('');
 
-  // Non-choice inclusions (Softdrinks, Cafe) shown by guest count.
+  // Non-choice inclusions (Softdrinks, Cafe).
   const inclRows=(includes||'').split(',').map(x=>x.trim()).filter(Boolean).map(inc=>
-    `<tr><td style="font-weight:600">${inc}</td><td class="tray-num">—</td><td style="text-align:center">${guests}</td><td>Included</td></tr>`
+    `<tr><td style="font-weight:600">${inc}</td><td class="tray-num">—</td><td style="border-bottom:1px solid #DDD"></td><td>Included</td></tr>`
   ).join('');
 
   // Dish selection rows: one row per tray/dish the client chooses.
@@ -5266,10 +5276,11 @@ async function generateCateringBEO(){
 <style>${baseStyles(PALETTES.venue)}
 .internal-bar{background:#1A0000;border-left:4px solid #CC0000;border-top:1px solid #CC0000;border-bottom:1px solid #CC0000;padding:8px 14px;margin:10px 0;font-size:11px;font-weight:700;color:#FF6666;letter-spacing:1px;}
 .tray-table{width:100%;border-collapse:collapse;margin-top:8px;}
-.tray-table th{background:#1A1A1A;color:#C9A84C;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:8px 10px;text-align:left;}
+.tray-table th{background:#1A5C2E;color:#fff;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:8px 10px;text-align:left;}
 .tray-table td{padding:8px 10px;border-bottom:1px solid #F0F0F0;font-size:11px;}
-.tray-table tr:nth-child(even) td{background:#FAFAFA;}
-.tray-num{font-size:18px;font-weight:700;color:#C9A84C;text-align:center;}
+.tray-table tr:nth-child(even) td{background:#F3F8F4;}
+.tray-num{font-size:18px;font-weight:700;color:#1A5C2E;text-align:center;}
+.beo .sec-title{color:#1A5C2E;border-bottom:2px solid #1A5C2E;}
 </style></head><body>
 ${copy?copyWatermark():''}
 <div class="doc">
@@ -5278,35 +5289,40 @@ ${docHeader('Banquet Event Order',`BEO-${e['RES#']}`,{mode:'cardona',sub:'Cateri
 <div class="internal-bar">⚠ INTERNAL DOCUMENT — NOT FOR CLIENT DISTRIBUTION · Kitchen Order for Noches de Colombia</div>
 
 <div class="sec">
-  <div class="sec-title">Event Details</div>
+  <div class="sec-title" style="color:#1A5C2E;border-bottom:2px solid #1A5C2E">Event Details</div>
   <div class="field-grid">
-    <div class="field-item"><div class="field-lbl">Client Name</div><div class="field-val">${e['Client Name']||'—'}</div></div>
     <div class="field-item"><div class="field-lbl">Event Date</div><div class="field-val">${fmtDateDoc(e['Event Date'])}</div></div>
     <div class="field-item"><div class="field-lbl">Event Type</div><div class="field-val">${etLabel()}</div></div>
-    <div class="field-item"><div class="field-lbl">Guests / Tables</div><div class="field-val">${guests} guests · ${e['Tables']||'—'} tables</div></div>
     <div class="field-item"><div class="field-lbl">Catering Plan</div><div class="field-val">${tier} ${lineName} · ${rangeKey}</div></div>
     <div class="field-item"><div class="field-lbl">Event Schedule</div><div class="field-val">${scheduleInfo()}</div></div>
   </div>
 </div>
 
 <div class="sec">
-  <div class="sec-title">Kitchen Schedule — INTERNAL</div>
+  <div class="sec-title" style="color:#1A5C2E;border-bottom:2px solid #1A5C2E">Kitchen Schedule — INTERNAL</div>
   <table class="tray-table">
     <thead><tr><th>Milestone</th><th>Time</th><th>Notes</th></tr></thead>
     <tbody>
-      <tr><td style="font-weight:600">Food Pickup — Noches de Colombia</td><td style="color:#C9A84C;font-weight:700">___________</td><td>Coordinate with kitchen</td></tr>
-      <tr><td style="font-weight:600">Delivery to Cardona Hall</td><td style="color:#C9A84C;font-weight:700">___________</td><td></td></tr>
-      <tr><td style="font-weight:600">Buffet Opens</td><td style="color:#C9A84C;font-weight:700">___________</td><td>Client-defined — confirm before event</td></tr>
-      <tr><td style="font-weight:600">Bar Opens</td><td style="color:#C9A84C;font-weight:700">___________</td><td></td></tr>
-      <tr><td style="font-weight:600">Bar Closes</td><td style="color:#C9A84C;font-weight:700">___________</td><td>1 hour before event end — mandatory</td></tr>
+      <tr><td style="font-weight:600">Food Pickup</td><td style="color:#1A5C2E;font-weight:700">___________</td><td></td></tr>
+      <tr><td style="font-weight:600">Delivery to ${(String(e['Event Location']||'').toLowerCase()==='external')?(e['External Venue Address']||'External venue'):'Cardona Hall'}</td><td style="color:#1A5C2E;font-weight:700">___________</td><td></td></tr>
+      <tr><td style="font-weight:600">Buffet Opens</td><td style="color:#1A5C2E;font-weight:700">___________</td><td></td></tr>
+      <tr><td style="font-weight:600">Bar Opens</td><td style="color:#1A5C2E;font-weight:700">___________</td><td></td></tr>
+      <tr><td style="font-weight:600">Bar Closes</td><td style="color:#1A5C2E;font-weight:700">___________</td><td></td></tr>
     </tbody>
   </table>
+  <div style="margin-top:14px;padding:12px 14px;background:#F3F8F4;border:1px solid #CDE3D5;border-radius:4px">
+    <div style="font-size:10px;font-weight:700;color:#1A5C2E;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">Food Handoff — Restaurant confirms complete delivery</div>
+    <div style="display:flex;gap:30px;font-size:11px;color:#555">
+      <div style="flex:1"><div style="border-bottom:1px solid #999;height:26px"></div><div style="margin-top:3px">Restaurant Manager — signature</div></div>
+      <div style="flex:1"><div style="border-bottom:1px solid #999;height:26px"></div><div style="margin-top:3px">Received by (picker) — signature</div></div>
+    </div>
+  </div>
 </div>
 
 <div class="sec">
-  <div class="sec-title">Tray Order Summary${isFixed?' — Fixed Menu (per portion)':''}</div>
+  <div class="sec-title" style="color:#1A5C2E;border-bottom:2px solid #1A5C2E">Tray Order Summary${isFixed?' — Fixed Menu':''}</div>
   <table class="tray-table">
-    <thead><tr><th>Category</th><th style="text-align:center">${isFixed?'—':'Trays'}</th><th style="text-align:center">Est. Portions</th><th>Notes</th></tr></thead>
+    <thead><tr><th>Category</th><th style="text-align:center">${isFixed?'—':'Trays to Prepare'}</th><th style="text-align:center">Est. Portions</th><th>Notes</th></tr></thead>
     <tbody>
       ${traySummaryRows}
       ${inclRows}
@@ -5315,8 +5331,8 @@ ${docHeader('Banquet Event Order',`BEO-${e['RES#']}`,{mode:'cardona',sub:'Cateri
 </div>
 
 <div class="sec">
-  <div class="sec-title">Client Menu Selections${isFixed?' — Fixed Menu':' — From Selection Form'}</div>
-  ${isFixed?'<p style="font-size:10px;color:#777;margin-bottom:8px">Fixed menu — dishes below are set by the plan.</p>':'<p style="font-size:10px;color:#777;margin-bottom:8px">One row per dish the client selected. To be filled from the client Menu Selection Form.</p>'}
+  <div class="sec-title" style="color:#1A5C2E;border-bottom:2px solid #1A5C2E">Client Menu Selections${isFixed?' — Fixed Menu':''}</div>
+  ${isFixed?'<p style="font-size:10px;color:#777;margin-bottom:8px">Fixed menu — dishes below are set by the plan.</p>':'<p style="font-size:10px;color:#777;margin-bottom:8px">Dishes selected by the client (from the Menu Selection Form).</p>'}
   <table class="tray-table">
     <thead><tr><th>#</th><th>Category</th><th>Dish Selected</th><th>Cuisine / Notes</th></tr></thead>
     <tbody>
@@ -5326,7 +5342,7 @@ ${docHeader('Banquet Event Order',`BEO-${e['RES#']}`,{mode:'cardona',sub:'Cateri
 </div>
 
 <div class="sec">
-  <div class="sec-title">Special Instructions</div>
+  <div class="sec-title" style="color:#1A5C2E;border-bottom:2px solid #1A5C2E">Special Instructions</div>
   <div class="field-grid">
     <div class="field-item"><div class="field-lbl">Cake (if contracted)</div><div class="field-val" style="border-bottom:1px solid #CCC;min-height:18px"></div></div>
     <div class="field-item"><div class="field-lbl">Special requests</div><div class="field-val" style="border-bottom:1px solid #CCC;min-height:18px"></div></div>
@@ -5334,7 +5350,16 @@ ${docHeader('Banquet Event Order',`BEO-${e['RES#']}`,{mode:'cardona',sub:'Cateri
 </div>
 
 <div class="sec">
-  <div class="sec-title">Confirmation</div>
+  <div class="sec-title" style="color:#1A5C2E;border-bottom:2px solid #1A5C2E">Delivery Received — Complete</div>
+  <p style="font-size:11px;color:#555;margin-bottom:14px">Signed at the event when all catering has been delivered and received complete and in good condition.</p>
+  <div style="display:flex;gap:30px;font-size:11px;color:#555">
+    <div style="flex:1"><div style="border-bottom:1px solid #999;height:28px"></div><div style="margin-top:3px">Cardona Hall Manager / Client — signature</div></div>
+    <div style="flex:1"><div style="border-bottom:1px solid #999;height:28px"></div><div style="margin-top:3px">Date &amp; time received</div></div>
+  </div>
+</div>
+
+<div class="sec">
+  <div class="sec-title" style="color:#1A5C2E;border-bottom:2px solid #1A5C2E">Confirmation</div>
   <p style="font-size:11px;color:#555;margin-bottom:14px">This BEO has been reviewed and confirmed. Changes must be submitted in writing no later than 7 days before the event.</p>
   ${sigBlock('Authorized — James Cardona · '+ENTITY, 'James Cardona · '+ENTITY, 'Noches de Colombia — Kitchen')}
 </div>
