@@ -5226,14 +5226,9 @@ async function generateCateringBEO(){
   const isFixed=(model==='fixed');
   const rangeKey=resolveCateringRange(guests,data.ranges);
   const fixedDishes=isFixed?catalogDishesForLine(lineName,data.catalog,tier):{};
-  // TEMP DIAGNOSTIC — remove after debugging the empty fixed-menu issue.
-  if(isFixed){
-    const catalogLines=(data.catalog||[]).map(d=>`${d['Dish_Name']}=${d['Available_Lines']}`).join(' | ');
-    console.log('[BEO DIAG] tier=',tier,'lineName=',lineName,'isFixed=',isFixed,'catalog count=',(data.catalog||[]).length,'fixedDishes cats=',Object.keys(fixedDishes),'catalog=',catalogLines);
-    if(!Object.keys(fixedDishes).length){
-      alert('BEO diagnostic:\ntier='+tier+'\nlineName='+lineName+'\ncatalog rows loaded='+(data.catalog||[]).length+'\n\nAvailable_Lines in catalog:\n'+catalogLines+'\n\nNo dishes matched — see console.');
-    }
-  }
+  // For a fixed (Classic) tier there are no tray quantities — derive the categories
+  // (and their dish counts) from the catalog dishes themselves. For choice tiers,
+  // categories and counts come from Catering_Quantities by range.
   const cats=isFixed
     ? Object.keys(fixedDishes).map(c=>({category:c,count:fixedDishes[c].length}))
     : cateringCategoriesFor(tier,rangeKey,data.quantities);
@@ -5243,7 +5238,7 @@ async function generateCateringBEO(){
   // Classic is per_portion (no trays) — shows by guest count instead.
   const traySummaryRows=cats.map(c=>{
     if(isFixed){
-      return `<tr><td style="font-weight:600">${c.category}</td><td class="tray-num"></td><td style="border-bottom:1px solid #DDD"></td><td></td></tr>`;
+      return `<tr><td style="font-weight:600">${c.category}</td><td class="tray-num">${c.count}</td><td style="border-bottom:1px solid #DDD"></td><td></td></tr>`;
     }
     return `<tr><td style="font-weight:600">${c.category}</td><td class="tray-num">${c.count}</td><td style="border-bottom:1px solid #DDD"></td><td></td></tr>`;
   }).join('');
@@ -5327,7 +5322,7 @@ ${docHeader('Banquet Event Order',`BEO-${e['RES#']}`,{mode:'cardona',sub:'Cateri
 <div class="sec">
   <div class="sec-title" style="color:#1A5C2E;border-bottom:2px solid #1A5C2E">Tray Order Summary${isFixed?' — Fixed Menu':''}</div>
   <table class="tray-table">
-    <thead><tr><th>Category</th><th style="text-align:center">${isFixed?'—':'Trays to Prepare'}</th><th style="text-align:center">Est. Portions</th><th>Notes</th></tr></thead>
+    <thead><tr><th>Category</th><th style="text-align:center">${isFixed?'Dishes':'Trays to Prepare'}</th><th style="text-align:center">Est. Portions</th><th>Notes</th></tr></thead>
     <tbody>
       ${traySummaryRows}
       ${inclRows}
