@@ -958,6 +958,36 @@ async function loadCateringData(force){
   _cateringCache={tiers,quantities,ranges,catalog};
   return _cateringCache;
 }
+// Decor catalog + colors (append-only reference data). Same fetch pattern as catering.
+let _decorCache=null;
+async function loadDecorData(force){
+  if(_decorCache&&!force)return _decorCache;
+  const get=async(sheet)=>{
+    try{
+      const r=await fetch(SCRIPT_URL+'?sheet='+encodeURIComponent(sheet)+'&nocache='+Date.now());
+      const d=await r.json();
+      return Array.isArray(d)?d:[];
+    }catch(e){return [];}
+  };
+  const [catalog,colors]=await Promise.all([get('Decor_Catalog'),get('Color_Catalog')]);
+  _decorCache={catalog,colors};
+  return _decorCache;
+}
+// Filter decorations for a component: by tier (exact) + event type (Event_Types
+// contains the event type or 'all'). Returned grouped by Gender for display.
+function decorItemsFor(component,tier,eventType,catalog){
+  const t=String(tier||'').trim().toLowerCase();
+  const et=String(eventType||'').trim().toLowerCase();
+  const list=(catalog||[]).filter(d=>{
+    if(!d['Decor_ID'])return false;
+    if(String(d['Active']||'').toUpperCase()==='NO')return false;
+    if(String(d['Component']||'').trim().toLowerCase()!==String(component).toLowerCase())return false;
+    if(String(d['Tier']||'').trim().toLowerCase()!==t)return false;
+    const types=String(d['Event_Types']||'').split(',').map(x=>x.trim().toLowerCase());
+    return types.includes('all')||types.includes(et);
+  });
+  return list;
+}
 // ── PACKAGE ROLES ENGINE (derive + freeze) ───────────────────────────────────
 // Loads Package_Roles (and Service_Catalog) once per session, then derives the
 // operational roles a contracted package brings and FREEZES them into Event
@@ -5546,15 +5576,80 @@ ${docPageClose()}
 }
 
 // ── 8. DECOR REQUIREMENTS ─────────────────────────────────────────────────────
-function generateDecorRequirements(){
+async function generateDecorRequirements(){
   const win=docOpen();if(!win)return;
   const e=currentEvent;
   const copy=isCopy('decor_requirements');
-  const DECOR='#D4A853';
-  const tier=e['Decor Plan']||'Essential';
-  const isEssential=tier.toLowerCase().includes('essential');
-  const isPrestige=tier.toLowerCase().includes('prestige');
-  const isLegacy=tier.toLowerCase().includes('legacy')||tier.toLowerCase().includes('event design');
+  const ENTITY=legalEntity('decor_requirements');
+  const DECOR='#7A5C10';
+  const tierRaw=e['Decor Plan']||'Essential';
+  const tier=String(tierRaw).trim();
+  const tierLc=tier.toLowerCase();
+  const isLegacy=tierLc.includes('legacy')||tierLc.includes('event design');
+  const eventType=e['Event Type']||'';
+  const etLabel=(eventType||'—').replace(/_/g,' ');
+  const tables=e['Tables']||'—';
+
+  const data=await loadDecorData(true);
+  const colorNames=(data.colors||[]).filter(c=>String(c['Active']||'').toUpperCase()!=='NO').map(c=>c['Color_Name']).filter(Boolean);
+  const colorRef=colorNames.length?colorNames.join(' · '):'(load Color_Catalog)';
+
+  const extrasMax=businessRule('decor_extras',tierLc,'');
+
+  // Component section: lists catalog decorations for this tier+event type, grouped
+  // by gender, each with a checkbox to pick and a color line when Has_Color=Y.
+  const componentSection=(num,label,component,extra)=>{
+    const items=decorItemsFor(component,tier,eventType,data.catalog);
+    let body;
+    if(!items.length){
+      body=`<p style="font-size:11px;color:#999;font-style:italic;padding:6px 0">No catalog items for ${label} in ${tier} / ${etLabel}. Add them in Decor_Catalog.</p>`;
+    }else{
+      // group by gender
+      const byG={};
+      items.forEach(it=>{const g=it['Gender']||'Neutral';(byG[g]=byG[g]||[]).push(it);});
+      const genderOrder=Object.keys(byG).sort((a,b)=>a==='Neutral'?-1:b==='Neutral'?1:a.localeCompare(b));
+      body=genderOrder.map(g=>{
+        const rows=byG[g].map(it=>{
+          const hasColor=String(it['Has_Color']||'').toUpperCase()==='Y';
+          return `<tr>
+            <td style="width:26px;text-align:center"><span style="display:inline-block;width:13px;height:13px;border:1.5px solid ${DECOR};border-radius:2px"></span></td>
+            <td style="font-weight:600">${it['Name']||''}</td>
+            <td style="font-size:10px;color:#888">${it['Type']||''}</td>
+            <td>${hasColor?'<span style="border-bottom:1px solid #CCC;display:inline-block;min-width:120px">&nbsp;</span>':'<span style="font-size:10px;color:#AAA">fixed</span>'}</td>
+          </tr>`;
+        }).join('');
+        const gLabel=(g==='Neutral')?'':`<tr><td></td><td colspan="3" style="font-size:9px;font-weight:700;color:${DECOR};letter-spacing:1px;text-transform:uppercase;padding-top:8px">${g}</td></tr>`;
+        return gLabel+rows;
+      }).join('');
+    }
+    return `<div class="sec">
+      <div class="sec-title">${num}. ${label}${extra||''}</div>
+      <table class="decor-table">
+        <thead><tr><th style="width:26px">Pick</th><th>Decoration</th><th>Type</th><th>Color (if available)</th></tr></thead>
+        <tbody>${body}</tbody>
+      </table>
+    </div>`;
+  };
+
+  // Legacy: a blank custom-design form with the same divisions to fill by hand.
+  const legacyBlock=()=>{
+    const div=(t)=>`<div class="sec">
+      <div class="sec-title">${t}</div>
+      <div style="border:1px solid #DDD;border-radius:4px;min-height:70px;margin-top:6px"></div>
+    </div>`;
+    return `<div class="fixed-box" style="background:#FBF5E6;border-left:4px solid ${DECOR};padding:10px 14px;font-size:11px;color:#7A5C10;font-weight:600;margin-bottom:12px">Legacy — Event Design. Custom design defined with the client. Fill each division below.</div>
+      ${div('2. Honor Table — Custom')}
+      ${div('3. Centerpieces — Custom')}
+      ${div('4. Dining Setup — Custom')}
+      ${div('5. Extras — Custom')}`;
+  };
+
+  const bodyHtml=isLegacy?legacyBlock():`
+    ${componentSection(2,'Honor Table','Honor Table')}
+    ${componentSection(3,'Centerpieces','Centerpiece',` — ${tables} Tables`)}
+    ${componentSection(4,'Dining Setup','Dining')}
+    ${componentSection(5,'Extras','Extras',extrasMax?` — choose up to ${extrasMax}`:'')}`;
+
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
 <title>Decor Requirements — ${e['RES#']}</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -5563,13 +5658,10 @@ function generateDecorRequirements(){
 .ch-name{color:#7A5C10;}.ch-sub{color:${DECOR};}.doc-title{color:#7A5C10;}
 .sec-title{color:#7A5C10;border-bottom:2px solid ${DECOR};}
 .info-box{background:#FBF5E6;border-left:4px solid ${DECOR};border-top:1px solid ${DECOR};border-bottom:1px solid ${DECOR};}
-.fixed-box{background:#FBF5E6;border-left:4px solid #CC8800;padding:8px 14px;font-size:11px;font-weight:700;color:#7A5C10;}
-.tier-badge{padding:8px 14px;border-left:4px solid ${DECOR};border-top:1px solid ${DECOR};border-bottom:1px solid ${DECOR};margin:10px 0;}
 .decor-table{width:100%;border-collapse:collapse;margin-top:8px;}
-.decor-table th{background:#1A1200;color:${DECOR};font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:8px 10px;text-align:left;}
-.decor-table td{padding:8px 10px;border-bottom:1px solid #F0F0F0;font-size:11px;}
-.decor-table tr:nth-child(even) td{background:#FAFAFA;}
-.write-field{border-bottom:1px solid #CCCCCC;padding-bottom:3px;min-height:20px;font-size:12px;color:#2A2A2A;}
+.decor-table th{background:#EDE8DC;color:#7A5C10;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:7px 10px;text-align:left;}
+.decor-table td{padding:7px 10px;border-bottom:1px solid #F0F0F0;font-size:11px;}
+.write-field{border-bottom:1px solid #CCCCCC;padding-bottom:3px;min-height:20px;}
 </style></head><body>
 ${copy?copyWatermark():''}
 <div class="doc">
@@ -5578,73 +5670,21 @@ ${docHeader('Decor Requirements',e['RES#'],'Design & Decor — Pilab Productions
   <div class="field-grid">
     <div class="field-item"><div class="field-lbl">Client Name</div><div class="field-val">${e['Client Name']||'—'}</div></div>
     <div class="field-item"><div class="field-lbl">Event Date</div><div class="field-val">${fmtDateDoc(e['Event Date'])}</div></div>
-    <div class="field-item"><div class="field-lbl">Guests / Tables</div><div class="field-val">${e['Guests']||'—'} guests · ${e['Tables']||'—'} tables</div></div>
+    <div class="field-item"><div class="field-lbl">Event Type</div><div class="field-val">${etLabel}</div></div>
     <div class="field-item"><div class="field-lbl">Decor Plan</div><div class="field-val">${tier}</div></div>
+    <div class="field-item"><div class="field-lbl">Tables</div><div class="field-val">${tables}</div></div>
     <div class="field-item"><div class="field-lbl">Primary Color</div><div class="field-val write-field"></div></div>
-    <div class="field-item"><div class="field-lbl">Secondary / Accent</div><div class="field-val write-field"></div></div>
   </div>
+  <div class="info-box" style="margin-top:12px;padding:8px 12px;font-size:10px;color:#7A5C10">Mark the decoration you want in each section. For items with color, write your chosen color. Color availability is subject to inventory — confirmed with your coordinator.</div>
+</div>
+${bodyHtml}
+<div class="sec">
+  <div class="sec-title">Color Reference</div>
+  <p style="font-size:10px;color:#777;line-height:1.7">${colorRef}</p>
 </div>
 <div class="sec">
-  <div class="sec-title">2. Honor Table</div>
-  ${isEssential?`<div class="fixed-box">Essential — Fixed package. Honor table assigned by Pilab Productions. No client modifications permitted.</div>
-  <table class="decor-table"><thead><tr><th>Element</th><th>Specification</th><th>Notes</th></tr></thead><tbody>
-    <tr><td>Type</td><td>${e['Decor Honor Type']||'Assigned by Pilab'}</td><td>Fixed</td></tr>
-    <tr><td>Color Palette</td><td>White + Gold (standard)</td><td>Fixed</td></tr>
-  </tbody></table>`:`<div class="tier-badge" style="background:${isPrestige?'#F0EAF8':isLegacy?'#1A1A2E':'#E8F4F4'}"><strong style="color:${isPrestige?'#7B4F9E':isLegacy?'#C9A84C':'#5B9EA0'}">${tier}</strong> — ${isLegacy?'Custom event design — specifications below':'Client selects from portfolio'}</div>
-  <table class="decor-table"><thead><tr><th>Element</th><th>Specification / Selection</th><th>Notes</th></tr></thead><tbody>
-    <tr><td>Type</td><td>${e['Decor Honor Type']||'___________________'}</td><td>Flowers / Balloons / Mixed</td></tr>
-    <tr><td>Color Palette</td><td class="write-field"></td><td></td></tr>
-    <tr><td>Style Reference</td><td class="write-field"></td><td>Portfolio ref #</td></tr>
-    <tr><td>Special Elements</td><td class="write-field"></td><td></td></tr>
-    ${isPrestige?`<tr><td>Client Modifications</td><td class="write-field"></td><td>Prestige only</td></tr>`:''}
-  </tbody></table>
-  <p style="font-size:10px;color:#777;margin-top:6px;font-style:italic">Decorator Notes (internal): _______________________________________________</p>`}
-</div>
-<div class="sec">
-  <div class="sec-title">3. Centerpieces — ${e['Tables']||'—'} Tables</div>
-  ${isEssential?`<div class="fixed-box">Essential — Fixed. 1 standard centerpiece per table, assigned by Pilab Productions.</div>
-  <table class="decor-table"><thead><tr><th>Element</th><th>Specification</th></tr></thead><tbody>
-    <tr><td>Type</td><td>${e['Decor CP Type']||'Assigned'} · ${e['Decor CP Tier']||''}</td></tr>
-    <tr><td>Color / Height</td><td>Standard White + Gold</td></tr>
-  </tbody></table>`:`<table class="decor-table"><thead><tr><th>Element</th><th>Specification</th><th>Notes</th></tr></thead><tbody>
-    <tr><td>Type</td><td>${e['Decor CP Type']||'___________________'}</td><td>${e['Decor CP Tier']||'Flowers / Balloons / Otros'}</td></tr>
-    <tr><td>Color Palette</td><td class="write-field"></td><td></td></tr>
-    <tr><td>Style Reference</td><td class="write-field"></td><td>Portfolio ref #</td></tr>
-    <tr><td>Height</td><td class="write-field"></td><td>Low / Medium / Tall</td></tr>
-    ${isPrestige?`<tr><td>Modifications</td><td class="write-field"></td><td>Prestige only</td></tr>`:''}
-  </tbody></table>`}
-</div>
-<div class="sec">
-  <div class="sec-title">4. Dining Setup</div>
-  <table class="decor-table">
-    <thead><tr><th>Item</th><th>Color / Spec</th><th>Source</th><th style="text-align:center">✓</th></tr></thead>
-    <tbody>
-      ${[['Table Linens','White / Other: ________'],['Chair Covers','White / Other: ________'],['Table Runner','Gold / Other: ________'],['Napkins','White cloth / Other: ________'],['Chair Type','Gray / White / Chiavari'],['Place Cards','Yes / No'],['Table Numbers','Yes / No']].map(([item,spec],i)=>`<tr><td style="font-weight:500">${item}</td><td class="write-field">${spec}</td><td>□ Cardona Hall &nbsp;&nbsp; □ Provider</td><td style="text-align:center">□</td></tr>`).join('')}
-    </tbody>
-  </table>
-</div>
-${!isEssential?`<div class="sec">
-  <div class="sec-title">5. Extras & Add-Ons</div>
-  <table class="decor-table">
-    <thead><tr><th>#</th><th>Add-On / Element</th><th>Description / Color</th><th>Location / Notes</th><th style="text-align:center">✓</th></tr></thead>
-    <tbody>
-      ${Array.from({length:isPrestige||isLegacy?6:4},(_,i)=>`<tr><td style="color:#AAA;font-size:10px">${i+1}</td><td class="write-field"></td><td class="write-field"></td><td class="write-field"></td><td style="text-align:center">□</td></tr>`).join('')}
-    </tbody>
-  </table>
-</div>`:''}
-<div class="sec">
-  <div class="sec-title">6. Decorator Specifications</div>
-  <div class="field-grid">
-    <div class="field-item"><div class="field-lbl">Setup Window</div><div class="field-val write-field">From _______ to _______</div></div>
-    <div class="field-item"><div class="field-lbl">Provider</div><div class="field-val write-field"></div></div>
-    <div class="field-item"><div class="field-lbl">Priority Areas</div><div class="field-val" style="font-size:11px;color:#555">Honor table first · dining tables · extras</div></div>
-    <div class="field-item"><div class="field-lbl">Restrictions</div><div class="field-val" style="font-size:11px;color:#555">No adhesives on walls · no ladder use without approval</div></div>
-  </div>
-  <div style="margin-top:10px"><div style="font-size:9px;font-weight:700;color:#888;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px">Additional Notes</div><div style="border-bottom:1px solid #DDD;height:32px;margin-bottom:8px"></div><div style="border-bottom:1px solid #DDD;height:32px"></div></div>
-</div>
-<div class="sec">
-  <div class="sec-title">7. Acknowledgment</div>
-  <p style="font-size:11px;color:#555;margin-bottom:14px">Both parties confirm that the specifications above are complete and agreed upon. Changes after signing require a written Amendment.</p>
+  <div class="sec-title">Acknowledgment</div>
+  <p style="font-size:11px;color:#555;margin-bottom:14px">Both parties confirm the selections above. Changes after signing require a written Amendment.</p>
   ${sigBlock('Authorized — James Cardona · '+ENTITY,'James Cardona · '+ENTITY)}
 </div>
 ${docFooter('Productions LLC · Design & Decor')}
@@ -5652,7 +5692,9 @@ ${docFooter('Productions LLC · Design & Decor')}
 <script>window.onload=function(){document.title=' ';try{history.replaceState(null,'',' ');}catch(e){}setTimeout(function(){window.print();},1000);};<\/script>
 </body></html>`;
   docWrite(win,html);
+  logDocGenerated('decor_requirements');
 }
+
 
 // ── 9. MUSIC & PROGRAM REQUEST ────────────────────────────────────────────────
 function generateMusicProgram(){
