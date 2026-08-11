@@ -1770,16 +1770,21 @@ async function generateExtDoc(){
     'Source':'manual'
   };
   showLoading();
+  let created=false;
   try{
     await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(payload),headers:{'Content-Type':'text/plain'}});
     await new Promise(r=>setTimeout(r,1200));
     await loadServices();
-    document.getElementById('extDocForm').style.display='none';
-    showToast('Service added','success');
-    // 2) Generate the matching document.
-    extDocDispatch(category,type,finalProvName,provPhone,access);
+    created=true;
   }catch(e){showToast('Error adding service','error');}
   hideLoading();
+  if(!created)return;
+  document.getElementById('extDocForm').style.display='none';
+  showToast('Service added','success');
+  // Generate the matching document AFTER loading is closed, so a popup issue
+  // never leaves the spinner stuck.
+  try{ extDocDispatch(category,type,finalProvName,provPhone,access); }
+  catch(err){ showToast('Service added, but the document could not open','warn'); }
 }
 function extDocDispatch(category,type,provName,provPhone,access){
   const isClient=(type==='Client-Handled');
