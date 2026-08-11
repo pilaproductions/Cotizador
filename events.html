@@ -305,21 +305,24 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
     <div class="tab-content" id="tab-services">
       <div class="svc-actions-bar" style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
         <button class="btn btn-gold btn-disabled" id="btnAddPackage" disabled title="Coming soon — auto-derives roles from the contracted package" style="opacity:0.5;cursor:not-allowed;">+ Add package by category</button>
-        <button class="btn btn-outline" id="btnAddManual" onclick="toggleManualServiceForm()">+ Add manual role</button>
-        <button class="btn btn-outline" id="btnExtDoc" onclick="toggleExtDocForm()">+ External / Client Document</button>
+        <button class="btn btn-outline" id="btnAddManual" onclick="toggleManualServiceForm()">+ Add service</button>
+        <button class="btn btn-outline" id="btnExtDoc" onclick="toggleExtDocForm()" style="border-color:#B5560A;color:#B5560A">+ External / Client service</button>
       </div>
 
-      <div class="add-form" id="extDocForm" style="display:none;border-left:3px solid #B5560A">
-        <div class="add-form-title">+ External / Client Document</div>
-        <p style="font-size:11px;color:#777;margin:-4px 0 10px">For categories handled outside Pilab. External generates a contract; Client generates an acknowledgment. Nothing is saved — the document is generated on the spot.</p>
+      <div class="add-form" id="extDocForm" style="display:none;border-left:4px solid #B5560A;background:#FDF3EC">
+        <div class="add-form-title" style="color:#B5560A">+ External / Client Service</div>
+        <p style="font-size:11px;color:#777;margin:-4px 0 10px">For services handled outside Pilab. This adds the service (no internal cost) and generates the matching document — external gets a contract, client gets an acknowledgment.</p>
         <div class="form-row form-row-3">
           <div class="form-field"><div class="form-lbl">Category</div>
-            <select class="form-select" id="extDocCategory">
-              <option value="Catering">Catering &amp; Hospitality</option>
+            <select class="form-select" id="extDocCategory" onchange="populateExtDocRoles()">
               <option value="Decor">Event Design &amp; Decor</option>
+              <option value="Catering">Catering &amp; Hospitality</option>
               <option value="Entertainment">Event Entertainment &amp; Production</option>
               <option value="Photo">Photo &amp; Video</option>
             </select>
+          </div>
+          <div class="form-field"><div class="form-lbl">Role</div>
+            <select class="form-select" id="extDocRole"><option value="">— Select —</option></select>
           </div>
           <div class="form-field"><div class="form-lbl">Handled by</div>
             <select class="form-select" id="extDocType" onchange="onExtDocTypeChange()">
@@ -327,16 +330,19 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
               <option value="Client-Handled">Client (client does it himself)</option>
             </select>
           </div>
-          <button class="btn btn-gold" id="btnGenExtDoc" onclick="generateExtDoc()">Generate</button>
         </div>
-        <div class="form-row form-row-2" id="extDocProviderRow" style="margin-top:10px">
-          <div class="form-field"><div class="form-lbl">Provider Name</div><input class="form-input" type="text" id="extDocProvName" placeholder="External provider / company name"></div>
-          <div class="form-field"><div class="form-lbl">Provider Phone</div><input class="form-input" type="text" id="extDocProvPhone" placeholder="Contact number"></div>
+        <div class="form-row form-row-3" id="extDocProviderRow" style="margin-top:10px">
+          <div class="form-field"><div class="form-lbl">Provider / Business Name</div><input class="form-input" type="text" id="extDocProvName" placeholder="External provider / company name"></div>
+          <div class="form-field"><div class="form-lbl">Phone</div><input class="form-input" type="text" id="extDocProvPhone" placeholder="Contact number"></div>
+          <div class="form-field"><div class="form-lbl">Access Time</div><input class="form-input" type="text" id="extDocAccess" placeholder="e.g. 2:00 PM"></div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:12px">
+          <button class="btn btn-gold" id="btnGenExtDoc" onclick="generateExtDoc()" style="background:#B5560A;border-color:#B5560A">Add &amp; Generate</button>
         </div>
       </div>
 
       <div class="add-form" id="manualServiceForm" style="display:none">
-        <div class="add-form-title">+ Add Manual Role</div>
+        <div class="add-form-title">+ Add Service (internal)</div>
         <div class="form-row form-row-3">
           <div class="form-field"><div class="form-lbl">Category</div>
             <select class="form-select" id="svcCategory" onchange="populateSvcRoleDropdown()">
@@ -356,8 +362,6 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
             <select class="form-select" id="svcType" onchange="onSvcTypeChange()">
               <option value="Internal Staff">Internal Staff (Pilab's own, we pay)</option>
               <option value="Internal Vendor">Internal Vendor (we engage &amp; pay)</option>
-              <option value="External Vendor">External Vendor (client brings, needs COI)</option>
-              <option value="Client-Handled">Client-Handled (client does it himself)</option>
             </select>
           </div>
           <button class="btn btn-gold" id="btnSaveService" onclick="saveService()">Add</button>
@@ -1707,29 +1711,79 @@ const SVC_CATEGORIES=[
   {key:'Photo',label:'Photo & Video'}
 ];
 
+function clearExtDocForm(){
+  ['extDocProvName','extDocProvPhone','extDocAccess'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const rl=document.getElementById('extDocRole');if(rl)rl.selectedIndex=0;
+  const ty=document.getElementById('extDocType');if(ty)ty.selectedIndex=0;
+}
 function toggleExtDocForm(){
   const f=document.getElementById('extDocForm');
   if(!f)return;
-  f.style.display=f.style.display==='none'?'block':'none';
-  if(f.style.display==='block')onExtDocTypeChange();
+  const opening=(f.style.display==='none');
+  f.style.display=opening?'block':'none';
+  if(opening){clearExtDocForm();populateExtDocRoles();onExtDocTypeChange();}
+}
+function populateExtDocRoles(){
+  const sel=document.getElementById('extDocRole');
+  if(!sel)return;
+  const cat=document.getElementById('extDocCategory').value;
+  let html='<option value="">— Select —</option>';
+  (currentRoles||[]).filter(r=>(r['Category']||'')===cat).forEach(r=>{
+    html+=`<option value="${r['Role Name']}">${r['Role Name']}</option>`;
+  });
+  sel.innerHTML=html;
 }
 function onExtDocTypeChange(){
   const type=document.getElementById('extDocType').value;
   const provRow=document.getElementById('extDocProviderRow');
+  // Provider name/phone only for External Vendor; access time stays for both.
   if(provRow)provRow.style.display=(type==='External Vendor')?'flex':'none';
 }
-function generateExtDoc(){
+async function generateExtDoc(){
+  if(!ensureNotLocked())return;
   const category=document.getElementById('extDocCategory').value;
+  const role=document.getElementById('extDocRole').value;
   const type=document.getElementById('extDocType').value;
   const provName=(document.getElementById('extDocProvName').value||'').trim();
+  const provPhone=(document.getElementById('extDocProvPhone').value||'').trim();
+  const access=(document.getElementById('extDocAccess').value||'').trim();
+  if(!role){showToast('Select a role','error');return;}
   if(type==='External Vendor'&&!provName){showToast('Enter the external provider name','error');return;}
-  extDocDispatch(category,type,provName,(document.getElementById('extDocProvPhone').value||'').trim());
+  const finalProvName=(type==='Client-Handled')?(currentEvent['Client Name']||'Client'):provName;
+  // 1) Create the service (no internal cost) assigned to this role.
+  const payload={
+    action:'saveServiceDetail',
+    'Detail ID':genID('SVC'),
+    'RES#':currentEvent['RES#'],
+    'COT#':currentEvent['COT#'],
+    'Event Date':currentEvent['Event Date'],
+    'Division':category,
+    'Type':'Role',
+    'Item':role,
+    'Description':role,
+    'Price':0,
+    'Notes':access?('Access time: '+access):'',
+    'Provider Type':type,
+    'Provider ID':'',
+    'Provider Name':finalProvName,
+    'Assign Status':'Assigned',
+    'Source':'manual'
+  };
+  showLoading();
+  try{
+    await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(payload),headers:{'Content-Type':'text/plain'}});
+    await new Promise(r=>setTimeout(r,1200));
+    await loadServices();
+    document.getElementById('extDocForm').style.display='none';
+    showToast('Service added','success');
+    // 2) Generate the matching document.
+    extDocDispatch(category,type,finalProvName,provPhone,access);
+  }catch(e){showToast('Error adding service','error');}
+  hideLoading();
 }
-function extDocDispatch(category,type,provName,provPhone){
+function extDocDispatch(category,type,provName,provPhone,access){
   const isClient=(type==='Client-Handled');
-  document.getElementById('extDocForm').style.display='none';
   if(category==='Catering'){
-    // Catering handled outside Pilab → Outside Food Policy (both external & client).
     generateOutsideFoodPolicy(type,provName,provPhone);
     return;
   }
@@ -1737,12 +1791,9 @@ function extDocDispatch(category,type,provName,provPhone){
     generateClientHandledDoc(category);
     return;
   }
-  // External Vendor contract per category.
   if(category==='Decor'){
-    generateDecorContract(null,{provType:'External Vendor',provName,provPhone});
+    generateDecorContract(null,{provType:'External Vendor',provName,provPhone,access});
   }else{
-    // Entertainment / Photo external contracts are upgraded when we reach those
-    // categories; for now use the client-handled acknowledgment shell as fallback.
     showToast(category+' external contract comes with its category — coming soon','warn');
   }
 }
@@ -2189,7 +2240,7 @@ function applyLockState(){
   // Operational buttons to disable when locked (Payments, Services, Operations, Expenses)
   const opIds=['btnComplete','btnChangeDate','btnEditTime','btnCancel','btnSavePayment','btnSaveIncome',
     'btnAddManual','btnAddPackage','btnSaveService','btnSaveOperation','btnSaveExpPay',
-    'btnSaveExpPrice','btnAddExpense','btnAddManualExpense','btnSaveManualExpense'];
+    'btnSaveExpPrice','btnAddExpense','btnAddManualExpense','btnSaveManualExpense','btnExtDoc','btnGenExtDoc'];
   opIds.forEach(id=>{
     const el=document.getElementById(id);
     if(el){el.disabled=locked;el.style.opacity=locked?'0.45':'';el.style.cursor=locked?'not-allowed':'';}
