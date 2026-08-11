@@ -1790,14 +1790,17 @@ function extDocDispatch(category,type,provName,provPhone,access){
   const isClient=(type==='Client-Handled');
   if(category==='Catering'){
     generateOutsideFoodPolicy(type,provName,provPhone);
+    logDocGenerated('outside_food_policy',provName||'Client');
     return;
   }
   if(isClient){
     generateClientHandledDoc(category);
+    logDocGenerated('client_handled_'+category.toLowerCase(),category);
     return;
   }
   if(category==='Decor'){
     generateDecorContract(null,{provType:'External Vendor',provName,provPhone,access});
+    logDocGenerated('contract_decor_ext',provName);
   }else{
     showToast(category+' external contract comes with its category — coming soon','warn');
   }
@@ -4995,6 +4998,8 @@ function generateOutsideFoodPolicy(type,provName,provPhone){
   const win=docOpen(); if(!win)return;
   const ACCENT='#1A5C2E';
   const isExternal=(type==='External Vendor');
+  // Client case is a Cardona Hall matter only (Pilab not involved).
+  const VENUE_ENTITY=isExternal?'Cardona Hall LLC and Pilab Productions':'Cardona Hall LLC';
   const sourceLine=isExternal
     ? `Outside caterer: <strong>${provName||'—'}</strong>${provPhone?' · '+provPhone:''}`
     : `Food provided directly by the Client.`;
@@ -5024,8 +5029,9 @@ ${docHeader('Outside Food & Beverage Policy',e['RES#'],'Cardona Hall',ACCENT)}
     <li><strong>Liability.</strong> The Client assumes full responsibility for the safety, handling, allergens, and any illness arising from food not provided by Cardona Hall / Noches de Colombia.</li>
     ${licensingLi}
     <li><strong>Food safety.</strong> Proper transport, temperature, and handling of the outside food are the responsibility of the Client / outside caterer.</li>
+    <li><strong>Heating only — no cooking.</strong> Open stoves or cooking appliances may not be turned on inside the venue. Only warmers / chafing dishes are permitted to keep food warm.</li>
     <li><strong>Leftovers.</strong> All outside food and related items must be removed at the end of the event.</li>
-    <li><strong>Venue release.</strong> Cardona Hall LLC and Pilab Productions are held harmless for any outcome related to food not provided by the venue.</li>
+    <li><strong>Venue release.</strong> ${VENUE_ENTITY} ${isExternal?'are':'is'} held harmless for any outcome related to food not provided by the venue.</li>
   </ul>
 </div>
 <div class="sec">
@@ -5056,6 +5062,7 @@ function generateDecorContract(groupKey,adhoc){
   const t=g.provType;                               // Internal Vendor | External Vendor | Client-Handled
   const isClient=(t==='Client-Handled');
   const isExternal=(t==='External Vendor');
+  const accessTime=(adhoc&&adhoc.access)?adhoc.access:'___________';
   const isInternalVendor=(t==='Internal Vendor');
   const otherParty=isClient?(e['Client Name']||'Client'):g.provName;
   const partyRole=isClient?'Client (self-provided decor)':'Provider';
@@ -5143,12 +5150,8 @@ ${docHeader('Decor Service Contract',`${e['RES#']}-DEC`,'Design & Decor — Pila
 <div class="sec">
   <div class="sec-title">2. Event Details</div>
   <div class="field-grid">
-    <div class="field-item"><div class="field-lbl">Event Type</div><div class="field-val">${etLabel()}</div></div>
-    <div class="field-item"><div class="field-lbl">Event Date</div><div class="field-val">${e['Event Date']||'—'} · ${e['Day of Week']||''}</div></div>
-    <div class="field-item"><div class="field-lbl">Guests / Tables</div><div class="field-val">${e['Guests']||'—'} guests · ${e['Tables']||'—'} tables</div></div>
-    <div class="field-item"><div class="field-lbl">Reservation #</div><div class="field-val">${e['RES#']||'—'}</div></div>
-    <div class="field-item"><div class="field-lbl">Setup Access</div><div class="field-val">___________ (3h before event)</div></div>
-    <div class="field-item"><div class="field-lbl">Decor Plan</div><div class="field-val">${e['Decor Plan']||'—'}</div></div>
+    <div class="field-item"><div class="field-lbl">Event Date</div><div class="field-val">${fmtDateDoc(e['Event Date'])}</div></div>
+    <div class="field-item"><div class="field-lbl">Venue Access Time</div><div class="field-val">${accessTime}</div></div>
   </div>
 </div>
 
@@ -5164,7 +5167,7 @@ ${docHeader('Decor Service Contract',`${e['RES#']}-DEC`,'Design & Decor — Pila
   <ul class="bullet-list" style="margin-top:10px">
     <li>All items delivered must exactly match what is described and agreed. Substitutions require prior written approval from Pilab Productions.</li>
     <li>Provider must not attach any elements to walls, ceilings, or light fixtures without prior written approval.</li>
-    <li>All decoration elements must be removed within 90 minutes of event conclusion.</li>
+    <li>All decoration elements must be removed no later than the event end time.</li>
   </ul>
 </div>
 
@@ -5183,7 +5186,7 @@ ${insuranceBlock}
 <div class="sec">
   <div class="sec-title">7. Venue Rules · 8. Liability · 9. Force Majeure</div>
   <ul class="bullet-list">
-    <li>Setup access 3 hours before event. All materials removed within 90 minutes of conclusion.</li>
+    <li>Setup access at ${accessTime}. All materials removed no later than the event end time.</li>
     <li>${isClient?'The Client':'The Provider'} indemnifies and holds harmless Pilab Productions and Cardona Hall LLC from any claims arising from this decor.</li>
     ${contractorBlock}
     <li>Force majeure: both parties work in good faith to reschedule. Advances returned if no reschedule within 90 days.</li>
