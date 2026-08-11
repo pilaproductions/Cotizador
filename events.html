@@ -1726,7 +1726,25 @@ function generateExtDoc(){
   extDocDispatch(category,type,provName,(document.getElementById('extDocProvPhone').value||'').trim());
 }
 function extDocDispatch(category,type,provName,provPhone){
-  showToast('Document generator coming in next pass','warn');
+  const isClient=(type==='Client-Handled');
+  document.getElementById('extDocForm').style.display='none';
+  if(category==='Catering'){
+    // Catering handled outside Pilab → Outside Food Policy (both external & client).
+    generateOutsideFoodPolicy(type,provName,provPhone);
+    return;
+  }
+  if(isClient){
+    generateClientHandledDoc(category);
+    return;
+  }
+  // External Vendor contract per category.
+  if(category==='Decor'){
+    generateDecorContract(null,{provType:'External Vendor',provName,provPhone});
+  }else{
+    // Entertainment / Photo external contracts are upgraded when we reach those
+    // categories; for now use the client-handled acknowledgment shell as fallback.
+    showToast(category+' external contract comes with its category — coming soon','warn');
+  }
 }
 
 async function toggleManualServiceForm(){
@@ -3173,13 +3191,16 @@ function hasInternalDecor(){
   if(!rows.length)return true; // contracted but not yet assigned → internal by default
   return rows.some(s=>isInternalType(s['Provider Type']));
 }
-// Extras division is internal (for the Sitting Chart). Extras is contracted when
-// Decor Extras Tier has a value; internal when its provider row is internal or
-// there is no explicit external/client assignment for an Extras role.
+// Extras division is internal (for the Sitting Chart). Extras exists when there
+// is a decor service row for the Extras subdivision (Detail ID / Item like
+// DEC-*-EXT, or role labelled Extras). Removing that service removes the chart.
 function hasInternalExtras(){
-  if(!hasVal('Decor Extras Tier'))return false;
-  const rows=decorServiceRows().filter(s=>/extra/i.test(String(s['Role']||s['Item']||'')));
-  if(!rows.length)return true; // extras contracted, not yet assigned → internal by default
+  const rows=decorServiceRows().filter(s=>{
+    const item=String(s['Item']||s['Detail ID']||'');
+    const desc=String(s['Description']||s['Role']||'');
+    return /(-EXT\b|-EXT-)/i.test(item)||/extra/i.test(desc);
+  });
+  if(!rows.length)return false;            // no Extras service → no Sitting Chart
   return rows.some(s=>isInternalType(s['Provider Type']));
 }
 
@@ -4865,11 +4886,114 @@ function providerContractGroups(division){
 }
 
 // One Decor contract per provider group. groupKey selects which provider.
-function generateDecorContract(groupKey){
-  const groups=providerContractGroups('Decor');
-  if(!groups.length){alert('No decor provider with a contract type assigned yet.');return;}
-  const g=groupKey?groups.find(x=>x.key===groupKey):groups[0];
-  if(!g){alert('Provider group not found.');return;}
+
+// ── EXTERNAL / CLIENT DOCUMENTS (generated on the spot, not saved) ─────────────
+// Generic acknowledgment: a category is handled by the client themselves. Applies
+// the client's own responsibility clauses (already bound by the Client Contract).
+function generateClientHandledDoc(category){
+  const e=currentEvent;
+  const win=docOpen(); if(!win)return;
+  const ACCENT='#7A6A55';
+  const catLabel={Catering:'Catering & Hospitality',Decor:'Event Design & Decor',Entertainment:'Entertainment & Production',Photo:'Photo & Video'}[category]||category;
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>Client-Handled Acknowledgment — ${e['RES#']}</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>${baseStyles(ACCENT)}
+.sec-title{color:#4A4033;border-bottom:2px solid ${ACCENT};}
+.bullet-list{margin:6px 0 0 18px;font-size:11px;color:#444;line-height:1.7;}
+</style></head><body>
+<div class="doc">
+${docHeader('Client-Handled Service Acknowledgment',e['RES#'],'Cardona Hall',ACCENT)}
+<div class="sec">
+  <div class="field-grid">
+    <div class="field-item"><div class="field-lbl">Client Name</div><div class="field-val">${e['Client Name']||'—'}</div></div>
+    <div class="field-item"><div class="field-lbl">Event Date</div><div class="field-val">${fmtDateDoc(e['Event Date'])}</div></div>
+    <div class="field-item"><div class="field-lbl">Category</div><div class="field-val">${catLabel}</div></div>
+  </div>
+</div>
+<div class="sec">
+  <div class="sec-title">Acknowledgment</div>
+  <ul class="bullet-list">
+    <li>The Client has elected to provide and manage the <strong>${catLabel}</strong> service themselves, without a Pilab Productions internal or engaged provider.</li>
+    <li>Pilab Productions and Cardona Hall LLC do not coordinate, supervise, or take responsibility for this self-provided service.</li>
+    <li>The Client assumes full responsibility for the quality, timing, setup, and removal of this service.</li>
+    <li>The Client holds Pilab Productions and Cardona Hall LLC harmless for any outcome, damage, or delay arising from the self-provided service.</li>
+    <li>All Venue Rules & Policies signed by the Client continue to apply.</li>
+  </ul>
+</div>
+<div class="sec">
+  <div class="sec-title">Signatures</div>
+  ${sigBlock('Authorized — James Cardona · Cardona Hall LLC','James Cardona · Cardona Hall LLC','Client Signature')}
+</div>
+${docFooter('Cardona Hall')}
+</div>
+<script>window.onload=function(){document.title=' ';try{history.replaceState(null,'',' ');}catch(e){}setTimeout(function(){window.print();},1000);};<\/script>
+</body></html>`;
+  docWrite(win,html);
+}
+
+// Outside Food Policy — when catering is brought by the client or an outside
+// caterer. Covers authorization, liability waiver, licensing, food safety.
+function generateOutsideFoodPolicy(type,provName,provPhone){
+  const e=currentEvent;
+  const win=docOpen(); if(!win)return;
+  const ACCENT='#1A5C2E';
+  const isExternal=(type==='External Vendor');
+  const sourceLine=isExternal
+    ? `Outside caterer: <strong>${provName||'—'}</strong>${provPhone?' · '+provPhone:''}`
+    : `Food provided directly by the Client.`;
+  const licensingLi=isExternal
+    ? `<li>The outside caterer must be a <strong>licensed food establishment</strong>. Cardona Hall may request proof of license and liability insurance prior to the event.</li>`
+    : `<li>Any food brought by the Client must comply with local health regulations. Home-prepared food is served at the Client's own risk.</li>`;
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>Outside Food Policy — ${e['RES#']}</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>${baseStyles(ACCENT)}
+.sec-title{color:#1A5C2E;border-bottom:2px solid ${ACCENT};}
+.bullet-list{margin:6px 0 0 18px;font-size:11px;color:#444;line-height:1.7;}
+</style></head><body>
+<div class="doc">
+${docHeader('Outside Food & Beverage Policy',e['RES#'],'Cardona Hall',ACCENT)}
+<div class="sec">
+  <div class="field-grid">
+    <div class="field-item"><div class="field-lbl">Client Name</div><div class="field-val">${e['Client Name']||'—'}</div></div>
+    <div class="field-item"><div class="field-lbl">Event Date</div><div class="field-val">${fmtDateDoc(e['Event Date'])}</div></div>
+    <div class="field-item" style="grid-column:span 2"><div class="field-lbl">Food Source</div><div class="field-val">${sourceLine}</div></div>
+  </div>
+</div>
+<div class="sec">
+  <div class="sec-title">Policy & Liability Waiver</div>
+  <ul class="bullet-list">
+    <li><strong>Authorization.</strong> Outside food and beverage is permitted only with Cardona Hall's prior written agreement, recorded by this document.</li>
+    <li><strong>Liability.</strong> The Client assumes full responsibility for the safety, handling, allergens, and any illness arising from food not provided by Cardona Hall / Noches de Colombia.</li>
+    ${licensingLi}
+    <li><strong>Food safety.</strong> Proper transport, temperature, and handling of the outside food are the responsibility of the Client / outside caterer.</li>
+    <li><strong>Leftovers.</strong> All outside food and related items must be removed at the end of the event.</li>
+    <li><strong>Venue release.</strong> Cardona Hall LLC and Pilab Productions are held harmless for any outcome related to food not provided by the venue.</li>
+  </ul>
+</div>
+<div class="sec">
+  <div class="sec-title">Signatures</div>
+  ${sigBlock('Authorized — James Cardona · Cardona Hall LLC','James Cardona · Cardona Hall LLC','Client Signature')}
+</div>
+${docFooter('Cardona Hall')}
+</div>
+<script>window.onload=function(){document.title=' ';try{history.replaceState(null,'',' ');}catch(e){}setTimeout(function(){window.print();},1000);};<\/script>
+</body></html>`;
+  docWrite(win,html);
+}
+
+function generateDecorContract(groupKey,adhoc){
+  let g;
+  if(adhoc){
+    // From the External/Client Document button — provider not in services.
+    g={key:'adhoc',provName:adhoc.provName||(currentEvent&&currentEvent['Client Name'])||'Client',provType:adhoc.provType,provPhone:adhoc.provPhone||'',rows:[{Item:'Decor',Description:'Per Decor Requirements'}]};
+  }else{
+    const groups=providerContractGroups('Decor');
+    if(!groups.length){alert('No decor provider with a contract type assigned yet.');return;}
+    g=groupKey?groups.find(x=>x.key===groupKey):groups[0];
+    if(!g){alert('Provider group not found.');return;}
+  }
   const win=docOpen(); if(!win)return;
   const e=currentEvent;
   const ACCENT='#D4A853';
