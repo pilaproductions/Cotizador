@@ -306,6 +306,33 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
       <div class="svc-actions-bar" style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
         <button class="btn btn-gold btn-disabled" id="btnAddPackage" disabled title="Coming soon — auto-derives roles from the contracted package" style="opacity:0.5;cursor:not-allowed;">+ Add package by category</button>
         <button class="btn btn-outline" id="btnAddManual" onclick="toggleManualServiceForm()">+ Add manual role</button>
+        <button class="btn btn-outline" id="btnExtDoc" onclick="toggleExtDocForm()">+ External / Client Document</button>
+      </div>
+
+      <div class="add-form" id="extDocForm" style="display:none;border-left:3px solid #B5560A">
+        <div class="add-form-title">+ External / Client Document</div>
+        <p style="font-size:11px;color:#777;margin:-4px 0 10px">For categories handled outside Pilab. External generates a contract; Client generates an acknowledgment. Nothing is saved — the document is generated on the spot.</p>
+        <div class="form-row form-row-3">
+          <div class="form-field"><div class="form-lbl">Category</div>
+            <select class="form-select" id="extDocCategory">
+              <option value="Catering">Catering &amp; Hospitality</option>
+              <option value="Decor">Event Design &amp; Decor</option>
+              <option value="Entertainment">Event Entertainment &amp; Production</option>
+              <option value="Photo">Photo &amp; Video</option>
+            </select>
+          </div>
+          <div class="form-field"><div class="form-lbl">Handled by</div>
+            <select class="form-select" id="extDocType" onchange="onExtDocTypeChange()">
+              <option value="External Vendor">External Vendor (outside provider)</option>
+              <option value="Client-Handled">Client (client does it himself)</option>
+            </select>
+          </div>
+          <button class="btn btn-gold" id="btnGenExtDoc" onclick="generateExtDoc()">Generate</button>
+        </div>
+        <div class="form-row form-row-2" id="extDocProviderRow" style="margin-top:10px">
+          <div class="form-field"><div class="form-lbl">Provider Name</div><input class="form-input" type="text" id="extDocProvName" placeholder="External provider / company name"></div>
+          <div class="form-field"><div class="form-lbl">Provider Phone</div><input class="form-input" type="text" id="extDocProvPhone" placeholder="Contact number"></div>
+        </div>
       </div>
 
       <div class="add-form" id="manualServiceForm" style="display:none">
@@ -1679,6 +1706,28 @@ const SVC_CATEGORIES=[
   {key:'Entertainment',label:'Event Entertainment & Production'},
   {key:'Photo',label:'Photo & Video'}
 ];
+
+function toggleExtDocForm(){
+  const f=document.getElementById('extDocForm');
+  if(!f)return;
+  f.style.display=f.style.display==='none'?'block':'none';
+  if(f.style.display==='block')onExtDocTypeChange();
+}
+function onExtDocTypeChange(){
+  const type=document.getElementById('extDocType').value;
+  const provRow=document.getElementById('extDocProviderRow');
+  if(provRow)provRow.style.display=(type==='External Vendor')?'flex':'none';
+}
+function generateExtDoc(){
+  const category=document.getElementById('extDocCategory').value;
+  const type=document.getElementById('extDocType').value;
+  const provName=(document.getElementById('extDocProvName').value||'').trim();
+  if(type==='External Vendor'&&!provName){showToast('Enter the external provider name','error');return;}
+  extDocDispatch(category,type,provName,(document.getElementById('extDocProvPhone').value||'').trim());
+}
+function extDocDispatch(category,type,provName,provPhone){
+  showToast('Document generator coming in next pass','warn');
+}
 
 async function toggleManualServiceForm(){
   const f=document.getElementById('manualServiceForm');
@@ -3110,6 +3159,30 @@ function hasPhoto(){return hasVal('Photo Plan')||hasVal('Photo Tier')||hasVal('P
 // True if the event contracted any Decor service
 function hasDecor(){return hasVal('Decor Plan')||hasVal('Decor Honor Tier')||hasVal('Decor CP Tier');}
 
+// Decor documents depend on WHO executes each decor division. A division is
+// "internal" when its assigned provider is Internal (Staff/Vendor) or not yet
+// assigned (internal by default). Returns the decor service rows.
+function decorServiceRows(){
+  return (currentServices||[]).filter(s=>String(s['Division']||'').toLowerCase()==='decor');
+}
+// At least one decor division is internal (or unassigned = internal by default).
+// If there are no decor service rows yet but decor is contracted, treat as internal.
+function hasInternalDecor(){
+  if(!hasDecor())return false;
+  const rows=decorServiceRows();
+  if(!rows.length)return true; // contracted but not yet assigned → internal by default
+  return rows.some(s=>isInternalType(s['Provider Type']));
+}
+// Extras division is internal (for the Sitting Chart). Extras is contracted when
+// Decor Extras Tier has a value; internal when its provider row is internal or
+// there is no explicit external/client assignment for an Extras role.
+function hasInternalExtras(){
+  if(!hasVal('Decor Extras Tier'))return false;
+  const rows=decorServiceRows().filter(s=>/extra/i.test(String(s['Role']||s['Item']||'')));
+  if(!rows.length)return true; // extras contracted, not yet assigned → internal by default
+  return rows.some(s=>isInternalType(s['Provider Type']));
+}
+
 // Catering condition: any real contracted catering line (Classic/Collection/Legacy).
 function hasCatering(){
   const line=String((currentEvent&&currentEvent['Catering Line'])||'').toLowerCase().trim();
@@ -3136,8 +3209,8 @@ const DOC_DEFINITIONS=[
   {id:'catering_beo',   name:'Catering Order (BEO)', sub:'Food & beverage order — internal',                   group:'catering', num:10, condition:()=>hasCatering(), disabledReason:'No catering line contracted', internal:true, icon:'🍽️', canGenerate:true},
   // ── DECOR ───────────────────────────────────────────────────────────────────
   // Decor Contract is rendered dynamically per provider group (see renderDocuments).
-  {id:'decor_requirements',name:'Decor Requirements', sub:'Decoration specifications by division & provider', group:'decor', num:12, condition:()=>hasDecor(), disabledReason:'No decor contracted', icon:'🎀', canGenerate:true},
-  {id:'sitting_chart',     name:'Sitting Chart',      sub:'Table layout & seating plan',                     group:'decor', num:13, condition:()=>hasDecor(), disabledReason:'No decor contracted', icon:'🪑', canGenerate:true},
+  {id:'decor_requirements',name:'Decor Requirements', sub:'Decoration specifications by division & provider', group:'decor', num:12, condition:()=>hasInternalDecor(), disabledReason:'Decor is external/client-handled — no internal requirements', icon:'🎀', canGenerate:true},
+  {id:'sitting_chart',     name:'Sitting Chart',      sub:'Table layout & seating plan',                     group:'decor', num:13, condition:()=>hasInternalExtras(), disabledReason:'No internal Extras contracted', icon:'🪑', canGenerate:true},
   // ── ENTERTAINMENT ───────────────────────────────────────────────────────────
   {id:'contract_entertainment',name:'Entertainment Contract',sub:'DJ / performer service agreement (internal/external)', group:'ent', num:14, condition:()=>hasEntertainment(), disabledReason:'No entertainment contracted', icon:'🎵', canGenerate:true},
   {id:'music_program',         name:'Music & Program Request',sub:'Music genres, event timeline, special moments',       group:'ent', num:15, condition:()=>hasEntertainment(), disabledReason:'No entertainment contracted', icon:'🎶', canGenerate:true},
