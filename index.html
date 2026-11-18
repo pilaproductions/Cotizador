@@ -173,23 +173,31 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
 <div class="loading-overlay" id="loadingOverlay"><div class="loading-box"><div class="loading-spinner"></div><div id="loadingMsg">Loading...</div></div></div>
 <div class="confirm-overlay" id="confirmOverlay"><div class="confirm-box"><div class="confirm-title" id="confirmTitle">Confirm</div><div class="confirm-msg" id="confirmMsg"></div><div class="confirm-btns"><button class="confirm-no" id="confirmNo">No</button><button class="confirm-yes" id="confirmYes">Yes</button></div></div></div>
 <div class="modal-overlay" id="loadModal"><div class="modal"><div class="modal-header"><div class="modal-title">Load Quotation</div><button class="modal-close" onclick="closeModal()">&times;</button></div><div class="modal-body"><div class="modal-search"><input type="text" id="searchInput" placeholder="Search by COT# or client name..." oninput="filterResults(this.value)"><button onclick="filterResults(document.getElementById('searchInput').value)">Search</button></div><div class="modal-results" id="searchResults"><div class="result-empty">Loading...</div></div></div></div></div>
+<div class="modal-overlay" id="adminModal"><div class="modal" style="max-width:400px"><div class="modal-header"><div class="modal-title">Administrator Mode</div><button class="modal-close" onclick="closeAdminModal()">&times;</button></div><div class="modal-body">
+  <div class="field" id="adminPinField"><div class="field-label">PIN</div><input class="field-input" id="adminPin" type="password" inputmode="numeric" autocomplete="off" style="max-width:120px"></div>
+  <div class="field" id="adminReasonField"><div class="field-label">Reason</div><input class="field-input" id="adminReason" type="text" placeholder="Why a rule is being skipped"></div>
+  <div id="adminErr" style="display:none;font-size:10px;font-weight:600;color:var(--red);margin:6px 0"></div>
+  <div class="confirm-btns" style="margin-top:12px"><button class="confirm-no" onclick="closeAdminModal()">Cancel</button><button class="confirm-yes" onclick="activateAdmin()">Activate</button></div>
+</div></div></div>
 <div class="toast" id="toast"></div>
 
 <div class="page">
 <div class="header">
-  <div><div class="brand-title">Cardona Hall</div><div class="brand-sub">Pilab Productions &nbsp;·&nbsp; Event Quotation System v8</div></div>
+  <div><div class="brand-title" id="brandTitle">Cardona Hall</div><div class="brand-sub">Pilab Productions &nbsp;·&nbsp; Event Quotation System</div></div>
   <div class="header-right">
-    <div class="cot-box" id="cotNumber">COT-2026-—</div>
+    <div class="cot-box" id="cotNumber">COT-—</div>
     <div class="cot-meta">Created: <span id="createdDate">—</span> &nbsp;·&nbsp; Status: <span class="status-pill" id="statusPill">NEW</span></div>
   </div>
 </div>
 <div class="actions">
-  <button class="btn btn-gold" onclick="saveQuotation()">&#x2713; Save Quotation</button>
+  <button class="btn btn-gold" id="btnSave" onclick="saveQuotation()">&#x2713; Save Quotation</button>
   <button class="btn btn-outline" onclick="openLoadModal()">&#x21BA; Load Quotation</button>
   <button class="btn btn-ghost" onclick="newQuotation()">+ New Quotation</button>
   <button class="btn btn-reserve" id="btnReserve" onclick="confirmReservation()">&#x2605; Confirm Reservation</button>
   <button class="btn btn-pdf" id="btnExportPDF" onclick="generatePDF()" style="display:none">&#x21E9; Export PDF</button>
+  <button class="btn btn-outline" id="btnRepeat" onclick="repeatEvent()" style="display:none">&#x27F3; Repeat Event</button>
 </div>
+<div id="lockBanner" style="display:none;margin:8px 28px;padding:6px 12px;font-size:10px;font-weight:600;letter-spacing:0.5px;background:var(--orange-light);color:var(--orange);border-left:3px solid var(--orange)">RESERVED &#8212; read only. Use Repeat Event to start a new quotation from this one.</div>
 
 <!-- BLOCK 1: GENERAL INFO -->
 <div class="block">
@@ -563,10 +571,12 @@ async function loadCatalogs(){
   });
 
   // --- index Business_Rules by group ---
+  catalog.ruleOverridable=catalog.ruleOverridable||{};
   rules.forEach(r=>{
     const g=r['Rule_Group'], k=String(r['Rule_Key']), v=r['Rule_Value'];
     if(!g)return;
     (catalog.businessRules[g]=catalog.businessRules[g]||{})[k]=v;
+    if(String(r['Overridable']||'').trim().toUpperCase()==='Y')catalog.ruleOverridable[g]=true;
   });
 
   // --- addons ---
@@ -795,6 +805,8 @@ window.onload=async()=>{
   showLoading('Connecting to database...');
   await loadCatalogs();
   populateDynamicPrices();
+  renderIdentity();
+  applyGuestCapToInput();
   renderAddons('entertainment');
   renderAddons('photo');
   await loadAllQuotations();
@@ -802,6 +814,7 @@ window.onload=async()=>{
   await generateCotNumber();
   hideLoading();
   renderCalendar();
+  bindAdminMode();
   document.addEventListener('click',e=>{
     const popup=document.getElementById('calPopup');
     const wrap=document.querySelector('.date-input-wrap');
@@ -810,6 +823,200 @@ window.onload=async()=>{
   });
 };
 
+function statusLabel(internal){
+  const m=(catalog.businessRules&&catalog.businessRules.status_labels)||{};
+  const k=(!internal||internal==='new')?'draft':String(internal).toLowerCase();
+  return m[k]||k.toUpperCase();
+}
+function renderIdentity(){
+  const box=document.getElementById('cotNumber');
+  if(box)box.textContent=state.resNumber?(state.cotNumber+' \u00b7 '+state.resNumber):(state.cotNumber||('COT-'+new Date().getFullYear()+'-\u2014'));
+  const pill=document.getElementById('statusPill');
+  if(pill){
+    if(adminMode()){pill.textContent='ADMIN';pill.style.color='var(--red)';pill.style.borderColor='var(--red)';}
+    else{pill.textContent=statusLabel(state.status);pill.style.color='';pill.style.borderColor='';}
+  }
+}
+function guestCap(){
+  const g=(catalog.businessRules&&catalog.businessRules.guest_cap)||{};
+  return {min:num(g.min),max:num(g.max)};
+}
+function guestsInRange(v){
+  const c=guestCap();
+  if(isNaN(v))return false;
+  if(c.min&&v<c.min)return false;
+  if(c.max&&v>c.max)return false;
+  return true;
+}
+function applyGuestCapToInput(){
+  const c=guestCap(),el=document.getElementById('numGuests'),err=document.getElementById('err-numGuests');
+  const txt=(c.min||0)+'\u2013'+(c.max||'');
+  if(el){if(c.min)el.min=c.min;if(c.max)el.max=c.max;el.placeholder=txt;}
+  if(err)err.textContent=txt+' only';
+}
+function adminMode(){return state.adminMode===true;}
+function adminRules(){return ruleGroup('admin_mode');}
+function adminEnabled(){return String(adminRules().enabled||'').trim().toUpperCase()==='Y';}
+function adminUser(){return state.adminUser||'admin';}
+function openAdminModal(){
+  if(!adminEnabled()){showToast('Administrator mode is off in Business_Rules','warn');return;}
+  if(state.adminMode){deactivateAdmin();return;}
+  const r=adminRules();
+  document.getElementById('adminPin').value='';
+  document.getElementById('adminReason').value='';
+  document.getElementById('adminErr').style.display='none';
+  document.getElementById('adminPinField').style.display=String(r.pin||'').trim()?'flex':'none';
+  document.getElementById('adminReasonField').style.display=String(r.requires_reason||'').trim().toUpperCase()==='Y'?'flex':'none';
+  document.getElementById('adminModal').classList.add('show');
+}
+function closeAdminModal(){document.getElementById('adminModal').classList.remove('show');}
+function activateAdmin(){
+  const r=adminRules();
+  const err=document.getElementById('adminErr');
+  const pin=String(r.pin||'').trim();
+  if(pin&&document.getElementById('adminPin').value.trim()!==pin){
+    err.textContent='Wrong PIN';err.style.display='block';return;
+  }
+  const reason=document.getElementById('adminReason').value.trim();
+  if(String(r.requires_reason||'').trim().toUpperCase()==='Y'&&!reason){
+    err.textContent='A reason is required';err.style.display='block';return;
+  }
+  state.adminMode=true;state.adminReason=reason;state.pendingOverrides=[];
+  closeAdminModal();applyStatusLock();renderIdentity();updateReserveButton();
+  showToast('Administrator mode ON','warn');
+}
+function deactivateAdmin(quiet){
+  state.adminMode=false;state.adminReason='';state.pendingOverrides=[];
+  applyStatusLock();renderIdentity();updateReserveButton();
+  if(!quiet)showToast('Administrator mode off','info');
+}
+function bindAdminMode(){
+  const bt=document.getElementById('brandTitle');
+  if(bt){
+    let timer=null;
+    const start=function(){timer=setTimeout(function(){timer=null;openAdminModal();},2000);};
+    const cancel=function(){if(timer){clearTimeout(timer);timer=null;}};
+    bt.addEventListener('mousedown',start);
+    bt.addEventListener('touchstart',start,{passive:true});
+    ['mouseup','mouseleave','touchend','touchcancel'].forEach(function(ev){bt.addEventListener(ev,cancel);});
+    bt.style.userSelect='none';bt.style.cursor='default';
+  }
+  document.addEventListener('keydown',function(e){
+    if(e.ctrlKey&&e.shiftKey&&String(e.key).toLowerCase()==='a'){e.preventDefault();openAdminModal();}
+  });
+}
+async function saveAppliedOverrides(cotNum,resNum){
+  const list=state.pendingOverrides||[];
+  if(!list.length)return;
+  const ts=new Date().toISOString();
+  const rows=list.map(function(o,i){
+    return {'Log_ID':'AO-'+Date.now()+'-'+i,'COT#':cotNum||'','RES#':resNum||'','Timestamp':ts,
+      'Rule_Group':o.group||'','Rule_Key':o.key||'','Reason':state.adminReason||'',
+      'Source':o.msg||'','User':adminUser(),'Active':'Y'};
+  });
+  await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:JSON.stringify({action:'saveAppliedOverrideBatch',rows:rows}),headers:{'Content-Type':'text/plain'}});
+  state.pendingOverrides=[];
+}
+
+function ruleGroup(g){return (catalog.businessRules&&catalog.businessRules[g])||{};}
+function ruleOverridable(g){return !!(catalog.ruleOverridable&&catalog.ruleOverridable[g]);}
+function isLockedStatus(){return ['reserved','date_change'].includes(String(state.status||'').toLowerCase());}
+function applyStatusLock(){
+  const lock=isLockedStatus()&&!adminMode();
+  document.querySelectorAll('.block input,.block select,.block textarea').forEach(el=>{el.disabled=lock;});
+  document.querySelectorAll('.tier-btn').forEach(b=>{b.disabled=lock;});
+  const save=document.getElementById('btnSave');
+  if(save){save.disabled=lock;save.style.opacity=lock?'0.45':'';save.style.cursor=lock?'not-allowed':'';}
+  const banner=document.getElementById('lockBanner');
+  if(banner)banner.style.display=lock?'block':'none';
+}
+async function repeatEvent(cotNum){
+  const src=cotNum||state.cotNumber;
+  if(!src){showToast('Load a quotation first','warn');return;}
+  loadQuotation(src);
+  state.status='new';state.resNumber=null;state.wasLoaded=false;state.isLoaded=false;
+  state.loadedSnapshot=null;state.adminMode=false;
+  document.getElementById('eventDate').value='';
+  state.selectedDate=null;state.dayOfWeek=null;
+  ['saveDateBlockAlert','lockBanner'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+  applyStatusLock();
+  showLoading('Preparing new quotation...');
+  await loadAllQuotations();await generateCotNumber();
+  document.getElementById('createdDate').textContent=new Date().toLocaleDateString('en-US');
+  hideLoading();
+  calcTotal();renderIdentity();updateReserveButton();
+  document.getElementById('btnExportPDF').style.display='none';
+  showToast('New quotation from '+src+' \u2014 pick the new event date','info');
+}
+function minEntSatisfied(){
+  const ent=(document.getElementById('entPlan')||{}).value;
+  const snd=(document.getElementById('soundPlan')||{}).value;
+  return !!((ent&&ent!=='na')||(snd&&snd!=='na'));
+}
+function dayInKey(key,day){return String(key||'').split(',').map(x=>x.trim()).includes(day);}
+function validateQuote(){
+  const blocks=[],warns=[];
+  const day=state.dayOfWeek;
+  const g=parseInt(document.getElementById('numGuests').value);
+  if(!guestsInRange(g)){
+    const c=guestCap();
+    blocks.push({key:'guest_cap',sub:'min/max',msg:'Guests must be between '+(c.min||0)+' and '+(c.max||'\u2014')});
+  }
+  const sat=ruleGroup('saturday_min');
+  if(day==='Saturday'){
+    const need=[];
+    if(String(sat.catering_required||'').trim().toUpperCase()==='Y'){
+      const line=(document.getElementById('cateringLine')||{}).value;
+      if(!line||line==='na')need.push('a catering plan');
+    }
+    if(String(sat.entertainment_required||'').trim().toUpperCase()==='Y'&&!minEntSatisfied())
+      need.push('Entertainment from Sound System up');
+    if(need.length){
+      const item={key:'saturday_min',sub:'enforcement',msg:'Saturday requires '+need.join(' and ')};
+      (String(sat.enforcement||'block').toLowerCase()==='warn'?warns:blocks).push(item);
+    }
+  }
+  const emd=ruleGroup('entertainment_min_by_day');
+  if(day&&day!=='Saturday'){
+    let req=null;
+    Object.keys(emd).forEach(k=>{if(k!=='enforcement'&&dayInKey(k,day))req=emd[k];});
+    if(req&&String(req).trim().toLowerCase()!=='none'&&!minEntSatisfied()){
+      const item={key:'entertainment_min_by_day',sub:'enforcement',msg:day+' requires at least a sound line'};
+      (String(emd.enforcement||'warn').toLowerCase()==='block'?blocks:warns).push(item);
+    }
+  }
+  if(state.decorPlan==='legacy'&&!num((document.getElementById('decorLegacyPriceVal')||{}).value))
+    blocks.push({key:'decor_legacy_price',sub:'custom_price',msg:'Decor Legacy is fully custom \u2014 type its price'});
+  return {blocks:blocks,warns:warns,ok:blocks.length===0};
+}
+function showRuleAlert(items,type){
+  const el=document.getElementById('saveDateBlockAlert');
+  if(!el)return;
+  if(!items.length){el.style.display='none';return;}
+  el.className='alert alert-'+(type==='block'?'error':'warn');
+  el.innerHTML=(type==='block'?'&#x26D4; ':'&#x26A0; ')+items.map(i=>i.msg).join(' &nbsp;\u00b7&nbsp; ');
+  el.style.display='block';
+}
+function gateByRules(){
+  const v=validateQuote();
+  state.pendingOverrides=[];
+  if(!v.ok){
+    const allSkippable=v.blocks.every(b=>ruleOverridable(b.key));
+    if(adminMode()&&allSkippable){
+      state.pendingOverrides=v.blocks.map(function(b){return {group:b.key,key:b.sub||'',msg:b.msg};});
+      showRuleAlert([],'warn');
+      showToast('Admin mode \u2014 '+v.blocks.length+' rule(s) skipped','warn');
+    }
+    if(!(adminMode()&&allSkippable)){
+      showRuleAlert(v.blocks,'block');
+      showToast(v.blocks[0].msg,'error');
+      return false;
+    }
+  }
+  showRuleAlert(v.warns,'warn');
+  if(v.warns.length)showToast(v.warns[0].msg,'warn');
+  return true;
+}
 function showLoading(msg){document.getElementById('loadingMsg').textContent=msg||'Loading...';document.getElementById('loadingOverlay').classList.add('show');}
 function hideLoading(){document.getElementById('loadingOverlay').classList.remove('show');}
 
@@ -835,7 +1042,7 @@ async function generateCotNumber(){
   let max=0;yq.forEach(q=>{const n=parseInt((q['COT#']||'').split('-')[2]||0);if(n>max)max=n;});
   state.cotNumber=`COT-${year}-${String(max+1).padStart(3,'0')}`;
   state.isLoaded=false;
-  document.getElementById('cotNumber').textContent=state.cotNumber;
+  renderIdentity();
 }
 
 async function saveToSheets(data){
@@ -949,7 +1156,7 @@ function onDateChange(){
 
 function onGuestsChange(){
   const v=parseInt(document.getElementById('numGuests').value);
-  if(isNaN(v)||v<30||v>120){
+  if(!guestsInRange(v)){
     document.getElementById('err-numGuests').classList.add('show');
     state.guestRange=null;state.numGuests=0;state.numTables=0;
     document.getElementById('guestRange').style.display='none';return;
@@ -976,7 +1183,7 @@ function onEventTypeChange(){
   state.eventType=document.getElementById('eventType').value;
   const showSub=['special_social','special_corporate'].includes(state.eventType);
   document.getElementById('eventSubField').style.display=showSub?'flex':'none';
-  updateFullPackageOptions();updatePhotoSaturdayRule();calcTotal();
+  updateFullPackageOptions();calcTotal();
 }
 
 function onClientTypeChange(){
@@ -1025,7 +1232,7 @@ function validateRequired(){
   if(!document.getElementById('clientName').value.trim()){showErr('clientName');ok=false;}
   if(!document.getElementById('phone').value.trim()){showErr('phone');ok=false;}
   if(!document.getElementById('eventDate').value){showErr('eventDate');ok=false;}
-  const g=parseInt(document.getElementById('numGuests').value);if(isNaN(g)||g<0||g>120){showErr('numGuests');ok=false;}
+  const g=parseInt(document.getElementById('numGuests').value);if(!guestsInRange(g)){showErr('numGuests');ok=false;}
   if(!document.getElementById('eventType').value){showErr('eventType');ok=false;}
   return ok;
 }
@@ -1339,13 +1546,6 @@ function updateEntDiscounts(){
 }
 
 // ── PHOTO ──────────────────────────────────────────────────
-function updatePhotoSaturdayRule(){
-  const day=state.dayOfWeek;
-  const photoSel=document.getElementById('photoTier');
-  for(let i=0;i<photoSel.options.length;i++){
-    if(photoSel.options[i].value==='essential')photoSel.options[i].disabled=(day==='Saturday');
-  }
-}
 
 function setPhotoPlan(tier,btn){markEdited();
   document.querySelectorAll('#photoTierBtns .tier-btn').forEach(b=>b.classList.remove('active'));
@@ -1801,13 +2001,15 @@ function collectData(){
 
 async function saveQuotation(){
   if(!validateRequired()){showToast('Please fill all required fields','error');return;}
-  if(state.wasLoaded&&!hasChanges()){showToast('No changes detected — not saved again','info');document.getElementById('cotNumber').textContent=state.cotNumber;document.getElementById('statusPill').textContent='QUOTED';return;}
+  if(!gateByRules())return;
+  if(state.wasLoaded&&!hasChanges()){showToast('No changes detected — not saved again','info');state.status='quoted';renderIdentity();return;}
   if(state.wasLoaded&&hasChanges()){showLoading('Generating new quotation number...');await loadAllQuotations();await generateCotNumber();hideLoading();}
   showLoading('Saving quotation...');
   try{
     const savedNum=state.cotNumber;
     await saveToSheets(collectData());
     await saveAppliedDiscounts(savedNum, state.resNumber||'');
+    await saveAppliedOverrides(savedNum, state.resNumber||'');
     await loadAllQuotations();
     hideLoading();
     // B2: after saving, CLEAR the form (quoting is done; to reserve, load it back
@@ -1819,8 +2021,7 @@ async function saveQuotation(){
 }
 
 async function newQuotation(){
-  if(!confirm('Start new quotation? Current form will be cleared.'))return;
-  await resetForm();
+  showConfirm('New Quotation','Start new quotation? Current form will be cleared.',async()=>{await resetForm();});
 }
 
 // Clears the whole form and prepares a fresh quotation number. Used by
@@ -1853,6 +2054,7 @@ async function resetForm(){
   disc.fp={eligible:false,tier:'',pct:0,amount:0,checked:false};
   disc.manual={pct:0,reason:'',amount:0};
   state.status='new';state.resNumber=null;state.selectedDate=null;state.isExternalEvent=false;state.isLoaded=false;state.loadedSnapshot=null;
+  state.adminMode=false;state.adminReason='';state.pendingOverrides=[];
   ['dayOfWeek','guestRange','venuePriceDisplay','cateringPriceDisplay','decorCPPrice','extrasInfo','framesPrice','framesTablesDisplay'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
   ['framesInfoField','decorLegacyPrice','eventSubField'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
   ['p-venue','p-catering','p-decor','p-entertainment','p-photo'].forEach(id=>document.getElementById(id).textContent='—');
@@ -1863,8 +2065,9 @@ async function resetForm(){
   const ma=document.getElementById('manualDiscAmount');if(ma)ma.textContent='-$0';
   document.getElementById('p-subtotal').textContent='$0';document.getElementById('p-discounts-total').textContent='$0';
   document.getElementById('p-final').textContent='$0';
-  document.getElementById('cateringTrayDisplay').textContent='—';document.getElementById('statusPill').textContent='NEW';
+  document.getElementById('cateringTrayDisplay').textContent='—';document.getElementById('statusPill').textContent=statusLabel('draft');
   updateReserveButton();
+  applyStatusLock();
   document.getElementById('venueDiscountDisplay').style.display='none';
   ['venueTier','cateringLine','cateringPlan','entPlan','soundPlan','decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier','photoTier','photoShootPlan','printsPlan'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=false;});
   document.getElementById('decorHonorType').disabled=true;document.getElementById('decorHonorType').value='';
@@ -1876,7 +2079,7 @@ async function resetForm(){
   showLoading('Preparing new quotation...');
   await loadAllQuotations();await generateCotNumber();
   document.getElementById('createdDate').textContent=new Date().toLocaleDateString('en-US');
-  document.getElementById('cotNumber').textContent=state.cotNumber;
+  renderIdentity();
   hideLoading();
 }
 
@@ -1886,7 +2089,7 @@ async function openLoadModal(){
   document.getElementById('searchInput').value='';
   document.getElementById('searchResults').innerHTML='<div class="result-empty">Loading...</div>';
   await loadAllQuotations();
-  allLoadedQuotations=state.allQuotations.filter(q=>(q['Status']||'').toLowerCase()==='quoted').reverse();
+  allLoadedQuotations=state.allQuotations.filter(q=>['quoted','reserved'].includes((q['Status']||'').toLowerCase())).reverse();
   // Show only the last 10 by default (most recent first). Search looks across all.
   renderResults(allLoadedQuotations.slice(0,10));
   document.getElementById('searchInput').focus();
@@ -1894,8 +2097,14 @@ async function openLoadModal(){
 function filterResults(query){const q=query.toLowerCase().trim();renderResults(q?allLoadedQuotations.filter(r=>(r['COT#']||'').toLowerCase().includes(q)||(r['Client Name']||'').toLowerCase().includes(q)||(r['Event Date']||'').includes(q)):allLoadedQuotations.slice(0,10));}
 function renderResults(results){
   const c=document.getElementById('searchResults');
-  if(!results.length){c.innerHTML='<div class="result-empty">No quoted records found</div>';return;}
-  c.innerHTML=results.map(r=>`<div class="result-item" onclick="loadQuotation('${r['COT#']}')"><div class="result-client">${r['Client Name']||'—'}</div><div class="result-cot">${r['COT#']||''}</div><div class="result-meta">${r['Event Type']||''} &nbsp;·&nbsp; ${formatDateOnly(r['Event Date'])} &nbsp;·&nbsp; ${r['Guests']||0} guests &nbsp;·&nbsp; ${r['Final Total']||''}</div></div>`).join('');
+  if(!results.length){c.innerHTML='<div class="result-empty">No records found</div>';return;}
+  c.innerHTML=results.map(r=>{
+    const st=String(r['Status']||'quoted').toLowerCase();
+    const col=st==='reserved'?'#1E5C2E':(st==='date_change'?'#B85C00':'#A8863A');
+    const badge=`<span style="font-size:8px;font-weight:700;letter-spacing:1px;padding:1px 5px;margin-left:6px;border:1px solid ${col};color:${col}">${statusLabel(st)}</span>`;
+    const ids=(r['COT#']||'')+(r['RES#']?' · '+r['RES#']:'');
+    return `<div class="result-item" onclick="loadQuotation('${r['COT#']}')"><div class="result-client">${r['Client Name']||'—'}${badge}</div><div class="result-cot">${ids}</div><div class="result-meta">${r['Event Type']||''} &nbsp;·&nbsp; ${formatDateOnly(r['Event Date'])} &nbsp;·&nbsp; ${r['Guests']||0} guests &nbsp;·&nbsp; ${r['Final Total']||''} &nbsp;·&nbsp; <span onclick="event.stopPropagation();repeatEvent('${r['COT#']}')" style="color:#C9A84C;font-weight:600;cursor:pointer">&#x27F3; Repeat</span></div></div>`;
+  }).join('');
 }
 
 function loadQuotation(cotNum){
@@ -1925,7 +2134,7 @@ function loadQuotation(cotNum){
   // ── Step 2: Guests (needed for tables before decor/photo calc) ──
   document.getElementById('numGuests').value=rec['Guests']||'';
   const gv=parseInt(rec['Guests']);
-  if(!isNaN(gv)&&gv>=30&&gv<=120){
+  if(guestsInRange(gv)){
     state.numGuests=gv;state.guestRange=guestsToRange(gv);state.numTables=guestsToTables(gv);
     const labels={extra_small:'Extra Small (30–49)',small:'Small (50–69)',medium:'Medium (70–89)',large:'Large (90–120)'};
     const rEl=document.getElementById('guestRange');rEl.textContent=labels[state.guestRange]+' · '+state.numTables+' tables';rEl.style.display='inline-block';
@@ -2042,7 +2251,6 @@ function loadQuotation(cotNum){
   document.getElementById('photoShootPlan').value=rec['Photo Shoot']||'';
   document.getElementById('printsPlan').value=rec['Photo Prints']||'';
   setPhotoPlanInternal(photoPlanVal);
-  updatePhotoSaturdayRule();
 
   // ── Step 10: Restore discount checks. calcTotal (below, with isLoaded=false)
   // recomputes anchor prices from the loaded selections and eligibility. We then
@@ -2071,10 +2279,10 @@ function loadQuotation(cotNum){
   }catch(e){state.addons.entertainment=[];state.addons.photo=[];}
 
   // ── Step 11: State & metadata ──
-  state.cotNumber=rec['COT#'];state.status='quoted';
+  state.cotNumber=rec['COT#'];state.status=String(rec['Status']||'quoted').toLowerCase();state.resNumber=rec['RES#']||null;
   state.decorPlan=decorPlan;state.photoPlan=photoPlanVal;
-  document.getElementById('cotNumber').textContent=rec['COT#'];
-  document.getElementById('statusPill').textContent='LOADED';
+  renderIdentity();
+  applyStatusLock();
 
   // ── Step 12: recompute from loaded selections (isLoaded=false so anchor prices
   // and eligibility are rebuilt), then restore which discounts were checked.
@@ -2099,6 +2307,7 @@ function loadQuotation(cotNum){
   state.wasLoaded=true;
   state.loadedSnapshot={...collectData()};
   document.getElementById('btnExportPDF').style.display='inline-flex';
+  document.getElementById('btnRepeat').style.display='inline-flex';
   showToast('Loaded '+rec['COT#']+' — '+rec['Client Name'],'warn');
   validateLoadedDate();
   updateReserveButton();
@@ -2171,6 +2380,7 @@ function updateReserveButton(){
 async function confirmReservation(){
   if(state.status==='reserved'){showToast('Already reserved','warn');return;}
   if(!validateRequired()){showToast('Please fill all required fields first','error');return;}
+  if(!gateByRules())return;
   const eventDate=document.getElementById('eventDate').value;
   const isExternal=(state.eventLocation==='external');
   const dateAlreadyReserved=state.reservedDates.includes(eventDate);
@@ -2224,12 +2434,12 @@ async function confirmReservation(){
 
     // Record applied discounts for the reserved quote (append-only).
     await saveAppliedDiscounts(state.cotNumber, state.resNumber);
+    await saveAppliedOverrides(state.cotNumber, state.resNumber);
 
     await loadAllQuotations();hideLoading();
     state.isLoaded=false;state.loadedSnapshot=null;
-    document.getElementById('statusPill').textContent='RESERVED';
+    renderIdentity();
     updateReserveButton();
-    document.getElementById('cotNumber').textContent=state.cotNumber+' · '+state.resNumber;
     document.getElementById('btnExportPDF').style.display='inline-flex';
     showToast('✓ Reservation confirmed — '+state.resNumber,'success');
   });
