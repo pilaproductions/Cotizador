@@ -289,9 +289,9 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
       <div class="field-label">Tier</div>
       <select class="field-select" id="venueTier" onchange="onVenueTierChange()">
         <option value="">— Select —</option>
-        <option value="essential">Essential (Mon–Thu)</option>
-        <option value="elegant">Elegant (Fri/Sun)</option>
-        <option value="prestige">Prestige (Saturday)</option>
+        <option value="essential">Essential</option>
+        <option value="elegant">Elegant</option>
+        <option value="prestige">Prestige</option>
       </select>
       <span class="field-auto highlight" id="venuePriceDisplay" style="display:none"></span>
     </div>
@@ -795,6 +795,7 @@ window.onload=async()=>{
   await loadCatalogs();
   populateDynamicPrices();
   populateEventTypes();
+  labelVenueTierOptions();
   renderIdentity();
   applyGuestCapToInput();
   renderAddons('entertainment');
@@ -845,6 +846,42 @@ function applyGuestCapToInput(){
   if(err)err.textContent=txt+' only';
 }
 function adminMode(){return state.adminMode===true;}
+// Busca un valor en un grupo de reglas ignorando mayusculas en la clave.
+function ruleNum(group,name){
+  const g=ruleGroup(group), k=String(name||'').toLowerCase();
+  let out=0;
+  Object.keys(g).forEach(function(x){if(String(x).toLowerCase()===k)out=num(g[x]);});
+  return out;
+}
+// Dias de un tier segun day_tier, comparando por las 3 primeras letras
+// ('Sat' en la DB vs 'Saturday' en el estado).
+function tierDays(tier){
+  const dt=ruleGroup('day_tier'); let days='';
+  Object.keys(dt).forEach(function(x){if(String(x).toLowerCase()===String(tier).toLowerCase())days=String(dt[x]||'');});
+  return days;
+}
+// Piso de tier del dia: el dia habilita ese tier y todos los superiores.
+function venueTierFloor(){
+  const dt=ruleGroup('day_tier');
+  const day=String(state.dayOfWeek||'').slice(0,3).toLowerCase();
+  if(!day)return 0;
+  let floor=0;
+  Object.keys(dt).forEach(function(tier){
+    const days=String(dt[tier]||'').split(',').map(function(x){return x.trim().slice(0,3).toLowerCase();});
+    if(days.indexOf(day)>-1)floor=ruleNum('tier_rank',tier);
+  });
+  return floor;
+}
+function labelVenueTierOptions(){
+  const sel=document.getElementById('venueTier');
+  if(!sel)return;
+  for(let i=1;i<sel.options.length;i++){
+    const t=sel.options[i].value;
+    const name=t.charAt(0).toUpperCase()+t.slice(1);
+    const days=tierDays(t);
+    sel.options[i].textContent=days?(name+' ('+days+')'):name;
+  }
+}
 function adminRules(){return ruleGroup('admin_mode');}
 function adminEnabled(){return String(adminRules().enabled||'').trim().toUpperCase()==='Y';}
 function adminUser(){return state.adminUser||'admin';}
@@ -1261,16 +1298,13 @@ function setFullPackage(tier,btn){ /* deprecated: Full Package is now automatic 
 function updateVenueOptions(){
   if(state.isExternalEvent)return;
   const sel=document.getElementById('venueTier');
-  const day=state.dayOfWeek;
-  // El modo administrador reemplaza las dos excepciones viejas (VIP y Last
-  // Minute): con admin activo no hay restriccion de tier por dia.
+  // Piso por dia desde day_tier + tier_rank: sabado Prestige, viernes y domingo
+  // desde Elegant, lunes a jueves desde Essential. El modo administrador
+  // reemplaza las dos excepciones viejas (VIP y Last Minute) y lo levanta todo.
+  const floor=venueTierFloor();
   for(let i=1;i<sel.options.length;i++){
-    const t=sel.options[i].value;let allowed=true;
-    if(!adminMode()){
-      if(day==='Saturday')allowed=(t==='prestige');
-      else if(['Friday','Sunday'].includes(day))allowed=(t!=='essential');
-    }
-    sel.options[i].disabled=!allowed;
+    const rank=ruleNum('tier_rank',sel.options[i].value);
+    sel.options[i].disabled=!adminMode()&&floor>0&&rank>0&&rank<floor;
   }
 }
 
@@ -2514,7 +2548,7 @@ function generatePDF(){
   try{discDetail=JSON.parse(buildDiscountDetail());}catch(e){}
 
   // La etiqueta de cara al cliente es la de Business_Rules.event_type_labels.
-  let etLabel=state.eventTypeLabel||'Celebration';
+  let etLabel=ruleGroup('event_type_client')[state.eventTypeLabel]||state.eventTypeLabel||'Celebration';
 
   const vTier=document.getElementById('venueTier').value;
   const cLine=document.getElementById('cateringLine').value;
