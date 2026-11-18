@@ -208,7 +208,6 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
         <div class="field"><div class="field-label">Client Name <span class="req">*</span></div><input class="field-input" id="clientName" type="text" placeholder="Full name" oninput="formatTitleCase(this);clearErr('clientName')"><span class="field-error" id="err-clientName">Required</span></div>
         <div class="field"><div class="field-label">Phone Number <span class="req">*</span></div><input class="field-input" id="phone" type="text" placeholder="(000) 000-0000" oninput="formatPhone(this);clearErr('phone')"><span class="field-error" id="err-phone">Required</span></div>
         <div class="field"><div class="field-label">Email</div><input class="field-input" id="email" type="text" placeholder="client@email.com" oninput="this.value=this.value.toLowerCase()" onblur="validateEmail(this)"><span class="field-error" id="err-email">Invalid email</span></div>
-        <div class="field"><div class="field-label">Client Type</div><select class="field-select" id="clientType" onchange="onClientTypeChange()"><option value="standard">Standard</option><option value="vip">VIP</option></select></div>
         <div class="field">
           <div class="field-label">Event Location <span class="req">*</span></div>
           <select class="field-select" id="eventLocation" onchange="onEventLocationChange()">
@@ -246,18 +245,9 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
           <div class="field-label">Event Type <span class="req">*</span></div>
           <select class="field-select" id="eventType" onchange="onEventTypeChange()">
             <option value="">— Select —</option>
-            <option value="quinceanera">Quinceañera</option>
-            <option value="sweet16">Sweet 16</option>
-            <option value="wedding">Wedding</option>
-            <option value="babyshower">Baby Shower</option>
-            <option value="kidsparty">Kids Party</option>
-            <option value="birthday">Birthday Party</option>
-            <option value="special_social">Special Event Social</option>
-            <option value="special_corporate">Special Event Corporate</option>
           </select>
           <span class="field-error" id="err-eventType">Required</span>
         </div>
-        <div class="field" id="eventSubField" style="display:none"><div class="field-label">Specify Event</div><input class="field-input" id="eventSubType" type="text" placeholder="e.g. Graduation, First Communion..."></div>
       </div>
     </div>
 
@@ -278,7 +268,6 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
       </div>
     </div>
 
-    <div id="lastMinuteAlert" class="alert alert-warn">&#x26A0; Last Minute — Event within 15 days. Expanded options unlocked.</div>
     <div id="externalEventAlert" class="alert alert-ok" style="display:none">&#x2713; External Venue — Venue block disabled ($0). Discounts still apply.</div>
     <div id="saveDateBlockAlert" class="alert alert-error" style="display:none">&#x26D4; Date already has a Cardona Hall reservation. Pick another date or set Event Location to External.</div>
   </div>
@@ -697,8 +686,8 @@ function rebuildPriceStructures(){
 const state={
   cotNumber:null,resNumber:null,status:'new',isLoaded:false,loadedSnapshot:null,
   fullPackage:'na',decorPlan:'na',photoPlan:'na',
-  isLastMinute:false,dayOfWeek:null,guestRange:null,numTables:0,numGuests:0,
-  eventType:'',clientType:'standard',
+  dayOfWeek:null,guestRange:null,numTables:0,numGuests:0,
+  eventType:'',eventTypeLabel:'',
   eventLocation:'cardona_hall',
   wasLoaded:false,
   isExternalEvent:false,calOpen:false,
@@ -805,6 +794,7 @@ window.onload=async()=>{
   showLoading('Connecting to database...');
   await loadCatalogs();
   populateDynamicPrices();
+  populateEventTypes();
   renderIdentity();
   applyGuestCapToInput();
   renderAddons('entertainment');
@@ -1147,9 +1137,6 @@ function onDateChange(){
   state.dayOfWeek=days[d.getDay()];
   const dow=document.getElementById('dayOfWeek');dow.textContent=state.dayOfWeek;dow.style.display='inline-block';
   const today=new Date();today.setHours(0,0,0,0);
-  const diff=Math.ceil((d-today)/(1000*60*60*24));
-  state.isLastMinute=diff<=15&&diff>=0;
-  document.getElementById('lastMinuteAlert').classList.toggle('show',state.isLastMinute);
   clearErr('eventDate');
   updateVenueOptions();updateSoundOptions();updateEntDiscounts();calcTotal();
 }
@@ -1179,17 +1166,40 @@ function updateAutoTables(){
   document.getElementById('framesTablesDisplay').textContent=disp;
 }
 
+// El select muestra la ETIQUETA (Sweet 16) y guarda el VALOR INTERNO
+// (quinceanera), los dos desde Business_Rules.event_type_labels. Dos etiquetas
+// pueden compartir un valor interno; por eso la etiqueta va en el value del
+// option y el valor interno en data-internal.
+function populateEventTypes(){
+  const sel=document.getElementById('eventType');
+  const m=ruleGroup('event_type_labels');
+  const labels=Object.keys(m);
+  if(!sel||!labels.length)return;
+  const prev=sel.value;
+  sel.innerHTML='<option value="">\u2014 Select \u2014</option>'+labels.map(function(l){
+    return '<option value="'+l+'" data-internal="'+m[l]+'">'+l+'</option>';
+  }).join('');
+  if(prev)sel.value=prev;
+}
+function setEventTypeByLabel(label,internal){
+  const sel=document.getElementById('eventType');
+  if(!sel)return;
+  sel.value=label||'';
+  if(!sel.value&&internal){
+    for(let i=0;i<sel.options.length;i++){
+      if(String(sel.options[i].getAttribute('data-internal'))===String(internal)){sel.selectedIndex=i;break;}
+    }
+  }
+  onEventTypeChange();
+}
 function onEventTypeChange(){
-  state.eventType=document.getElementById('eventType').value;
-  const showSub=['special_social','special_corporate'].includes(state.eventType);
-  document.getElementById('eventSubField').style.display=showSub?'flex':'none';
+  const sel=document.getElementById('eventType');
+  const opt=sel.options[sel.selectedIndex];
+  state.eventTypeLabel=sel.value||'';
+  state.eventType=(opt&&opt.getAttribute('data-internal'))||'';
   updateFullPackageOptions();calcTotal();
 }
 
-function onClientTypeChange(){
-  state.clientType=document.getElementById('clientType').value;
-  calcTotal();
-}
 
 // B2.2 — Event Location (Cardona Hall / External Venue). Replaces the old
 // isExternalEvent "date-clash patch". External => Venue block disabled ($0),
@@ -1251,12 +1261,14 @@ function setFullPackage(tier,btn){ /* deprecated: Full Package is now automatic 
 function updateVenueOptions(){
   if(state.isExternalEvent)return;
   const sel=document.getElementById('venueTier');
-  const day=state.dayOfWeek;const isLM=state.isLastMinute;const isVIP=state.clientType==='vip';
+  const day=state.dayOfWeek;
+  // El modo administrador reemplaza las dos excepciones viejas (VIP y Last
+  // Minute): con admin activo no hay restriccion de tier por dia.
   for(let i=1;i<sel.options.length;i++){
     const t=sel.options[i].value;let allowed=true;
-    if(!isVIP){
-      if(day==='Saturday')allowed=(t==='prestige')||(isLM&&t==='elegant');
-      else if(['Friday','Sunday'].includes(day))allowed=(t!=='essential')||isLM;
+    if(!adminMode()){
+      if(day==='Saturday')allowed=(t==='prestige');
+      else if(['Friday','Sunday'].includes(day))allowed=(t!=='essential');
     }
     sel.options[i].disabled=!allowed;
   }
@@ -1296,7 +1308,7 @@ function onCateringLineChange(){markEdited();
 
 function updateCateringRules(){
   const line=document.getElementById('cateringLine').value;const day=state.dayOfWeek;const guests=state.numGuests;const vt=document.getElementById('venueTier').value;
-  if(state.clientType==='vip'||!line){hideAlert('cateringAlert');return;}
+  if(!line){hideAlert('cateringAlert');return;}
   if(line==='collection'){
     if(day==='Saturday'&&vt!=='prestige')showAlert('cateringAlert','Saturday + Catering Collection requires Venue Prestige.','warn');
     else if(['Friday','Sunday'].includes(day)&&guests>=70&&vt!=='prestige')showAlert('cateringAlert','70+ guests Fri/Sun with Catering Collection requires Venue Prestige.','warn');
@@ -1946,7 +1958,7 @@ function collectData(){
     'Country':document.getElementById('country').value,
     'State':document.getElementById('state').value,
     'City':document.getElementById('city').value,
-    'Client Type':document.getElementById('clientType').value,
+    'Client Type':'standard',
     'Phone':document.getElementById('phone').value,
     'Email':document.getElementById('email').value,
     'Event Date':document.getElementById('eventDate').value,
@@ -1955,8 +1967,8 @@ function collectData(){
     'Children':document.getElementById('numChildren').value||0,
     'Guest Range':state.guestRange||'',
     'Tables':state.numTables,
-    'Event Type':document.getElementById('eventType').value,
-    'Event Sub-Type':document.getElementById('eventSubType')?.value||'',
+    'Event Type':state.eventType||'',
+    'Event Sub-Type':state.eventTypeLabel||'',
     'Full Package':(disc.fp.eligible&&disc.fp.checked)?disc.fp.tier:'na',
     'Venue Tier':state.isExternalEvent?'EXTERNAL':document.getElementById('venueTier').value,
     'Catering Line':document.getElementById('cateringLine').value,
@@ -2056,7 +2068,7 @@ async function resetForm(){
   state.status='new';state.resNumber=null;state.selectedDate=null;state.isExternalEvent=false;state.isLoaded=false;state.loadedSnapshot=null;
   state.adminMode=false;state.adminReason='';state.pendingOverrides=[];
   ['dayOfWeek','guestRange','venuePriceDisplay','cateringPriceDisplay','decorCPPrice','extrasInfo','framesPrice','framesTablesDisplay'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
-  ['framesInfoField','decorLegacyPrice','eventSubField'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+  ['framesInfoField','decorLegacyPrice'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
   ['p-venue','p-catering','p-decor','p-entertainment','p-photo'].forEach(id=>document.getElementById(id).textContent='—');
   ['venue-header-price','catering-header-price','decor-header-price','ent-header-price','photo-header-price','fp-header-price','fp-header-discount'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='';});
   ['venueDiscountDisplay','cateringDiscountDisplay','decorDiscountDisplay','entDiscountDisplay','photoDiscountSummary','discountRows'].forEach(id=>{const el=document.getElementById(id);if(el){el.innerHTML='';el.style.display='none';}});
@@ -2065,6 +2077,7 @@ async function resetForm(){
   const ma=document.getElementById('manualDiscAmount');if(ma)ma.textContent='-$0';
   document.getElementById('p-subtotal').textContent='$0';document.getElementById('p-discounts-total').textContent='$0';
   document.getElementById('p-final').textContent='$0';
+  populateEventTypes();
   document.getElementById('cateringTrayDisplay').textContent='—';document.getElementById('statusPill').textContent=statusLabel('draft');
   updateReserveButton();
   applyStatusLock();
@@ -2121,11 +2134,9 @@ function loadQuotation(cotNum){
   document.getElementById('city').value=rec['City']||'';
   document.getElementById('phone').value=rec['Phone']||'';
   document.getElementById('email').value=rec['Email']||'';
-  document.getElementById('eventSubType').value=rec['Event Sub-Type']||'';
   document.getElementById('specialConditions').value=rec['Special Conditions']||'';
   document.getElementById('priceOverride').value=rec['Price Override']||'';
   document.getElementById('numChildren').value=rec['Children']||0;
-  document.getElementById('clientType').value=rec['Client Type']||'standard';
   // B2: loading a quotation is the RESERVE step → reveal Reservation Details
   // subsection (Country/State/City/Home Address) and load its values.
   const rd=document.getElementById('reservationDetails'); if(rd)rd.style.display='block';
@@ -2142,10 +2153,7 @@ function loadQuotation(cotNum){
   }
 
   // ── Step 3: Event type (needed for FP options) ──
-  document.getElementById('eventType').value=rec['Event Type']||'';
-  state.eventType=rec['Event Type']||'';
-  const showSub=['special_social','special_corporate'].includes(state.eventType);
-  document.getElementById('eventSubField').style.display=showSub?'flex':'none';
+  setEventTypeByLabel(rec['Event Sub-Type']||'', rec['Event Type']||'');
   updateFullPackageOptions();
 
   // ── Step 4: Date — set state only, no full onDateChange side effects ──
@@ -2475,7 +2483,6 @@ function generatePDF(){
   const clientName=document.getElementById('clientName').value||'—';
   const phone=document.getElementById('phone').value||'—';
   const email=document.getElementById('email').value||'';
-  const eventType=document.getElementById('eventType').value||'—';
   const eventDate=document.getElementById('eventDate').value||'—';
   const dayOfWeek=state.dayOfWeek||'—';
   const guests=state.numGuests||0;
@@ -2506,13 +2513,8 @@ function generatePDF(){
   let discDetail={};
   try{discDetail=JSON.parse(buildDiscountDetail());}catch(e){}
 
-  const etLabels={wedding:'A Wedding Celebration',quinceanera:'A Quinceañera Celebration',sweet16:'A Sweet 16 Celebration',baby_shower:'A Baby Shower',babyshower:'A Baby Shower',kids_party:'A Kids Party',kidsparty:'A Kids Party',birthday:'A Birthday Celebration',special_social:'A Special Celebration',special_corporate:'A Corporate Event'};
-  let etLabel=etLabels[eventType]||'A Celebration';
-  // Bug 2: for special/corporate, append the specified sub-type → "A Corporate Event — Graduation"
-  const _subType=(document.getElementById('eventSubType')?.value||'').trim();
-  if((eventType==='special_social'||eventType==='special_corporate')&&_subType){
-    etLabel=etLabel+' — '+_subType;
-  }
+  // La etiqueta de cara al cliente es la de Business_Rules.event_type_labels.
+  let etLabel=state.eventTypeLabel||'Celebration';
 
   const vTier=document.getElementById('venueTier').value;
   const cLine=document.getElementById('cateringLine').value;
