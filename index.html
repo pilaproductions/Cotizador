@@ -305,6 +305,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
 
 </div>
 <div class="step-pane" id="pane-3">
+<div id="includedPanel" style="margin:0 28px 14px"></div>
 <!-- BLOCK 3: VENUE -->
 <div class="block">
   <div class="block-header"><div class="block-num">3</div><div class="block-title">Venue &amp; Host Services</div><div class="block-price" id="venue-header-price"></div><div class="block-discount" id="venue-header-discount"></div></div>
@@ -751,7 +752,7 @@ function rebuildPriceStructures(){
 const state={
   cotNumber:null,resNumber:null,status:'new',isLoaded:false,loadedSnapshot:null,
   fullPackage:'na',decorPlan:'na',photoPlan:'na',
-  step:1,packageModified:false,applyingPackage:false,dayOfWeek:null,guestRange:null,numTables:0,numGuests:0,
+  step:1,savedTotal:0,includedSnapshot:'',repriceWarned:false,adjustments:{},addedLines:[],includedOpen:'',lockedOpen:'',packageModified:false,applyingPackage:false,dayOfWeek:null,guestRange:null,numTables:0,numGuests:0,
   eventType:'',eventTypeLabel:'',
   eventLocation:'cardona_hall',
   wasLoaded:false,
@@ -1313,6 +1314,14 @@ function renderRuleStatus(){
   if(!bar)return;
   const miss=missingRequired();
   const empty=emptyDivisions();
+  if(state.isLoaded&&state.wasLoaded){
+    bar.innerHTML='<span style="color:#185FA5">&#x1F512; PRECIOS DE LA COTIZACION ORIGINAL'+
+      (state.savedTotal?(' \u00b7 total guardado '+fmtMoney(state.savedTotal)):'')+
+      ' &nbsp;\u00b7&nbsp; al cambiar algo se repreciona con el catalogo de hoy</span>';
+    bar.style.background='#EFF5FC';
+    bar.style.display='block';
+    return;
+  }
   let v={blocks:[],warns:[]};
   try{v=validateQuote();}catch(e){}
   const parts=[];
@@ -1336,6 +1345,207 @@ function renderRuleStatus(){
   }
   bar.style.display='block';
 }
+// ── CONGELADO DEL CONTENIDO ─────────────────────────────────────────────────
+// La cotizacion guarda una copia de lo que incluia cada tier al momento de
+// venderse. Si manana cambias lo que trae un Prestige, el evento viejo sigue
+// documentandose con lo que realmente vendiste.
+function featuresFor(division,subdivision,tier){
+  if(!tier)return [];
+  const want=(division+'|'+(subdivision||'-')+'|'+tier).toLowerCase();
+  const idx=catalog.packageFeatures||{};
+  let out=[];
+  Object.keys(idx).forEach(function(k){if(k.toLowerCase()===want)out=idx[k];});
+  return out;
+}
+function currentIncludedRows(){
+  const rows=[];
+  includedGroups().forEach(function(g){
+    g.rows.forEach(function(f){
+      const a=adjOf(g.key,f.feature);
+      if(a&&a.action==='rem')rows.push([g.div,g.sub,g.tier,f.feature,f.value,f.show?1:0,'rem','']);
+      else if(a&&a.action==='chg')rows.push([g.div,g.sub,g.tier,f.feature,a.value,f.show?1:0,'chg',a.orig||f.value]);
+      else rows.push([g.div,g.sub,g.tier,f.feature,f.value,f.show?1:0,'','']);
+    });
+  });
+  // Add-Ons de Decor: el tier se guarda aunque no tenga lineas de features
+  featuresFor('Decor','Add-Ons',val('decorExtrasTier')).forEach(function(f){
+    rows.push(['Decor','Add-Ons',val('decorExtrasTier'),f.feature,f.value,f.show?1:0,'','']);
+  });
+  (state.addedLines||[]).forEach(function(l){
+    const p=String(l.key).split('|');
+    rows.push([p[0],p[1],p[2],l.text,'',1,'add','']);
+  });
+  return rows;
+}
+// Al cargar, los ajustes se reconstruyen de la copia guardada
+function restoreAdjustments(json){
+  state.adjustments={};state.addedLines=[];
+  let rows=[];
+  try{rows=JSON.parse(json||'[]');}catch(e){rows=[];}
+  rows.forEach(function(r){
+    const key=r[0]+'|'+r[1]+'|'+r[2];
+    if(r[6]==='rem')setAdj(key,r[3],{action:'rem'},true);
+    else if(r[6]==='chg')setAdj(key,r[3],{action:'chg',value:r[4],orig:r[7]},true);
+    else if(r[6]==='add')state.addedLines.push({key:key,text:r[3]});
+  });
+}
+function buildAdjustmentRows(cot,res){
+  const out=[];const ts=new Date().toISOString();let i=0;
+  Object.keys(state.adjustments||{}).forEach(function(key){
+    const p=key.split('|');
+    Object.keys(state.adjustments[key]).forEach(function(feat){
+      const a=state.adjustments[key][feat];i++;
+      out.push({'Adj_ID':'QA-'+Date.now()+'-'+i,'COT#':cot,'RES#':res||'','Timestamp':ts,
+        'Division':p[0],'Subdivision':p[1],'Feature':feat,
+        'Action':a.action==='rem'?'remove':'change','Old_Value':a.orig||'','New_Value':a.value||'',
+        'Note':'','User':adminMode()?adminUser():'','Active':'Y'});
+    });
+  });
+  (state.addedLines||[]).forEach(function(l){
+    const p=String(l.key).split('|');i++;
+    out.push({'Adj_ID':'QA-'+Date.now()+'-'+i,'COT#':cot,'RES#':res||'','Timestamp':ts,
+      'Division':p[0],'Subdivision':p[1],'Feature':l.text,'Action':'add','Old_Value':'','New_Value':'',
+      'Note':'','User':'','Active':'Y'});
+  });
+  return out;
+}
+async function saveQuoteAdjustments(cot,res){
+  const rows=buildAdjustmentRows(cot,res);
+  if(!rows.length)return;
+  await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',
+    body:JSON.stringify({action:'saveQuoteAdjustmentBatch',rows:rows}),
+    headers:{'Content-Type':'text/plain'}});
+}
+function buildIncludedSnapshot(){
+  // Si la cotizacion se cargo y no se ha tocado, se conserva la copia original.
+  if(state.isLoaded&&state.includedSnapshot)return state.includedSnapshot;
+  try{return JSON.stringify(currentIncludedRows());}catch(e){return '';}
+}
+// ── LISTA INCLUIDA ──────────────────────────────────────────────────────────
+// Muestra lo que trae cada tier (Package_Features) y permite quitar, cambiar un
+// valor o anadir una linea. Solo se toca lo marcado Adjustable = Y. Quitar no
+// baja el precio: es herramienta para negociar, no un calculo.
+function includedGroups(){
+  const g=[];
+  const add=function(div,sub,tier,label){
+    if(!tier)return;
+    g.push({key:div+'|'+(sub||'-')+'|'+tier,div:div,sub:sub||'-',tier:tier,label:label,
+            rows:featuresFor(div,sub,tier)});
+  };
+  if(!state.isExternalEvent)add('Venue','',val('venueTier'),'Venue');
+  add('Decor','Main Table',val('decorHonorTier'),'Decor \u00b7 Main Table');
+  add('Decor','Dining Table',val('decorDiningTier'),'Decor \u00b7 Dining Table');
+  add('Decor','Centerpieces',val('decorCPTier'),'Decor \u00b7 Centerpieces');
+  add('Entertainment','',val('entPlan')||val('soundPlan'),'Entertainment');
+  add('Photo','Coverage',val('photoTier'),'Photo \u00b7 Coverage');
+  add('Photo','Video',val('photoVideo'),'Photo \u00b7 Video');
+  add('Photo','Photo Shoot',val('photoShootPlan'),'Photo \u00b7 Photo Shoot');
+  return g;
+}
+function adjOf(key,feature){return ((state.adjustments||{})[key]||{})[feature]||null;}
+function setAdj(key,feature,obj,silent){
+  state.adjustments=state.adjustments||{};
+  state.adjustments[key]=state.adjustments[key]||{};
+  if(obj)state.adjustments[key][feature]=obj;
+  else delete state.adjustments[key][feature];
+  if(!silent){markEdited();renderIncluded();calcTotal();}
+}
+function toggleIncluded(key,feature,checked){setAdj(key,feature,checked?null:{action:'rem'});}
+function changeIncluded(key,feature,value,orig){
+  const v=String(value||'').trim();
+  setAdj(key,feature,(v&&v!==String(orig||''))?{action:'chg',value:v,orig:orig||''}:null);
+}
+function addIncludedLine(key,input){
+  const t=String(input.value||'').trim();
+  if(!t)return;
+  state.addedLines=state.addedLines||[];
+  state.addedLines.push({key:key,text:t});
+  input.value='';
+  markEdited();renderIncluded();calcTotal();
+}
+function removeAddedLine(i){
+  (state.addedLines||[]).splice(i,1);
+  markEdited();renderIncluded();calcTotal();
+}
+function openIncluded(key){
+  state.includedOpen=(state.includedOpen===key)?'':key;
+  renderIncluded();
+}
+function toggleLocked(key){
+  state.lockedOpen=(state.lockedOpen===key)?'':key;
+  renderIncluded();
+}
+function adjCount(key){
+  let n=Object.keys((state.adjustments||{})[key]||{}).length;
+  (state.addedLines||[]).forEach(function(l){if(l.key===key)n++;});
+  return n;
+}
+function renderIncluded(){
+  const wrap=document.getElementById('includedPanel');
+  if(!wrap)return;
+  const groups=includedGroups();
+  if(!groups.length){wrap.innerHTML='';return;}
+  const esc=function(t){return String(t==null?'':t).replace(/"/g,'&quot;').replace(/</g,'&lt;');};
+  let html='<div style="border:1px solid #E8E8E8;background:#FFF">'+
+    '<div style="padding:8px 14px;background:#FAFAFA;border-bottom:1px solid #E8E8E8;font-size:10px;letter-spacing:1.5px;color:#888">INCLUDED</div>';
+  groups.forEach(function(g){
+    const open=state.includedOpen===g.key;
+    const n=adjCount(g.key);
+    html+='<div style="border-bottom:1px solid #E8E8E8">'+
+      '<div onclick="openIncluded(\''+g.key+'\')" style="display:flex;align-items:center;gap:10px;padding:8px 14px;cursor:pointer;'+(open?'background:#FAFAFA':'')+'">'+
+      '<span style="font-size:11px;color:#AAA">'+(open?'\u25be':'\u25b8')+'</span>'+
+      '<span style="font-size:12px;flex:1">'+g.label+' \u00b7 <span style="color:#888">'+capitalize(g.tier)+'</span></span>'+
+      (n?'<span style="font-size:9px;font-weight:700;color:#B85C00;background:#FDF0E2;padding:2px 7px">'+n+' AJUSTES</span>':'')+
+      '<span style="font-size:10px;color:#AAA">'+g.rows.length+' l\u00edneas</span>'+
+      '</div>';
+    if(open){
+      const adj=g.rows.filter(function(f){return f.adjustable;});
+      const fixed=g.rows.filter(function(f){return !f.adjustable;});
+      adj.forEach(function(f){
+        const a=adjOf(g.key,f.feature);
+        const removed=a&&a.action==='rem';
+        const changed=a&&a.action==='chg';
+        html+='<div style="display:flex;align-items:center;gap:8px;padding:5px 14px 5px 32px;border-top:1px solid #F2F2F2;'+
+          (removed?'background:#FDF3F3':(changed?'background:#FDF6EE':''))+'">'+
+          '<input type="checkbox" '+(removed?'':'checked')+' onchange="toggleIncluded(\''+g.key+'\',\''+esc(f.feature)+'\',this.checked)" style="width:14px;height:14px;margin:0">'+
+          '<span style="font-size:12px;flex:1;'+(removed?'text-decoration:line-through;color:#A32D2D':'')+'">'+f.feature+'</span>'+
+          (removed?'<span style="font-size:9px;color:#A32D2D;letter-spacing:1px">RETIRADO</span>':
+            (changed?'<span style="font-size:10px;color:#B85C00;text-decoration:line-through">'+esc(a.orig)+'</span>':'')+
+            '<input type="text" value="'+esc(changed?a.value:f.value)+'" onchange="changeIncluded(\''+g.key+'\',\''+esc(f.feature)+'\',this.value,\''+esc(f.value)+'\')" style="width:170px;height:26px;font-size:11px">')+
+          '</div>';
+      });
+      (state.addedLines||[]).forEach(function(l,i){
+        if(l.key!==g.key)return;
+        html+='<div style="display:flex;align-items:center;gap:8px;padding:5px 14px 5px 32px;border-top:1px solid #F2F2F2;background:#F1F8F2">'+
+          '<span style="font-size:11px;color:#1E5C2E">+</span>'+
+          '<span style="font-size:12px;flex:1;color:#1E5C2E">'+esc(l.text)+'</span>'+
+          '<span style="font-size:9px;color:#1E5C2E;letter-spacing:1px">A\u00d1ADIDO</span>'+
+          '<button onclick="removeAddedLine('+i+')" style="width:22px;height:24px;background:none;border:1px solid #DDD;cursor:pointer;color:#A32D2D">\u2715</button>'+
+          '</div>';
+      });
+      html+='<div style="display:flex;align-items:center;gap:8px;padding:5px 14px 5px 32px;border-top:1px solid #F2F2F2">'+
+        '<span style="font-size:11px;color:#AAA">+</span>'+
+        '<input type="text" placeholder="A\u00f1adir l\u00ednea" onchange="addIncludedLine(\''+g.key+'\',this)" style="flex:1;height:26px;font-size:11px">'+
+        '</div>';
+      if(fixed.length){
+        const fo=state.lockedOpen===g.key;
+        html+='<div onclick="toggleLocked(\''+g.key+'\')" style="padding:5px 14px 5px 32px;border-top:1px solid #F2F2F2;font-size:10px;color:#888;cursor:pointer">'+
+          (fo?'\u25be':'\u25b8')+' '+fixed.length+' l\u00edneas fijas';
+        if(fo){
+          html+='<div style="margin-top:4px">';
+          fixed.forEach(function(f){
+            html+='<div style="display:flex;gap:8px;padding:3px 0"><span style="flex:1;color:#999">'+f.feature+'</span><span style="color:#BBB">'+esc(f.value)+'</span></div>';
+          });
+          html+='</div>';
+        }
+        html+='</div>';
+      }
+    }
+    html+='</div>';
+  });
+  html+='</div>';
+  wrap.innerHTML=html;
+}
 function goToStep(n){
   state.step=n;
   for(let i=1;i<=5;i++){
@@ -1345,7 +1555,7 @@ function goToStep(n){
   document.querySelectorAll('.step-btn').forEach(function(b){
     b.classList.toggle('active',String(b.getAttribute('data-step'))===String(n));
   });
-  window.scrollTo({top:0,behavior:'smooth'});
+  if(window.scrollTo)window.scrollTo({top:0,behavior:'smooth'});
 }
 function adminRules(){return ruleGroup('admin_mode');}
 function adminEnabled(){return String(adminRules().enabled||'').trim().toUpperCase()==='Y';}
@@ -1724,14 +1934,31 @@ function populateEventTypes(){
   }).join('');
   if(prev)sel.value=prev;
 }
+// Valores de tipo de evento guardados por el modelo viejo (sweet16,
+// special_social, special_corporate). El mapa vive en Business_Rules.
+// Formato del valor: "interno_nuevo|Etiqueta a mostrar".
+function eventTypeCompat(oldVal){
+  const m=ruleGroup('event_type_compat');
+  let hit='';
+  Object.keys(m).forEach(function(k){if(String(k).toLowerCase()===String(oldVal||'').toLowerCase())hit=String(m[k]||'');});
+  if(!hit)return null;
+  const parts=hit.split('|');
+  return {internal:(parts[0]||'').trim(),label:(parts[1]||'').trim()};
+}
 function setEventTypeByLabel(label,internal){
   const sel=document.getElementById('eventType');
   if(!sel)return;
-  sel.value=label||'';
-  if(!sel.value&&internal){
-    for(let i=0;i<sel.options.length;i++){
-      if(String(sel.options[i].getAttribute('data-internal'))===String(internal)){sel.selectedIndex=i;break;}
+  const pick=function(lbl,int){
+    if(lbl){sel.value=lbl;if(sel.value)return true;}
+    if(int)for(let i=0;i<sel.options.length;i++){
+      if(String(sel.options[i].getAttribute('data-internal'))===String(int)){sel.selectedIndex=i;return true;}
     }
+    return false;
+  };
+  sel.value='';
+  if(!pick(label,internal)){
+    const c=eventTypeCompat(internal);
+    if(c)pick(c.label,c.internal);
   }
   onEventTypeChange();
 }
@@ -2079,7 +2306,15 @@ function onSoundPlanChange(){
 // recomputes (the if(!isLoaded) guards stop blocking) and a later reservation
 // takes Path B (new COT#). Reservation Details do NOT call this.
 function markEdited(){
-  if(state.isLoaded){ state.isLoaded=false; }
+  if(state.isLoaded){
+    state.isLoaded=false;
+    // Al tocar algo se sale de los precios congelados y se repreciona con el
+    // catalogo de hoy. Se avisa una sola vez.
+    if(state.wasLoaded&&!state.repriceWarned){
+      state.repriceWarned=true;
+      showToast('Cotizacion modificada \u2014 se repreciona con el catalogo de hoy','warn');
+    }
+  }
   // El estado del paquete se recalcula comparando la composicion contra su
   // baseline: subir conserva el descuento, bajar lo pierde.
   if(state.fullPackage&&state.fullPackage!=='na'&&!state.applyingPackage){
@@ -2399,6 +2634,7 @@ function renderAddons(division){
 
 function calcTotal(){
   if(typeof renderRuleStatus==='function')setTimeout(renderRuleStatus,0);
+  if(typeof renderIncluded==='function')setTimeout(renderIncluded,0);
   const p=state.prices;
   const isExt=state.isExternalEvent;
 
@@ -2593,6 +2829,7 @@ function collectData(){
     'Manual Disc Pct':disc.manual.pct||'',
     'Manual Disc Reason':disc.manual.reason||'',
     'Addons Detail':JSON.stringify({entertainment:state.addons.entertainment,photo:state.addons.photo}),
+    'Included Snapshot':buildIncludedSnapshot(),
     'Price Override':document.getElementById('priceOverride').value,
     'Final Total':document.getElementById('p-final').textContent,
     'Discount Detail':buildDiscountDetail(),
@@ -2613,6 +2850,7 @@ async function saveQuotation(){
     await saveToSheets(collectData());
     await saveAppliedDiscounts(savedNum, state.resNumber||'');
     await saveAppliedOverrides(savedNum, state.resNumber||'');
+    await saveQuoteAdjustments(savedNum, state.resNumber||'');
     await loadAllQuotations();
     // La respuesta del POST es opaca (no-cors), asi que la unica prueba de que
     // se guardo es volver a leer la hoja y encontrar el COT#.
@@ -2663,6 +2901,8 @@ async function resetForm(){
   disc.fp={eligible:false,tier:'',pct:0,amount:0,checked:false};
   disc.manual={pct:0,reason:'',amount:0};
   state.status='new';state.resNumber=null;state.selectedDate=null;state.isExternalEvent=false;state.isLoaded=false;state.loadedSnapshot=null;
+  state.savedTotal=0;state.repriceWarned=false;state.includedSnapshot='';
+  state.adjustments={};state.addedLines=[];state.includedOpen='';state.lockedOpen='';
   state.adminMode=false;state.adminReason='';state.pendingOverrides=[];
   ['dayOfWeek','guestRange','venuePriceDisplay','cateringPriceDisplay','decorCPPrice','extrasInfo','framesPrice','framesTablesDisplay'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
   ['p-venue','p-catering','p-decor','p-entertainment','p-photo'].forEach(id=>document.getElementById(id).textContent='—');
@@ -2890,26 +3130,27 @@ function loadQuotation(cotNum){
   renderIdentity();
   applyStatusLock();
 
-  // ── Step 12: recompute from loaded selections (isLoaded=false so anchor prices
-  // and eligibility are rebuilt), then restore which discounts were checked.
-  state.isLoaded=false;
-  renderAddons('entertainment');renderAddons('photo');
-  calcTotal(); // computes disc.* eligibility + anchor prices
-  disc.venue.checked = savedDVenue>0 && disc.venue.eligible;
-  disc.catering.checked = savedDCatering>0 && disc.catering.eligible;
-  disc.decor.checked = savedDDecor>0 && disc.decor.eligible;
-  disc.entertainment.checked = savedDEnt>0 && disc.entertainment.eligible;
-  disc.photo.checked = savedDPhoto>0 && disc.photo.eligible;
-  disc.fp.checked = savedFP>0 && disc.fp.eligible;
-  // restore manual discount
+  // ── Step 12: PRECIOS CONGELADOS.
+  // Una cotizacion vieja se abre con los precios con los que se hizo, aunque el
+  // catalogo haya cambiado. Los handlers de arriba (catering, decor, ent) ya
+  // reescribieron state.prices con el catalogo de hoy, asi que se vuelven a
+  // poner los guardados y se deja isLoaded=true, que es lo que impide que
+  // calcTotal recalcule los anclajes.
   if(rec['Manual Disc Pct']){
     const mp=document.getElementById('manualDiscPct');if(mp)mp.value=rec['Manual Disc Pct'];
     const mr=document.getElementById('manualDiscReason');if(mr)mr.value=rec['Manual Disc Reason']||'';
   }
-  calcTotal(); // re-render with the restored checks applied
-
-  // Now lock as loaded (so reserving without changes takes Path A).
+  renderAddons('entertainment');renderAddons('photo');
+  state.prices.venue=parseFloat(rec['Price Venue'])||0;
+  state.prices.catering=parseFloat(rec['Price Catering'])||0;
+  state.prices.decor=parseFloat(rec['Price Decor'])||0;
+  state.prices.entertainment=parseFloat(rec['Price Entertainment'])||0;
+  state.prices.photo=parseFloat(rec['Price Photo'])||0;
+  state.savedTotal=parseFloat(rec['Final Total'])||0;
+  state.includedSnapshot=rec['Included Snapshot']||'';
+  restoreAdjustments(state.includedSnapshot);
   state.isLoaded=true;
+  calcTotal();
   state.wasLoaded=true;
   state.loadedSnapshot={...collectData()};
   document.getElementById('btnExportPDF').style.display='inline-flex';
@@ -3059,6 +3300,7 @@ async function confirmReservation(){
     // Record applied discounts for the reserved quote (append-only).
     await saveAppliedDiscounts(state.cotNumber, state.resNumber);
     await saveAppliedOverrides(state.cotNumber, state.resNumber);
+    await saveQuoteAdjustments(state.cotNumber, state.resNumber);
 
     await loadAllQuotations();hideLoading();
     state.isLoaded=false;state.loadedSnapshot=null;
