@@ -425,8 +425,6 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
       <div class="field-label">Sound System</div>
       <select class="field-select" id="soundPlan" onchange="onSoundPlanChange()">
         <option value="">— Select —</option>
-        <option value="soundlighting">Sound System — $400</option>
-        <option value="soundlightingplus">Sound &amp; Lighting — $550</option>
       </select>
       <span class="field-auto green" id="soundDiscountDisplay" style="display:none"></span>
     </div>
@@ -625,6 +623,9 @@ async function loadCatalogs(){
   rules.forEach(r=>{
     const g=r['Rule_Group'], k=String(r['Rule_Key']), v=r['Rule_Value'];
     if(!g)return;
+    // Una fila con Active en N no se lee. Vacio cuenta como activa.
+    const act=String(r['Active']==null?'':r['Active']).trim().toUpperCase();
+    if(act==='N'||act==='FALSE')return;
     (catalog.businessRules[g]=catalog.businessRules[g]||{})[k]=v;
     if(String(r['Overridable']||'').trim().toUpperCase()==='Y')catalog.ruleOverridable[g]=true;
   });
@@ -860,6 +861,7 @@ window.onload=async()=>{
   populateDynamicPrices();
   populateEventTypes();
   renderPhotoBundleBar();
+  renderSoundOptions();
   labelVenueTierOptions();
   labelChildrenNote();
   renderIdentity();
@@ -1297,18 +1299,36 @@ function missingRequired(){
     return el&&!String(el.value||'').trim();
   }).map(function(id){return REQUIRED_LABELS[id];});
 }
+function emptyDivisions(){
+  const out=[];
+  if(!state.isExternalEvent&&!val('venueTier'))out.push('Venue');
+  if(!val('cateringPlan'))out.push('Catering');
+  if(!state.decorPlan||state.decorPlan==='na')out.push('Decor');
+  if(!val('entPlan')&&!val('soundPlan'))out.push('Entertainment');
+  if(!val('photoTier')&&!val('photoVideo')&&!val('photoShootPlan'))out.push('Photo');
+  return out;
+}
 function renderRuleStatus(){
   const bar=document.getElementById('ruleStatusBar');
   if(!bar)return;
   const miss=missingRequired();
+  const empty=emptyDivisions();
   let v={blocks:[],warns:[]};
   try{v=validateQuote();}catch(e){}
   const parts=[];
   if(miss.length)parts.push('<span style="color:#8A8A8A">PENDIENTE &middot; '+miss.join(' &nbsp;&middot;&nbsp; ')+'</span>');
   if(v.blocks.length)parts.push('<span style="color:#A32D2D">BLOQUEA &middot; '+v.blocks.map(function(b){return b.msg;}).join(' &nbsp;&middot;&nbsp; ')+'</span>');
   if(v.warns.length)parts.push('<span style="color:#B85C00">AVISO &middot; '+v.warns.map(function(b){return b.msg;}).join(' &nbsp;&middot;&nbsp; ')+'</span>');
+  if(empty.length)parts.push('<span style="color:#8A8A8A">SIN ELEGIR &middot; '+empty.join(' &nbsp;&middot;&nbsp; ')+'</span>');
+  if(!v.blocks.length&&!miss.length){
+    bar.innerHTML='<span style="color:#1E5C2E">&#x2713; SE PUEDE GUARDAR</span>'+
+      (parts.length?(' &nbsp;&nbsp;|&nbsp;&nbsp; '+parts.join(' &nbsp;&nbsp;|&nbsp;&nbsp; ')):'');
+    bar.style.background=v.warns.length?'#FDF6EE':'#F3FAF4';
+    bar.style.display='block';
+    return;
+  }
   if(!parts.length){
-    bar.innerHTML='<span style="color:#1E5C2E">&#x2713; LISTO PARA GUARDAR</span>';
+    bar.innerHTML='<span style="color:#1E5C2E">&#x2713; SE PUEDE GUARDAR</span>';
     bar.style.background='#F3FAF4';
   } else {
     bar.innerHTML=parts.join(' &nbsp;&nbsp;|&nbsp;&nbsp; ');
@@ -1720,6 +1740,13 @@ function onEventTypeChange(){
   const opt=sel.options[sel.selectedIndex];
   state.eventTypeLabel=sel.value||'';
   state.eventType=(opt&&opt.getAttribute('data-internal'))||'';
+  // Sugerencia de estilo por tipo de evento: solo rellena lo que este vacio,
+  // nunca pisa lo que ya elegiste.
+  const style=decorStyleForEvent();
+  ['decorHonorType','decorCPType'].forEach(function(id){
+    const e=document.getElementById(id);
+    if(e&&!e.value&&!e.disabled)e.value=style;
+  });
   renderPackages();
   updateFullPackageOptions();calcTotal();
 }
@@ -2064,11 +2091,15 @@ function onEntPlanChange(){
   markEdited();
   const entVal=document.getElementById('entPlan').value;
   const soundSel=document.getElementById('soundPlan');
-  // Sound by tier (Business_Rules sound_map): Essential+Elegant → Sound System;
-  // Prestige+Legacy → Sound & Lighting. Values kept as soundlighting/soundlightingplus.
-  const soundMap={essential:'soundlighting',elegant:'soundlighting',prestige:'soundlightingplus',legacy:'soundlightingplus'};
+  // Que linea de sonido incluye cada plan: Business_Rules.sound_map
+  const sm=ruleGroup('sound_map');
+  const smGet=function(tier){
+    let out='';
+    Object.keys(sm).forEach(function(k){if(String(k).toLowerCase()===String(tier).toLowerCase())out=sm[k];});
+    return out;
+  };
   if(entVal){
-    soundSel.value=soundMap[entVal];
+    soundSel.value=soundKey(smGet(entVal));
     soundSel.disabled=true;
   } else {
     // back to "Not Applicable" → clear the auto-set sound too
@@ -2111,6 +2142,25 @@ function photoBundles(){
     if(k.indexOf('Photo|')===0){const lvl=k.slice(6);if(out.indexOf(lvl)<0)out.push(lvl);}
   });
   return out;
+}
+// Las dos lineas de sonido salen del catalogo, con sus claves nuevas y su
+// precio real. Antes estaban escritas en el HTML con claves viejas y $400/$550.
+function renderSoundOptions(){
+  const sel=document.getElementById('soundPlan');
+  if(!sel)return;
+  const S=catalog.SOUND||{};
+  const prev=sel.value;
+  sel.innerHTML='<option value="">\u2014 Select \u2014</option>'+
+    '<option value="sound_system">Sound System \u2014 '+fmtMoney(S.sound_system||0)+'</option>'+
+    '<option value="sound_lighting">Sound &amp; Lighting \u2014 '+fmtMoney(S.sound_lighting||0)+'</option>';
+  if(prev)sel.value=soundKey(prev);
+}
+// Claves viejas guardadas en cotizaciones anteriores, via Business_Rules.sound_compat
+function soundKey(v){
+  const k=String(v||'');
+  if(!k)return '';
+  const map=ruleGroup('sound_compat');
+  return map[k]||k;
 }
 function renderPhotoBundleBar(){
   const wrap=document.getElementById('photoTierBtns');
@@ -2628,6 +2678,7 @@ async function resetForm(){
   updateReserveButton();
   applyStatusLock();
   if(typeof renderPackages==='function'){renderPackages();renderPackageWarn();}
+  goToStep(1);
   document.getElementById('venueDiscountDisplay').style.display='none';
   ['venueTier','cateringLine','cateringPlan','entPlan','soundPlan','decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier','photoTier','photoVideo','photoShootPlan'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=false;});
   document.getElementById('decorHonorType').disabled=true;document.getElementById('decorHonorType').value='';
@@ -2790,7 +2841,7 @@ function loadQuotation(cotNum){
   document.getElementById('entPlan').value=entPlanVal;
   // Se restaura lo que se guardo, no un mapa inventado. Con un plan de
   // entretenimiento el sonido va incluido, asi que el select queda bloqueado.
-  soundSel.value=rec['Sound Plan']||'';
+  soundSel.value=soundKey(rec['Sound Plan']||'');
   soundSel.disabled=!!entPlanVal;
   updateEntDiscounts();
 
@@ -2864,6 +2915,7 @@ function loadQuotation(cotNum){
   document.getElementById('btnExportPDF').style.display='inline-flex';
   // Repeat Event solo tiene sentido sobre una reservada: la cotizada se edita.
   document.getElementById('btnRepeat').style.display=isLockedStatus()?'inline-flex':'none';
+  goToStep(1);
   showToast('Loaded '+rec['COT#']+' — '+rec['Client Name'],'warn');
   validateLoadedDate();
   updateReserveButton();
