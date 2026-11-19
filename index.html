@@ -179,6 +179,22 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
 <div class="loading-overlay" id="loadingOverlay"><div class="loading-box"><div class="loading-spinner"></div><div id="loadingMsg">Loading...</div></div></div>
 <div class="confirm-overlay" id="confirmOverlay"><div class="confirm-box"><div class="confirm-title" id="confirmTitle">Confirm</div><div class="confirm-msg" id="confirmMsg"></div><div class="confirm-btns"><button class="confirm-no" id="confirmNo">No</button><button class="confirm-yes" id="confirmYes">Yes</button></div></div></div>
 <div class="modal-overlay" id="loadModal"><div class="modal"><div class="modal-header"><div class="modal-title">Load Quotation</div><button class="modal-close" onclick="closeModal()">&times;</button></div><div class="modal-body"><div class="modal-search"><input type="text" id="searchInput" placeholder="Search by COT# or client name..." oninput="filterResults(this.value)"><button onclick="filterResults(document.getElementById('searchInput').value)">Search</button></div><div class="modal-results" id="searchResults"><div class="result-empty">Loading...</div></div></div></div></div>
+<div class="modal-overlay" id="resModal"><div class="modal" style="max-width:580px"><div class="modal-header"><div class="modal-title">Reservation Details</div><button class="modal-close" onclick="closeResModal()">&times;</button></div><div class="modal-body">
+  <div class="grid-2">
+    <div>
+      <div class="field"><div class="field-label">Country of Origin</div><input class="field-input" id="country" type="text" placeholder="e.g. Colombia" oninput="onlyLettersSpaces(this)"></div>
+      <div class="field"><div class="field-label">State</div><input class="field-input" id="state" type="text" placeholder="e.g. New Jersey" oninput="onlyLettersSpaces(this)"></div>
+      <div class="field"><div class="field-label">Event Start Time <span class="req">*</span></div><input class="field-input" id="eventStartTime" type="time" style="max-width:140px"></div>
+    </div>
+    <div>
+      <div class="field"><div class="field-label">City</div><input class="field-input" id="city" type="text" placeholder="e.g. Passaic" oninput="onlyLettersSpaces(this)"></div>
+      <div class="field"><div class="field-label">Client Home Address</div><input class="field-input" id="clientHomeAddress" type="text" placeholder="Street, number, apt"></div>
+      <div class="field"><div class="field-label">Event End Time <span class="req">*</span></div><input class="field-input" id="eventEndTime" type="time" style="max-width:140px"></div>
+    </div>
+  </div>
+  <div id="resModalErr" style="display:none;font-size:10px;font-weight:600;color:var(--red);margin:6px 0"></div>
+  <div class="confirm-btns" style="margin-top:12px"><button class="confirm-no" onclick="closeResModal()">Cancel</button><button class="confirm-yes" onclick="confirmReservationGo()">Confirm Reservation</button></div>
+</div></div></div>
 <div class="modal-overlay" id="adminModal"><div class="modal" style="max-width:400px"><div class="modal-header"><div class="modal-title">Administrator Mode</div><button class="modal-close" onclick="closeAdminModal()">&times;</button></div><div class="modal-body">
   <div class="field" id="adminPinField"><div class="field-label">PIN</div><input class="field-input" id="adminPin" type="password" inputmode="numeric" autocomplete="off" style="max-width:120px"></div>
   <div class="field" id="adminReasonField"><div class="field-label">Reason</div><input class="field-input" id="adminReason" type="text" placeholder="Why a rule is being skipped"></div>
@@ -199,7 +215,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
   <button class="btn btn-gold" id="btnSave" onclick="saveQuotation()">&#x2713; Save Quotation</button>
   <button class="btn btn-outline" onclick="openLoadModal()">&#x21BA; Load Quotation</button>
   <button class="btn btn-ghost" onclick="newQuotation()">+ New Quotation</button>
-  <button class="btn btn-reserve" id="btnReserve" onclick="confirmReservation()">&#x2605; Confirm Reservation</button>
+  <button class="btn btn-reserve" id="btnReserve" onclick="openResModal()">&#x2605; Confirm Reservation</button>
   <button class="btn btn-pdf" id="btnExportPDF" onclick="generatePDF()" style="display:none">&#x21E9; Export PDF</button>
   <button class="btn btn-outline" id="btnRepeat" onclick="repeatEvent()" style="display:none">&#x27F3; Repeat Event</button>
 </div>
@@ -261,23 +277,6 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
             <option value="">— Select —</option>
           </select>
           <span class="field-error" id="err-eventType">Required</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- B2: Reservation Details — progressive subsection, shown only when a
-         quotation is LOADED (to reserve), hidden on a new quotation. Country/
-         State/City/Home Address are metrics + contract data, not needed to quote. -->
-    <div id="reservationDetails" style="display:none;margin-top:14px;padding-top:12px;border-top:1px solid var(--gold-border)">
-      <div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--gold);margin-bottom:10px;font-weight:600">Reservation Details</div>
-      <div class="grid-2">
-        <div>
-          <div class="field"><div class="field-label">Country of Origin</div><input class="field-input" id="country" type="text" placeholder="e.g. Colombia" oninput="onlyLettersSpaces(this)"></div>
-          <div class="field"><div class="field-label">State</div><input class="field-input" id="state" type="text" placeholder="e.g. New Jersey" oninput="onlyLettersSpaces(this)"></div>
-        </div>
-        <div>
-          <div class="field"><div class="field-label">City</div><input class="field-input" id="city" type="text" placeholder="e.g. Passaic" oninput="onlyLettersSpaces(this)"></div>
-          <div class="field"><div class="field-label">Client Home Address</div><input class="field-input" id="clientHomeAddress" type="text" placeholder="Street, number, apt" style="max-width:280px"></div>
         </div>
       </div>
     </div>
@@ -1094,15 +1093,16 @@ function renderPackages(){
   wrap.innerHTML=list.map(function(p){
     const pr=packageAnchorPrice(p);
     const sel=state.fullPackage===p['Package_ID'];
+    const mod=sel&&state.packageModified;
     const parts=[p['Venue']?'Venue '+p['Venue']:'',p['Catering']||'',p['Decor']?'Decor '+p['Decor']:'',
       p['Entertainment']||'',p['Photo']||''].filter(function(x){return x;}).join(' \u00b7 ');
     const priceTxt=!pr.ready?'Falta invitados':(pr.custom?('desde '+fmtMoney(pr.total)+' + Decor a definir'):fmtMoney(pr.total));
-    return '<div style="border:1px solid '+(sel?'#C9A84C':'#E8E8E8')+';background:'+(sel?'#FDF8EE':'#FFF')+';padding:10px 14px;margin-bottom:8px">'+
+    return '<div style="border:1px solid '+(mod?'#B85C00':(sel?'#C9A84C':'#E8E8E8'))+';background:'+(sel?'#FDF8EE':'#FFF')+';padding:10px 14px;margin-bottom:8px">'+
       '<div style="display:flex;align-items:baseline;gap:10px">'+
       '<span style="font-family:\'Cormorant Garamond\',serif;font-size:15px;font-weight:600">'+(p['Name']||p['Package_ID'])+'</span>'+
       '<span style="font-size:10px;color:#888;font-style:italic;flex:1">'+(p['Tagline']||'')+'</span>'+
       '<span style="font-size:13px;font-weight:700;color:#1A1A1A">'+priceTxt+'</span>'+
-      '<button class="btn '+(sel?'btn-gold':'btn-outline')+'" onclick="applyPackage(\''+p['Package_ID']+'\')">'+(sel?'Selected':'Select')+'</button>'+
+      '<button class="btn '+(mod?'btn-outline':(sel?'btn-gold':'btn-outline'))+'" style="'+(mod?'border-color:#B85C00;color:#B85C00':'')+'" onclick="applyPackage(\''+p['Package_ID']+'\')">'+(mod?'Modified \u00b7 reapply':(sel?'Selected':'Select'))+'</button>'+
       '</div>'+
       '<div style="font-size:10px;color:#666;letter-spacing:0.3px;margin-top:4px">'+parts+'</div>'+
       '</div>';
@@ -1532,7 +1532,7 @@ function updateAutoTables(){
   const disp=t?t+' tables':'—';
   document.getElementById('decorDiningTablesDisplay').textContent=disp;
   document.getElementById('decorCPTablesDisplay').textContent=disp;
-  document.getElementById('framesTablesDisplay').textContent=disp;
+  const ftd=document.getElementById('framesTablesDisplay');if(ftd)ftd.textContent=disp;
 }
 
 // El select muestra la ETIQUETA (Sweet 16) y guarda el VALOR INTERNO
@@ -1960,6 +1960,11 @@ function setPhotoPlanInternal(bundle){
   const sho=document.getElementById('photoShootPlan');
   [cov,vid,sho].forEach(function(el){if(el)el.disabled=false;});
   const rows=(catalog.packageLevels||{})['Photo|'+bundle];
+  if(!rows){
+    // Not Applicable: se limpian las tres subdivisiones y los add-ons de photo
+    if(cov)cov.value='';if(vid)vid.value='';if(sho)sho.value='';
+    state.addons.photo=[];
+  }
   if(rows){
     cov.value='';vid.value='';sho.value='';
     state.addons.photo=[];
@@ -2244,13 +2249,9 @@ function renderCategoryDiscountChecks(){
   Object.keys(map).forEach(k=>{
     const cfg=map[k];const el=document.getElementById(cfg.el);if(!el)return;
     const dc=disc[k];
-    if(dc.eligible&&dc.amount>0){
-      el.style.display='block';
-      el.innerHTML=`<label style="display:flex;align-items:center;gap:8px;font-size:11px;cursor:pointer;color:#6EC98A;padding:4px 0">
-        <input type="checkbox" ${dc.checked?'checked':''} onchange="toggleCatDiscount('${k}',this.checked)" style="width:14px;height:14px;accent-color:#C9A84C;margin:0">
-        <span>${cfg.label} ${dc.pct}% &nbsp;→&nbsp; <strong>-${fmtMoney(dc.amount)}</strong></span>
-      </label>`;
-    } else { el.style.display='none'; el.innerHTML=''; }
+    // Los checks de descuento por categoria salen: el modelo se reemplaza por
+    // descuento por paquete. Hasta entonces solo queda el descuento manual.
+    el.style.display='none'; el.innerHTML='';
   });
 }
 
@@ -2289,27 +2290,7 @@ function renderDiscountsSummary(anchorSubtotal,appliedCat,fpAmount,manualAmount,
   if(rowsEl){
     const rows=[];
     const catLabels={venue:'Venue',catering:'Catering',decor:'Decor',entertainment:'Entertainment',photo:'Photo'};
-    ['venue','catering','decor','entertainment','photo'].forEach(k=>{
-      const dc=disc[k];
-      if(dc.eligible&&dc.amount>0){
-        const active=dc.checked;
-        rows.push(`<div style="display:flex;align-items:center;padding:4px 0;font-size:12px;${active?'':'opacity:0.45'}">
-          <input type="checkbox" ${active?'checked':''} onchange="toggleCatDiscount('${k}',this.checked)" style="width:13px;height:13px;accent-color:#C9A84C;margin-right:8px">
-          <span style="flex:1;color:#AAA">${catLabels[k]} — ${dc.pct}%</span>
-          <span style="color:${active?'#6EC98A':'#666'};font-weight:600">-${fmtMoney(dc.amount)}</span>
-        </div>`);
-      }
-    });
-    // Full Package strip
-    if(disc.fp.eligible&&disc.fp.amount>0){
-      const active=disc.fp.checked;
-      const tierName={essential:'Essential',elegant:'Elegant',prestige:'Prestige',legacy:'Legacy'}[disc.fp.tier]||disc.fp.tier;
-      rows.push(`<div style="display:flex;align-items:center;padding:6px 8px;margin:6px 0;background:#1a1608;border:1px solid #C9A84C33;border-radius:6px;font-size:12px;${active?'':'opacity:0.55'}">
-        <input type="checkbox" ${active?'checked':''} onchange="toggleFullPackage(this.checked)" style="width:13px;height:13px;accent-color:#C9A84C;margin-right:8px">
-        <span style="flex:1;color:#C9A84C">&#9733; Full Package — ${tierName} (${disc.fp.pct}%)</span>
-        <span style="color:#C9A84C;font-weight:600">-${fmtMoney(disc.fp.amount)}</span>
-      </div>`);
-    }
+    
     rowsEl.innerHTML=rows.join('');
     rowsEl.style.display='block'; // reset may have hidden it; ensure visible
     // manual row is a FIXED element (not regenerated) to preserve input focus.
@@ -2375,6 +2356,8 @@ function collectData(){
     'Photo Video':document.getElementById('photoVideo').value,
     'Photo Shoot':document.getElementById('photoShootPlan').value,
     'Photo Prints':'',
+    'Event Start Time':(document.getElementById('eventStartTime')||{}).value||'',
+    'Event End Time':(document.getElementById('eventEndTime')||{}).value||'',
     'Special Conditions':document.getElementById('specialConditions').value,
     'Price Venue':state.prices.venue,
     'Price Catering':state.prices.catering,
@@ -2443,7 +2426,6 @@ async function resetForm(){
   state.wasLoaded=false;
   const locSel=document.getElementById('eventLocation'); if(locSel)locSel.value='cardona_hall';
   document.getElementById('externalAddressField').style.display='none';
-  const rd=document.getElementById('reservationDetails'); if(rd)rd.style.display='none';
   document.querySelectorAll('.tier-btn').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll('.tier-btn.na').forEach(b=>b.classList.add('active'));
   document.querySelectorAll('.alert').forEach(a=>a.className='alert');
@@ -2475,6 +2457,7 @@ async function resetForm(){
   document.getElementById('cateringTrayDisplay').textContent='—';document.getElementById('statusPill').textContent=statusLabel('draft');
   updateReserveButton();
   applyStatusLock();
+  if(typeof renderPackages==='function'){renderPackages();renderPackageWarn();}
   document.getElementById('venueDiscountDisplay').style.display='none';
   ['venueTier','cateringLine','cateringPlan','entPlan','soundPlan','decorHonorTier','decorDiningTier','decorCPTier','decorExtrasTier','photoTier','photoVideo','photoShootPlan'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=false;});
   document.getElementById('decorHonorType').disabled=true;document.getElementById('decorHonorType').value='';
@@ -2533,8 +2516,9 @@ function loadQuotation(cotNum){
   document.getElementById('numChildren').value=rec['Children']||0;
   // B2: loading a quotation is the RESERVE step → reveal Reservation Details
   // subsection (Country/State/City/Home Address) and load its values.
-  const rd=document.getElementById('reservationDetails'); if(rd)rd.style.display='block';
   if(document.getElementById('clientHomeAddress'))document.getElementById('clientHomeAddress').value=rec['Client Home Address']||'';
+  if(document.getElementById('eventStartTime'))document.getElementById('eventStartTime').value=rec['Event Start Time']||'';
+  if(document.getElementById('eventEndTime'))document.getElementById('eventEndTime').value=rec['Event End Time']||'';
 
   // ── Step 2: Guests (needed for tables before decor/photo calc) ──
   document.getElementById('numGuests').value=rec['Guests']||'';
@@ -2629,17 +2613,11 @@ function loadQuotation(cotNum){
   // ── Step 8: Block 6 — Entertainment ──
   const entPlanVal=rec['Entertainment Plan']||'';
   const soundSel=document.getElementById('soundPlan');
-  const soundAutoMap={essential:'soundlighting',elegant:'soundlightingplus',prestige:'soundlightingplus',legacy:'soundlightingplus'};
   document.getElementById('entPlan').value=entPlanVal;
-  if(entPlanVal){
-    soundSel.value=soundAutoMap[entPlanVal];
-    soundSel.disabled=true;
-    /* damage alert removed */
-  } else {
-    soundSel.value=rec['Sound Plan']||'';
-    soundSel.disabled=false;
-    /* damage alert removed */
-  }
+  // Se restaura lo que se guardo, no un mapa inventado. Con un plan de
+  // entretenimiento el sonido va incluido, asi que el select queda bloqueado.
+  soundSel.value=rec['Sound Plan']||'';
+  soundSel.disabled=!!entPlanVal;
   updateEntDiscounts();
 
   // ── Step 9: Block 7 — Photo ──
@@ -2780,6 +2758,22 @@ function updateReserveButton(){
   btn.title=reason||'Confirm reservation';
 }
 
+function openResModal(){
+  if(state.status==='reserved'){showToast('Already reserved','warn');return;}
+  if(!validateRequired()){showToast('Please fill all required fields first','error');return;}
+  if(!gateByRules())return;
+  const err=document.getElementById('resModalErr');if(err)err.style.display='none';
+  document.getElementById('resModal').classList.add('show');
+}
+function closeResModal(){document.getElementById('resModal').classList.remove('show');}
+async function confirmReservationGo(){
+  const st=document.getElementById('eventStartTime').value;
+  const en=document.getElementById('eventEndTime').value;
+  const err=document.getElementById('resModalErr');
+  if(!st||!en){err.textContent='Start and end time are required';err.style.display='block';return;}
+  closeResModal();
+  await confirmReservation();
+}
 async function confirmReservation(){
   if(state.status==='reserved'){showToast('Already reserved','warn');return;}
   if(!validateRequired()){showToast('Please fill all required fields first','error');return;}
