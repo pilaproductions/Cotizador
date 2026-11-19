@@ -663,6 +663,8 @@ async function loadCatalogs(){
       const line=String(r['Line']||''), tier=String(r['Tier']||'');
       catalog.cateringQtyName=catalog.cateringQtyName||{};
       catalog.cateringQtyName[short]=(line===tier||line==='Collection')?tier:(line+' '+tier);
+      catalog.cateringModel=catalog.cateringModel||{};
+      catalog.cateringModel[short]=String(r['Model']||'choice');
     }
   });
 
@@ -1450,17 +1452,71 @@ function buildIncludedSnapshot(){
 // Muestra lo que trae cada tier (Package_Features) y permite quitar, cambiar un
 // valor o anadir una linea. Solo se toca lo marcado Adjustable = Y. Quitar no
 // baja el precio: es herramienta para negociar, no un calculo.
+// Convierte las cantidades del rango actual en lineas de la lista.
+// Cantidad 0 = no viene en ese tier, igual que un Value vacio en Package_Features.
+function cateringFeatureRows(plan){
+  const tname=((catalog.cateringQtyName||{})[plan])||'';
+  const rows=((catalog.cateringQty||{})[tname])||[];
+  if(!rows.length)return [];
+  const g=num(state.numGuests);
+  let R=cateringRangeId(g);
+  if(!R){
+    const rr=catalog.cateringRanges||[];
+    if(!rr.length||g<rr[0].min)return [];
+    R=rr[rr.length-1].id;
+  }
+  const fixed=String((catalog.cateringModel||{})[plan])==='fixed';
+  const stars=num((catalog.cateringStars||{})[plan]);
+  return rows.map(function(r){
+    const q=num(r.byR[R]);
+    const line={feature:catLabel(r.cat),value:'',show:true,adjustable:false,sort:0};
+    if(!q)return line;
+    // Menu fijo: las cantidades son medias bandejas de cocina, no van al cliente.
+    if(fixed){ line.value='Included'; return line; }
+    if(r.type==='mains'){
+      line.value='choose '+q;
+      const st=Math.min(stars,q);
+      if(st)line.badge=st+' Star Dish'+(st>1?'es':'');
+    }
+    else if(r.type==='sides')line.value='choose '+q;
+    else if(r.type==='included'||q===1)line.value='Included';
+    else line.value=String(q);
+    return line;
+  });
+}
 function includedGroups(){
   const g=[];
   const add=function(div,sub,tier,label){
     if(!tier)return;
-    g.push({key:div+'|'+(sub||'-')+'|'+tier,div:div,sub:sub||'-',tier:tier,label:label,
-            rows:featuresFor(div,sub,tier)});
+    let rows=featuresFor(div,sub,tier);
+    if(div==='Decor'&&sub==='Add-Ons'){
+      rows=rows.map(function(f){
+        const raw=String(f.value==null?'':f.value).trim();
+        if(raw===''||isNaN(Number(raw)))return f;
+        return {feature:f.feature,value:num(raw)+' to choose',show:f.show,adjustable:f.adjustable,sort:f.sort};
+      });
+    }
+    g.push({key:div+'|'+(sub||'-')+'|'+tier,div:div,sub:sub||'-',tier:tier,label:label,rows:rows});
   };
   if(!state.isExternalEvent)add('Venue','',val('venueTier'),'Venue');
+  // Catering no vive en Package_Features: lo que el cliente ve incluido son las
+  // cantidades de Catering_Quantities para su rango de invitados.
+  const cPlan=val('cateringPlan');
+  if(cPlan){
+    const cTier=(catalog.cateringQtyName||{})[cPlan]||'';
+    const cRows=cateringFeatureRows(cPlan);
+    if(cTier&&cRows.length){
+      const fixed=String((catalog.cateringModel||{})[cPlan])==='fixed';
+      const gt=num(state.numGuests);
+      const note=fixed?'fixed menu':((cateringRangeId(gt)||'')+' \u00b7 '+gt+' guests');
+      g.push({key:'Catering|-|'+cTier,div:'Catering',sub:'-',tier:cTier,
+              label:'Catering',rows:cRows,note:note});
+    }
+  }
   add('Decor','Main Table',val('decorHonorTier'),'Decor \u00b7 Main Table');
   add('Decor','Dining Table',val('decorDiningTier'),'Decor \u00b7 Dining Table');
   add('Decor','Centerpieces',val('decorCPTier'),'Decor \u00b7 Centerpieces');
+  add('Decor','Add-Ons',val('decorExtrasTier'),'Decor \u00b7 Add-Ons');
   add('Entertainment','',val('entPlan')||val('soundPlan'),'Entertainment');
   add('Photo','Coverage',val('photoTier'),'Photo \u00b7 Coverage');
   add('Photo','Video',val('photoVideo'),'Photo \u00b7 Video');
@@ -1513,7 +1569,7 @@ function lineIncluded(f){return String(f.value==null?'':f.value).trim()!=='';}
 function renderIncluded(){
   const wrap=document.getElementById('includedPanel');
   if(!wrap)return;
-  const groups=includedGroups();
+  const groups=includedGroups().filter(function(g){return g.rows.length;});
   if(!groups.length){wrap.innerHTML='';return;}
   const esc=function(t){return String(t==null?'':t).replace(/"/g,'&quot;').replace(/</g,'&lt;');};
   let html='<div style="border:1px solid #E8E8E8;background:#FFF">'+
@@ -1528,7 +1584,7 @@ function renderIncluded(){
       '<span style="font-size:11px;color:#AAA">'+(open?'\u25be':'\u25b8')+'</span>'+
       '<span style="font-size:12px;flex:1">'+g.label+' \u00b7 <span style="color:#888">'+capitalize(g.tier)+'</span></span>'+
       (n?'<span style="font-size:9px;font-weight:700;color:#B85C00;background:#FDF0E2;padding:2px 7px">'+n+' AJUSTES</span>':'')+
-      '<span style="font-size:10px;color:#AAA">'+inc.length+' incluidas</span>'+
+      '<span style="font-size:10px;color:#AAA">'+(g.note?esc(g.note):(inc.length+' incluidas'))+'</span>'+
       '</div>';
     if(open){
       const editable=inc.filter(function(f){return f.adjustable;});
@@ -1544,6 +1600,7 @@ function renderIncluded(){
           '<span style="font-size:12px;flex:1;'+(removed?'text-decoration:line-through;color:#A32D2D':'')+'">'+f.feature+'</span>';
         if(removed)html+='<span style="font-size:9px;color:#A32D2D;letter-spacing:1px">RETIRADO</span>';
         else if(flag)html+='';
+        if(!removed&&f.badge)html+='<span style="font-size:9px;color:#854F0B;background:#FAEEDA;padding:2px 7px;letter-spacing:.5px">'+esc(f.badge)+'</span>';
         else html+=(changed?'<span style="font-size:10px;color:#B85C00;text-decoration:line-through">'+esc(a.orig)+'</span>':'')+
           '<input type="text" value="'+esc(changed?a.value:f.value)+'" onchange="changeIncluded(\''+g.key+'\',\''+esc(f.feature)+'\',this.value,\''+esc(f.value)+'\')" style="width:170px;height:26px;font-size:11px">';
         html+='</div>';
@@ -1568,7 +1625,7 @@ function renderIncluded(){
         if(fo){
           html+='<div style="margin-top:4px">';
           fixed.forEach(function(f){
-            html+='<div style="display:flex;gap:8px;padding:3px 0"><span style="flex:1;color:#999">'+f.feature+'</span><span style="color:#BBB">'+(isFlagValue(f.value)?'':esc(f.value))+'</span></div>';
+            html+='<div style="display:flex;gap:8px;padding:3px 0"><span style="flex:1;color:#999">'+f.feature+'</span><span style="color:#BBB">'+(isFlagValue(f.value)?'':esc(f.value))+'</span>'+(f.badge?'<span style="color:#854F0B">'+esc(f.badge)+'</span>':'')+'</div>';
           });
           html+='</div>';
         }
@@ -2176,7 +2233,7 @@ function cateringRangeId(g){
   for(let i=0;i<R.length;i++){ if(g>=R[i].min&&g<=R[i].max)return R[i].id; }
   return '';
 }
-function catLabel(c){ return String(c||'').replace(/([a-z])([A-Z])/g,'$1 $2'); }
+function catLabel(c){ return String(c||'').replace(/([a-z])([A-Z])/g,'$1 $2').replace(/([A-Za-z])(\d)/g,'$1 $2'); }
 function updateCateringTrays(){
   const el=document.getElementById('cateringTrayDisplay');
   if(!el)return;
