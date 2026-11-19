@@ -226,7 +226,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
   <button class="step-btn" data-step="4" onclick="goToStep(4)">4 &middot; Extras</button>
   <button class="step-btn" data-step="5" onclick="goToStep(5)">5 &middot; Close</button>
 </div>
-<div id="ruleStatusBar" style="display:none;padding:7px 28px;font-size:10px;font-weight:600;letter-spacing:0.4px;border-bottom:1px solid #E8E8E8"></div>
+<div id="ruleStatusBar" style="display:none;padding:8px 28px;font-size:10px;font-weight:600;letter-spacing:0.3px;line-height:1.7;border-bottom:1px solid #E8E8E8"></div>
 <div id="lockBanner" style="display:none;margin:8px 28px;padding:6px 12px;font-size:10px;font-weight:600;letter-spacing:0.5px;background:var(--orange-light);color:var(--orange);border-left:3px solid var(--orange)">RESERVED &#8212; read only. Use Repeat Event to start a new quotation from this one.</div>
 
 <div class="step-pane show" id="pane-1">
@@ -1312,39 +1312,40 @@ function emptyDivisions(){
 function renderRuleStatus(){
   const bar=document.getElementById('ruleStatusBar');
   if(!bar)return;
-  const miss=missingRequired();
-  const empty=emptyDivisions();
   if(state.isLoaded&&state.wasLoaded){
-    bar.innerHTML='<span style="color:#185FA5">&#x1F512; PRECIOS DE LA COTIZACION ORIGINAL'+
+    bar.innerHTML='<div style="display:flex;align-items:center;gap:8px;padding:2px 0;color:#185FA5">'+
+      '<span>&#x1F512;</span><span>PRECIOS DE LA COTIZACION ORIGINAL'+
       (state.savedTotal?(' \u00b7 total guardado '+fmtMoney(state.savedTotal)):'')+
-      ' &nbsp;\u00b7&nbsp; al cambiar algo se repreciona con el catalogo de hoy</span>';
+      '</span></div>'+
+      '<div style="font-weight:400;color:#6A86A8;padding-left:22px">Al cambiar algo se repreciona con el catalogo de hoy</div>';
     bar.style.background='#EFF5FC';
     bar.style.display='block';
     return;
   }
+  const miss=missingRequired();
+  const empty=emptyDivisions();
   let v={blocks:[],warns:[]};
   try{v=validateQuote();}catch(e){}
-  const parts=[];
-  if(miss.length)parts.push('<span style="color:#8A8A8A">PENDIENTE &middot; '+miss.join(' &nbsp;&middot;&nbsp; ')+'</span>');
-  if(v.blocks.length)parts.push('<span style="color:#A32D2D">BLOQUEA &middot; '+v.blocks.map(function(b){return b.msg;}).join(' &nbsp;&middot;&nbsp; ')+'</span>');
-  if(v.warns.length)parts.push('<span style="color:#B85C00">AVISO &middot; '+v.warns.map(function(b){return b.msg;}).join(' &nbsp;&middot;&nbsp; ')+'</span>');
-  if(empty.length)parts.push('<span style="color:#8A8A8A">SIN ELEGIR &middot; '+empty.join(' &nbsp;&middot;&nbsp; ')+'</span>');
+  const line=function(color,icon,label,text){
+    return '<div style="display:flex;align-items:flex-start;gap:8px;padding:2px 0;color:'+color+'">'+
+      '<span style="width:12px;flex:none">'+icon+'</span>'+
+      '<span style="width:76px;flex:none;letter-spacing:1px">'+label+'</span>'+
+      '<span style="flex:1;font-weight:400">'+text+'</span></div>';
+  };
+  const items=[];
+  v.blocks.forEach(function(b){items.push(line('#A32D2D','&#x26D4;','BLOQUEA',b.msg));});
+  v.warns.forEach(function(b){items.push(line('#B85C00','&#x26A0;','AVISO',b.msg));});
+  miss.forEach(function(m){items.push(line('#6A6A6A','&#x25CB;','FALTA',m));});
+  empty.forEach(function(d){items.push(line('#8A8A8A','&#x25CB;','SIN ELEGIR',d));});
   if(!v.blocks.length&&!miss.length){
-    bar.innerHTML='<span style="color:#1E5C2E">&#x2713; SE PUEDE GUARDAR</span>'+
-      (parts.length?(' &nbsp;&nbsp;|&nbsp;&nbsp; '+parts.join(' &nbsp;&nbsp;|&nbsp;&nbsp; ')):'');
-    bar.style.background=v.warns.length?'#FDF6EE':'#F3FAF4';
-    bar.style.display='block';
-    return;
+    items.unshift(line('#1E5C2E','&#x2713;','LISTO','Se puede guardar'));
   }
-  if(!parts.length){
-    bar.innerHTML='<span style="color:#1E5C2E">&#x2713; SE PUEDE GUARDAR</span>';
-    bar.style.background='#F3FAF4';
-  } else {
-    bar.innerHTML=parts.join(' &nbsp;&nbsp;|&nbsp;&nbsp; ');
-    bar.style.background=v.blocks.length?'#FDF3F3':(v.warns.length?'#FDF6EE':'#FAFAFA');
-  }
+  bar.innerHTML=items.join('');
+  bar.style.background=v.blocks.length?'#FDF3F3':(v.warns.length?'#FDF6EE':(items.length>1?'#FAFAFA':'#F3FAF4'));
   bar.style.display='block';
 }
+
+function capitalize(t){const s=String(t==null?'':t);return s?(s.charAt(0).toUpperCase()+s.slice(1)):'';}
 // ── CONGELADO DEL CONTENIDO ─────────────────────────────────────────────────
 // La cotizacion guarda una copia de lo que incluia cada tier al momento de
 // venderse. Si manana cambias lo que trae un Prestige, el evento viejo sigue
