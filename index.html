@@ -2916,7 +2916,7 @@ function addonsForDivision(division){
   const divName={entertainment:'Entertainment',photo:'Photo'}[division];
   return (catalog.addons||[]).filter(a=>{
     if(String(a['Division'])!==divName)return false;
-    if(String(a['Active']).toLowerCase()==='false')return false;
+    if(!yn(a['Active']))return false; // la hoja usa Y/N, no true/false
     const applies=String(a['Applies_To_Tiers']||'').trim().toLowerCase();
     // 'ALL'/empty → available for any tier. Otherwise available only when the
     // chosen tier is listed (tier not chosen yet → show all, user filters later).
