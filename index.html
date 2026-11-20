@@ -588,7 +588,7 @@ async function loadCatalogs(){
   ]);
   // --- Packages / Package_Levels / Package_Features: el modelo comercial.
   // Hasta ahora el cotizador no leia ninguna de las tres.
-  const isOn=function(v){return ['y','yes','true','1'].indexOf(String(v==null?'':v).trim().toLowerCase())>-1;};
+  const isOn=isActive;
   catalog.packages=(pkgs||[]).filter(function(r){return r['Package_ID']&&isOn(r['Active']);})
     .sort(function(a,b){return (num(a['Sort'])||99)-(num(b['Sort'])||99);});
   catalog.packageLevels={};
@@ -616,7 +616,7 @@ async function loadCatalogs(){
     catalog.service[id]={
       price: num(r['Price']),
       discountPct: num(r['Category_Discount_Pct']),
-      active: String(r['Active']).toLowerCase()==='true',
+      active: isActive(r['Active']),
       tier: r['Tier'], division: r['Division'], modifier: r['Modifier']
     };
   });
@@ -627,8 +627,7 @@ async function loadCatalogs(){
     const g=r['Rule_Group'], k=String(r['Rule_Key']), v=r['Rule_Value'];
     if(!g)return;
     // Una fila con Active en N no se lee. Vacio cuenta como activa.
-    const act=String(r['Active']==null?'':r['Active']).trim().toUpperCase();
-    if(act==='N'||act==='FALSE')return;
+    if(!isActive(r['Active']))return;
     (catalog.businessRules[g]=catalog.businessRules[g]||{})[k]=v;
     if(String(r['Overridable']||'').trim().toUpperCase()==='Y')catalog.ruleOverridable[g]=true;
   });
@@ -755,12 +754,16 @@ function rebuildPriceStructures(){
   catalog.ENT={ essential:price('ENT-ESS'), elegant:price('ENT-ELE'), prestige:price('ENT-PRE'), legacy:price('ENT-LEG') };
 
   // PHOTO por subdivision: Coverage, Video y Photo Shoot, cada uno por tier.
-  // Las filas viejas (PHO-ESS/ELE/PRE/LEG y PHO-SHOOT-*) estan desactivadas.
+  // PHO-ESS/ELE/PRE/LEG son el precio del bundle (ver 'bundle' abajo).
+  // PHO-SHOOT-ESS/FULL siguen desactivadas.
   // Prints y extras ya no son un select: entran como add-ons.
   catalog.PHOTO={
     cov:{ elegant:price('PHO-ELE-COV'), prestige:price('PHO-PRE-COV'), legacy:price('PHO-LEG-COV') },
     vid:{ elegant:price('PHO-ELE-VID'), prestige:price('PHO-PRE-VID'), legacy:price('PHO-LEG-VID') },
-    sho:{ prestige:price('PHO-PRE-SHO'), legacy:price('PHO-LEG-SHO') }
+    sho:{ prestige:price('PHO-PRE-SHO'), legacy:price('PHO-LEG-SHO') },
+    // Precio propio del bundle, patron Entertainment (ENT-ESS..ENT-LEG).
+    bundle:{ essential:price('PHO-ESS'), elegant:price('PHO-ELE'),
+             prestige:price('PHO-PRE'), legacy:price('PHO-LEG') }
   };
 
   // GUEST_TABLES from Business_Rules.tables
@@ -781,7 +784,7 @@ function rebuildPriceStructures(){
 const state={
   cotNumber:null,resNumber:null,status:'new',isLoaded:false,loadedSnapshot:null,
   fullPackage:'na',decorPlan:'na',photoPlan:'na',
-  step:1,savedTotal:0,includedSnapshot:'',repriceWarned:false,adjustments:{},addedLines:[],includedOpen:'',lockedOpen:'',outOpen:'',ruleStatusOpen:false,packageModified:false,applyingPackage:false,dayOfWeek:null,guestRange:null,numTables:0,numGuests:0,
+  step:1,savedTotal:0,includedSnapshot:'',repriceWarned:false,adjustments:{},addedLines:[],includedOpen:'',lockedOpen:'',outOpen:'',ruleStatusOpen:false,packageModified:false,applyingPackage:false,dayOfWeek:null,dayRate:'',guestRange:null,numTables:0,numGuests:0,
   eventType:'',eventTypeLabel:'',
   eventLocation:'cardona_hall',
   wasLoaded:false,
@@ -834,6 +837,8 @@ const disc={
   decor:{eligible:false,pct:0,amount:0,checked:false},
   entertainment:{eligible:false,pct:0,amount:0,checked:false},
   photo:{eligible:false,pct:0,amount:0,checked:false},
+  // tarifa de dia (sabado / viernes-domingo / lunes-jueves)
+  day:{eligible:false,key:'',pct:0,amount:0,checked:false},
   // full package bonus
   fp:{eligible:false,tier:'',pct:0,amount:0,checked:false},
   // manual wildcard
@@ -846,7 +851,72 @@ function catDiscPct(serviceId){ const s=catalog.service[serviceId]; return s?(s.
 // Lowest tier among an array of tier keys (essential<elegant<prestige<legacy).
 function lowestTier(tiers){
   if(!tiers.length)return '';
-  return tiers.reduce((min,t)=>TIER_ORDER.indexOf(t)<TIER_ORDER.indexOf(min)?t:min,tiers[0]);
+  // Los tiers de los selects llegan en minuscula, pero el nivel del bundle de
+  // Photo viene de Package_Levels con mayuscula inicial. Se normaliza, y lo que
+  // no sea un tier (sound_system) se descarta en vez de ganar con indexOf -1.
+  const t=[];
+  tiers.forEach(function(x){
+    const k=String(x||'').trim().toLowerCase();
+    if(TIER_ORDER.indexOf(k)>-1)t.push(k);
+  });
+  if(!t.length)return '';
+  return t.reduce(function(min,x){
+    return TIER_ORDER.indexOf(x)<TIER_ORDER.indexOf(min)?x:min;},t[0]);
+}
+
+// ── TARIFA DE DIA ──────────────────────────────────────────
+// El dia sale de la fecha, pero se puede SUBIR a mano: una venta dura en sabado
+// se cierra "a precio de viernes". El % sale de Business_Rules.day_discount, no
+// es un numero inventado, y queda registrado como la tarifa que se aplico.
+// Normaliza a YYYY-MM-DD venga como texto, MM/DD/YYYY o fecha serializada por
+// Apps Script (asi no hay corrimiento de un dia por zona horaria).
+function normDateKey(v){
+  const str=String(v==null?'':v).trim();
+  if(!str)return '';
+  let m=str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(m)return m[1]+'-'+m[2]+'-'+m[3];
+  m=str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if(m)return m[3]+'-'+String(m[1]).padStart(2,'0')+'-'+String(m[2]).padStart(2,'0');
+  const d=new Date(str);
+  if(!isNaN(d.getTime()))return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  return str;
+}
+// Festivo de Business_Rules.special_dates: no lleva descuento de dia aunque
+// caiga lunes a jueves.
+function isSpecialDate(){
+  const k=normDateKey((document.getElementById('eventDate')||{}).value);
+  if(!k)return false;
+  const g=ruleGroup('special_dates');
+  return Object.keys(g).some(function(x){return normDateKey(x)===k;});
+}
+function specialDateName(){
+  const k=normDateKey((document.getElementById('eventDate')||{}).value);
+  const g=ruleGroup('special_dates');
+  let out='';
+  Object.keys(g).forEach(function(x){if(normDateKey(x)===k)out=String(g[x]||'');});
+  return out;
+}
+// Tarifa que corresponde a la fecha, antes de cualquier override.
+function dayRateFromDate(){
+  const d=String(state.dayOfWeek||'').slice(0,3).toLowerCase();
+  if(!d)return '';
+  if(isSpecialDate())return 'sat';
+  if(d==='sat')return 'sat';
+  if(d==='fri')return 'fri';
+  if(d==='sun')return 'sun';
+  return 'monthu';
+}
+function dayRateLabel(k){
+  return {sat:'Saturday',fri:'Friday / Sunday',sun:'Friday / Sunday',
+          monthu:'Monday-Thursday'}[k]||'';
+}
+function dayDiscPct(k){ return k?ruleNum('day_discount',k):0; }
+function effectiveDayRate(){ return state.dayRate||dayRateFromDate(); }
+function dayDiscMax(){ const m=ruleNum('day_discount','max'); return m>0?m:100; }
+function onDayRateChange(){
+  const sel=document.getElementById('dayRateSel');
+  state.dayRate=sel?sel.value:'';
+  markEdited();calcTotal();
 }
 
 // Reads a tier-keyed percentage from a Business_Rules group (rows keyed by tier
@@ -1003,7 +1073,27 @@ function addonPrice(addonId){
   if(mode==='per_guest')return pr*(state.numGuests||0);
   return pr;
 }
+// Precio de lista del bundle: fila PHO-{tier} de Service_Catalog, igual que
+// ENT-{tier} en Entertainment. Devuelve 0 si ese bundle no tiene fila activa
+// con precio, y entonces se cae al modelo de suma.
+function photoBundleListPrice(bundle){
+  const k=String(bundle||'').toLowerCase();
+  if(!k||k==='na')return 0;
+  return num(((catalog.PHOTO||{}).bundle||{})[k]);
+}
+// % de Photo por NIVEL del bundle (no por el tier de Coverage) con el tope de
+// Business_Rules.photo_bundle_discount.max.
+function photoDiscPct(bundle){
+  const k=String(bundle||'').toLowerCase();
+  if(!k||k==='na')return 0;
+  const pct=rulePct('photo_bundle_discount',k);
+  const g=(catalog.businessRules['photo_bundle_discount'])||{};
+  const cap=g['max']!==undefined?num(g['max']):0;
+  return cap>0?Math.min(pct,cap):pct;
+}
 function photoBundlePrice(bundle){
+  const lp=photoBundleListPrice(bundle);
+  if(lp>0)return lp;
   let total=0;
   pkgLevels('Photo',bundle).forEach(function(r){
     const v=String(r.value||'').toLowerCase();
@@ -1370,11 +1460,15 @@ function renderRuleStatus(){
   if(!head.length)head.push('<span style="color:#1E5C2E">&#x2713; Se puede guardar</span>');
   const open=!!state.ruleStatusOpen;
   const detail=items.filter(function(x,i){return !(items.length>1&&i===0&&!nB&&!nF);});
-  bar.innerHTML='<div onclick="toggleRuleStatus()" style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:2px 0">'+
-      '<span style="font-size:11px;color:#AAA;width:12px;flex:none">'+(open?'\u25be':'\u25b8')+'</span>'+
-      '<span style="flex:1">'+head.join(' &nbsp;\u00b7&nbsp; ')+'</span></div>'+
-    (open?('<div style="padding-left:22px;margin-top:4px;border-top:1px solid rgba(0,0,0,.06);padding-top:4px">'+detail.join('')+'</div>'):'');
-  bar.style.background=v.blocks.length?'#FDF3F3':(v.warns.length?'#FDF6EE':((nF)?'#FAFAFA':'#F3FAF4'));
+  const accent=v.blocks.length?'#A32D2D':(v.warns.length?'#B85C00':(nF?'#9A9A9A':'#1E5C2E'));
+  bar.innerHTML='<div style="border-left:4px solid '+accent+';padding:6px 12px">'+
+    '<div onclick="toggleRuleStatus()" style="display:flex;align-items:center;gap:10px;cursor:pointer">'+
+      '<span style="flex:none;font-size:9px;font-weight:700;letter-spacing:2px;color:'+accent+'">ESTADO</span>'+
+      '<span style="flex:1">'+head.join(' &nbsp;\u00b7&nbsp; ')+'</span>'+
+      '<span style="font-size:11px;color:#AAA;width:12px;flex:none;text-align:right">'+(open?'\u25be':'\u25b8')+'</span></div>'+
+    (open?('<div style="margin-top:5px;border-top:1px solid rgba(0,0,0,.08);padding-top:5px">'+detail.join('')+'</div>'):'')+
+    '</div>';
+  bar.style.background=v.blocks.length?'#FDF3F3':(v.warns.length?'#FDF6EE':((nF)?'#F7F7F7':'#F3FAF4'));
   bar.style.display='block';
 }
 function toggleRuleStatus(){ state.ruleStatusOpen=!state.ruleStatusOpen; renderRuleStatus(); }
@@ -1597,8 +1691,7 @@ function addonForFeature(division,subdivision,feature){
   // 2) Si no hay mapeo, por nombre exacto.
   return (catalog.addons||[]).find(function(a){
     if(String(a['Division']||'').trim()!==division)return false;
-    const act=String(a['Active']==null?'':a['Active']).trim().toUpperCase();
-    if(act==='N'||act==='FALSE')return false;
+    if(!isActive(a['Active']))return false;
     return String(a['Name']||'').trim().toLowerCase()===f;
   })||null;
 }
@@ -1613,6 +1706,15 @@ function addonTag(a){
   return t;
 }
 function yn(v){const t=String(v==null?'':v).trim().toUpperCase();return t==='Y'||t==='TRUE'||t==='1';}
+// UN SOLO parseo de Active para toda la DB. La hoja usa dos convenciones:
+// Service_Catalog y Package_Roles guardan TRUE/FALSE booleano, el resto Y/N
+// texto. Antes habia cuatro parseos distintos y el de Service_Catalog exigia
+// exactamente 'true', asi que una 'Y' ahi apagaba la fila en silencio y el
+// precio salia en 0. Aqui solo N/NO/FALSE/0 apaga; vacio cuenta como activa.
+function isActive(v){
+  const t=String(v==null?'':v).trim().toUpperCase();
+  return !(t==='N'||t==='NO'||t==='FALSE'||t==='0');
+}
 // Las opciones de un campo salen de Business_Rules.feature_list: o un catalogo
 // (Color_Catalog:Columna) o una lista literal separada por |.
 function optionsForFeature(division,subdivision,feature){
@@ -1623,7 +1725,7 @@ function optionsForFeature(division,subdivision,feature){
   const v=String(spec).trim();
   if(v.indexOf('Color_Catalog:')===0){
     const col=v.slice('Color_Catalog:'.length);
-    const rows=(catalog.colors||[]).filter(function(c){return yn(c['Active'])&&yn(c[col]);});
+    const rows=(catalog.colors||[]).filter(function(c){return isActive(c['Active'])&&yn(c[col]);});
     return {groups:[
       {label:'En stock',items:rows.filter(function(c){return yn(c['In_Stock']);}).map(function(c){return String(c['Color_Name']);})},
       {label:'Por encargo',items:rows.filter(function(c){return !yn(c['In_Stock']);}).map(function(c){return String(c['Color_Name']);})}
@@ -1667,17 +1769,17 @@ function renderIncluded(){
   groups.forEach(function(g){(byDiv[g.div]=byDiv[g.div]||[]).push(g);});
   const divs=order.filter(function(d){return byDiv[d];})
     .concat(Object.keys(byDiv).filter(function(d){return order.indexOf(d)<0;}));
-  let html='<div style="border:1px solid #E8E8E8;background:#FFF">'+
-    '<div style="padding:8px 14px;background:#FAFAFA;border-bottom:1px solid #E8E8E8;font-size:10px;letter-spacing:1.5px;color:#888">INCLUDED</div>';
+  let html='<div style="border:1px solid #DDD;background:#FFF;border-radius:2px;overflow:hidden">'+
+    '<div style="padding:9px 14px;background:#2B2B2B;font-size:10px;font-weight:700;letter-spacing:2px;color:#FFF">QU\u00c9 INCLUYE LA COTIZACI\u00d3N</div>';
   divs.forEach(function(d){
     const col=divColor(d), list=byDiv[d];
     const total=list.reduce(function(a,g){return a+g.rows.filter(lineIncluded).length;},0);
     const adjs=list.reduce(function(a,g){return a+adjCount(g.key);},0);
-    html+='<div style="display:flex;align-items:center;gap:8px;padding:7px 14px;border-bottom:1px solid #E8E8E8;border-left:3px solid '+col+'">'+
-      '<span style="font-size:11px;font-weight:700;letter-spacing:1px;color:'+col+'">'+d.toUpperCase()+'</span>'+
+    html+='<div style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:'+col+';border-top:1px solid #FFF">'+
+      '<span style="font-size:11px;font-weight:700;letter-spacing:2px;color:#FFF">'+d.toUpperCase()+'</span>'+
       '<span style="flex:1"></span>'+
-      (adjs?'<span style="font-size:9px;font-weight:700;color:#B85C00;background:#FDF0E2;padding:2px 7px">'+adjs+' AJUSTES</span>':'')+
-      '<span style="font-size:10px;color:#BBB">'+total+'</span>'+
+      (adjs?'<span style="font-size:9px;font-weight:700;color:#FFF;background:rgba(0,0,0,.28);padding:2px 7px">'+adjs+' AJUSTES</span>':'')+
+      '<span style="font-size:10px;color:rgba(255,255,255,.75)">'+total+' l\u00edneas</span>'+
       '</div>';
     list.forEach(function(g){
       const open=state.includedOpen===g.key;
@@ -2098,6 +2200,7 @@ function onDateChange(){
   const d=new Date(parseInt(p[2]),parseInt(p[0])-1,parseInt(p[1]));if(isNaN(d.getTime()))return;
   const days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   state.dayOfWeek=days[d.getDay()];
+  state.dayRate='';   // al cambiar la fecha la tarifa vuelve a la del dia real
   const dow=document.getElementById('dayOfWeek');dow.textContent=state.dayOfWeek;dow.style.display='inline-block';
   const today=new Date();today.setHours(0,0,0,0);
   clearErr('eventDate');
@@ -2418,33 +2521,55 @@ function updateCateringTrays(){
     if(g>hi.max){ Rid=hi.id; over=' \u00b7 over '+hi.max+', using '+hi.id; }
     else { el.textContent='Under '+lo.min+' guests \u2014 outside the catering table'; return; }
   }
-  const parts=[]; let sold=false;
+  // Dos renglones: lo que recibe el cliente, y aparte la orden de cocina.
+  // En menu fijo no se muestran numeros: la tabla guarda medias bandejas, que
+  // como contenido no significan nada para el cliente.
+  const fixed=String((catalog.cateringModel||{})[plan])==='fixed';
+  const cli=[]; let sold=false, nMain=0; const sides=[];
   rows.forEach(function(r){
-    if(r.type==='stars')return; // interno, no es una linea de contenido
+    if(r.type==='stars')return; // interno, no es contenido
     const q=num(r.byR[Rid]);
     if(!q)return;
     sold=true;
-    if(r.type==='included')parts.push(catLabel(r.cat)+' \u2713');
-    else if(r.type==='mains'||r.type==='sides')parts.push('choose '+q+' '+catLabel(r.cat));
-    else parts.push(q+' '+catLabel(r.cat));
+    if(fixed){
+      if(/main/i.test(r.cat))nMain++; else sides.push(catLabel(r.cat));
+      return;
+    }
+    if(r.type==='included')cli.push(catLabel(r.cat));
+    else if(r.type==='mains'||r.type==='sides')cli.push('elige '+q+' '+catLabel(r.cat));
+    else cli.push(q+' '+catLabel(r.cat));
   });
   if(!sold){
     const min=num((catalog.cateringMin||{})[plan]);
-    el.textContent=min?('Not sold under '+min+' guests'):'Not sold at this guest count';
+    el.innerHTML='<span style="color:#A32D2D">'+(min?('No se vende con menos de '+min+' invitados'):'No se vende a esta cantidad de invitados')+'</span>';
     return;
   }
-  // Orden de cocina: medias bandejas por invitados, no por la tabla de variedad.
   const ko=cateringKitchenOrder(plan,g,Rid);
-  let kitchen='';
-  if(ko&&(ko.main||ko.sides)){
-    const bits=[];
-    if(ko.main)bits.push(ko.main+' half trays main');
-    if(ko.sides)bits.push(ko.sides+' half trays sides');
-    if(ko.stars)bits.push(ko.stars+' \u2605 Star Dish'+(ko.stars>1?'es':'')+' \u2192 full tray each');
-    kitchen=' \u2014 KITCHEN: '+bits.join(' \u00b7 ');
-    if(!ko.fixed&&ko.floor>ko.byGuests)kitchen+=' (variety floor: '+ko.types+' dishes force '+ko.floor+', guests need '+ko.byGuests+')';
+  if(fixed){
+    cli.length=0;
+    cli.push('men\u00fa fijo');
+    if(nMain)cli.push(nMain+(nMain>1?' platos fuertes':' plato fuerte'));
+    sides.forEach(function(x){cli.push(x);});
+  } else if(ko&&ko.stars){
+    cli.push(ko.stars+' \u2605 '+(ko.stars>1?'Platos Estrella':'Plato Estrella'));
   }
-  el.textContent=Rid+' \u00b7 '+parts.join(' \u00b7 ')+over+kitchen;
+  const kit=[];
+  if(ko){
+    if(ko.main)kit.push('<b>'+ko.main+'</b> medias de fuerte');
+    if(ko.sides)kit.push('<b>'+ko.sides+'</b> medias de acompa\u00f1amiento');
+    if(ko.stars)kit.push(ko.stars+' en bandeja completa');
+  }
+  const floorNote=(ko&&!ko.fixed&&ko.floor>ko.byGuests)
+    ? ' <span style="color:#B85C00">\u00b7 manda la variedad: '+ko.types+' platos exigen '+ko.floor+', los invitados piden '+ko.byGuests+'</span>' : '';
+  const row=function(tag,tagCol,tagBg,txt,txtCol,sz){
+    return '<div style="display:flex;gap:8px;align-items:baseline;line-height:1.65">'+
+      '<span style="flex:none;font-size:9px;font-weight:700;letter-spacing:1px;color:'+tagCol+';background:'+tagBg+';padding:1px 6px">'+tag+'</span>'+
+      '<span style="flex:1;font-size:'+sz+'px;color:'+txtCol+'">'+txt+'</span></div>';
+  };
+  el.innerHTML=
+    row('RANGO '+Rid,'#8A5A2B','#F6EFE6',cli.join(' &middot; '),'#222',12)+
+    (kit.length?row('COCINA','#555','#ECECEC',kit.join(' &middot; ')+floorNote,'#666',11):'')+
+    (over?'<div style="margin-top:3px;font-size:11px;color:#B85C00">\u26a0 '+over.replace(/^ \u00b7 /,'')+'</div>':'');
 }
 function setDecorPlan(tier,btn){markEdited();
   document.querySelectorAll('#decorTierBtns .tier-btn').forEach(b=>b.classList.remove('active'));
@@ -2715,8 +2840,8 @@ function setPhotoPlan(tier,btn){markEdited();
   setPhotoPlanInternal(tier);
 }
 
-// Los bundles de Photo salen de Package_Levels (Day Story, Portrait Story,
-// Motion Story, Full Story). Nada escrito en codigo.
+// Los bundles de Photo salen de Package_Levels (Essential, Elegant, Prestige,
+// Legacy). Nada escrito en codigo.
 function photoBundles(){
   const out=[];
   Object.keys(catalog.packageLevels||{}).forEach(function(k){
@@ -2773,9 +2898,13 @@ function setPhotoPlanInternal(bundle){
       else if(r.sub==='Photo Shoot')sho.value=v;
       else state.addons.photo.push({id:'ad'+Math.random().toString(36).slice(2,8),addonId:r.value,price:0,type:''});
     });
+    const inBundle=photoBundleListPrice(bundle)>0;
     state.addons.photo.forEach(function(row){
       const a=(catalog.addons||[]).find(function(x){return x['Addon_ID']===row.addonId;});
-      if(a){row.name=a['Name'];row.price=addonPrice(row.addonId);row.auto=true;}
+      // Si el bundle tiene precio propio, lo que trae adentro va en 0: ya esta
+      // pagado dentro del precio del bundle.
+      if(a){row.name=a['Name'];row.price=inBundle?0:addonPrice(row.addonId);
+            row.auto=true;row.included=inBundle;}
     });
   }
   renderAddons('photo');
@@ -2796,6 +2925,7 @@ function computeDiscounts(){
   const entVal=document.getElementById('entPlan').value;
 
   // reset eligibility (keep checked state)
+  disc.day.eligible=false;disc.day.pct=0;disc.day.amount=0;
   ['venue','catering','decor','entertainment','photo'].forEach(k=>{disc[k].eligible=false;disc[k].pct=0;disc[k].amount=0;});
 
   // VENUE — Prestige only; % by range from Service_Catalog (VEN-PRE-<range>).
@@ -2836,10 +2966,22 @@ function computeDiscounts(){
   if(state.photoPlan && state.photoPlan!=='na'){
     // % from Business_Rules.photo_bundle_discount (Essential=0).
     // Base EXCLUDES add-ons: extras never inflate the category discount.
-    const pct=rulePct('photo_bundle_discount',document.getElementById('photoTier').value);
+    const pct=photoDiscPct(state.photoPlan);
     const photoBaseNoAddons=(p.photo||0)-addonsTotal('photo');
     if(pct>0){disc.photo.eligible=true;disc.photo.pct=pct;disc.photo.amount=photoBaseNoAddons*(pct/100);}
   }
+
+  // TARIFA DE DIA — solo con paquete full, igual que el bono.
+  const dayKey=effectiveDayRate();
+  const dayPct=dayDiscPct(dayKey);
+  disc.day.key=dayKey;
+  const dayElig=fullPackageEligible();
+  if(dayElig.eligible&&dayPct>0){
+    const dayBase=(p.venue||0)+(p.catering||0)+(p.decor||0)
+      +((p.entertainment||0)-addonsTotal('entertainment'))
+      +((p.photo||0)-addonsTotal('photo'));
+    disc.day.eligible=true;disc.day.pct=dayPct;disc.day.amount=dayBase*(dayPct/100);
+  } else { disc.day.eligible=false;disc.day.pct=0;disc.day.amount=0;disc.day.checked=false; }
 
   // FULL PACKAGE — eligibility = 5 categories with qualifying plans.
   const elig=fullPackageEligible();
@@ -2916,7 +3058,14 @@ function addonsForDivision(division){
   const divName={entertainment:'Entertainment',photo:'Photo'}[division];
   return (catalog.addons||[]).filter(a=>{
     if(String(a['Division'])!==divName)return false;
-    if(!yn(a['Active']))return false; // la hoja usa Y/N, no true/false
+    if(!isActive(a['Active']))return false;
+    // Filtro por tipo de evento: un Ring Pillow nunca debe aparecer en una
+    // quinceanera, ni una Shoe Table en una boda (Addon_Catalog.Event_Types).
+    const ev=String((document.getElementById('eventType')||{}).value||'').trim().toLowerCase();
+    const evs=String(a['Event_Types']||'').trim().toLowerCase();
+    if(evs&&evs!=='all'&&ev){
+      if(!evs.split(',').map(s=>s.trim()).includes(ev))return false;
+    }
     const applies=String(a['Applies_To_Tiers']||'').trim().toLowerCase();
     // 'ALL'/empty → available for any tier. Otherwise available only when the
     // chosen tier is listed (tier not chosen yet → show all, user filters later).
@@ -2994,9 +3143,15 @@ function calcTotal(){
     const videoTier=document.getElementById('photoVideo').value;
     const shootTier=document.getElementById('photoShootPlan').value;
     let photoBase=0;
-    if(photoTier)photoBase+=(catalog.PHOTO.cov||{})[photoTier]||0;
-    if(videoTier)photoBase+=(catalog.PHOTO.vid||{})[videoTier]||0;
-    if(shootTier)photoBase+=(catalog.PHOTO.sho||{})[shootTier]||0;
+    const photoBundleLP=photoBundleListPrice(state.photoPlan);
+    if(photoBundleLP>0){
+      // Bundle con fila propia: el precio del bundle manda sobre la suma.
+      photoBase=photoBundleLP;
+    }else{
+      if(photoTier)photoBase+=(catalog.PHOTO.cov||{})[photoTier]||0;
+      if(videoTier)photoBase+=(catalog.PHOTO.vid||{})[videoTier]||0;
+      if(shootTier)photoBase+=(catalog.PHOTO.sho||{})[shootTier]||0;
+    }
     p.photo=photoBase;
     // add-ons (manual price) add to their category anchor
     p.entertainment+=addonsTotal('entertainment');
@@ -3026,9 +3181,17 @@ function calcTotal(){
   const anchorSubtotal=(p.venue||0)+(p.catering||0)+(p.decor||0)+(p.entertainment||0)+(p.photo||0);
   let appliedCat=0;
   ['venue','catering','decor','entertainment','photo'].forEach(k=>{ if(disc[k].checked&&disc[k].eligible)appliedCat+=disc[k].amount; });
+  const dayAmount=(disc.day.checked&&disc.day.eligible)?disc.day.amount:0;
   const fpAmount=(disc.fp.checked&&disc.fp.eligible)?disc.fp.amount:0;
   const manualAmount=disc.manual.amount||0;
-  const totalDiscounts=appliedCat+fpAmount+manualAmount;
+  let totalDiscounts=appliedCat+dayAmount+fpAmount+manualAmount;
+  // Tope duro de Business_Rules.day_discount.max sobre el total de descuentos.
+  const capPct=dayDiscMax();
+  const capAmt=anchorSubtotal*(capPct/100);
+  state.discCapped=false;
+  if(anchorSubtotal>0&&totalDiscounts>capAmt){
+    totalDiscounts=capAmt;state.discCapped=true;
+  }
 
   const calculated=anchorSubtotal-totalDiscounts;
   const override=parseFloat(document.getElementById('priceOverride').value);
@@ -3059,6 +3222,7 @@ function renderCategoryDiscountChecks(){
 
 function toggleCatDiscount(cat,checked){ disc[cat].checked=checked; calcTotal(); }
 function toggleFullPackage(checked){ disc.fp.checked=checked; calcTotal(); }
+function onDayDiscCheck(el){ disc.day.checked=!!el.checked; markEdited(); calcTotal(); }
 function onManualDiscountChange(){ calcTotal(); }
 
 // Block 3 — Full Package eligibility indicator (semaphore).
@@ -3093,6 +3257,37 @@ function renderDiscountsSummary(anchorSubtotal,appliedCat,fpAmount,manualAmount,
     const rows=[];
     const catLabels={venue:'Venue',catering:'Catering',decor:'Decor',entertainment:'Entertainment',photo:'Photo'};
     
+    // Fila de TARIFA DE DIA. El select arranca con el dia real de la fecha y se
+    // puede subir a mano; el % siempre sale de Business_Rules.day_discount.
+    const dk=effectiveDayRate();
+    if(dk){
+      const real=dayRateFromDate();
+      const over=(dk!==real);
+      const opts=[['sat','Saturday'],['fri','Friday / Sunday'],['monthu','Monday-Thursday']]
+        .map(function(o){
+          const sel=(dk===o[0]||(dk==='sun'&&o[0]==='fri'))?' selected':'';
+          return '<option value="'+o[0]+'"'+sel+'>'+o[1]+' \u2014 '+dayDiscPct(o[0])+'%</option>';
+        }).join('');
+      const amt=(disc.day.checked&&disc.day.eligible)?disc.day.amount:0;
+      rows.push('<div style="display:flex;align-items:center;gap:6px;padding:6px 0">'+
+        '<input type="checkbox" id="dayDiscChk" onchange="onDayDiscCheck(this)"'+
+          (disc.day.checked?' checked':'')+(disc.day.eligible?'':' disabled')+'>'+
+        '<select id="dayRateSel" onchange="onDayRateChange()" style="height:28px;font-size:11px;flex:1">'+opts+'</select>'+
+        '<span style="color:'+(amt?'#6EC98A':'#888')+';font-size:12px;min-width:44px;text-align:right">'+
+          (amt?'-'+fmtMoney(amt):'-$0')+'</span></div>');
+      if(isSpecialDate())
+        rows.push('<div style="font-size:10px;color:#E0A458;padding:0 0 6px 22px">'+
+          specialDateName()+' \u2014 fecha especial, sin descuento de dia</div>');
+      else if(over)
+        rows.push('<div style="font-size:10px;color:#E0A458;padding:0 0 6px 22px">'+
+          'Tarifa de '+dayRateLabel(dk)+' aplicada en '+dayRateLabel(real)+'</div>');
+      if(!disc.day.eligible&&dayDiscPct(dk)>0)
+        rows.push('<div style="font-size:10px;color:#888;padding:0 0 6px 22px">'+
+          'Requiere paquete completo</div>');
+    }
+    if(state.discCapped)
+      rows.push('<div style="font-size:10px;color:#E06C5A;padding:4px 0 6px 0">'+
+        'Tope de '+dayDiscMax()+'% alcanzado \u2014 el total de descuentos quedo limitado</div>');
     rowsEl.innerHTML=rows.join('');
     rowsEl.style.display='block'; // reset may have hidden it; ensure visible
     // manual row is a FIXED element (not regenerated) to preserve input focus.
@@ -3132,6 +3327,7 @@ function collectData(){
     'Email':document.getElementById('email').value,
     'Event Date':document.getElementById('eventDate').value,
     'Day of Week':state.dayOfWeek||'',
+    'Day Rate Applied':disc.day.checked?(disc.day.key||''):'',
     'Guests':state.numGuests,
     'Children':document.getElementById('numChildren').value||0,
     'Guest Range':state.guestRange||'',
@@ -3236,7 +3432,7 @@ async function resetForm(){
   document.querySelectorAll('.field-error').forEach(e=>e.classList.remove('show'));
   ['externalEventAlert','saveDateBlockAlert','soundDamageAlert'].forEach(id=>document.getElementById(id).style.display='none');
   document.getElementById('btnExportPDF').style.display='none';
-  state.decorPlan='na';state.photoPlan='na';
+  state.decorPlan='na';state.photoPlan='na';state.dayRate='';disc.day.checked=false;
   state.dayOfWeek=null;state.guestRange=null;state.numGuests=0;state.numTables=0;
   // Explicitly reset decor and photo plan state
   setDecorPlanInternal('na',false);
@@ -3453,6 +3649,10 @@ function loadQuotation(cotNum){
   const savedDPhoto=parseFloat(rec['Discount Photo'])||0;
   const savedDCatering=parseFloat(rec['Discount Catering'])||0;
   const savedDDecor=parseFloat(rec['Discount Decor'])||0;
+  // Tarifa de dia guardada: si hay valor, la cotizacion la llevaba aplicada.
+  const savedDayRate=String(rec['Day Rate Applied']||'').trim().toLowerCase();
+  state.dayRate=savedDayRate;
+  disc.day.checked=!!savedDayRate;
 
   // Restore add-ons from saved JSON (Addons Detail), if present.
   try{
