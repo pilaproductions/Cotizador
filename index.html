@@ -580,10 +580,11 @@ async function loadCatalogs(){
       return Array.isArray(d)?d:[];
     }catch(e){return [];}
   };
-  const [svc,rules,addons,catTiers,pkgInc,pkgs,pkgLvl,pkgFeat,catQty,catRng,catCfg]=await Promise.all([
+  const [svc,rules,addons,catTiers,pkgInc,pkgs,pkgLvl,pkgFeat,catQty,catRng,catCfg,colors]=await Promise.all([
     get('Service_Catalog'), get('Business_Rules'), get('Addon_Catalog'), get('Catering_Tiers'), get('Package_Includes'),
     get('Packages'), get('Package_Levels'), get('Package_Features'),
-    get('Catering_Quantities'), get('Catering_Ranges'), get('Catering_Config')
+    get('Catering_Quantities'), get('Catering_Ranges'), get('Catering_Config'),
+    get('Color_Catalog')
   ]);
   // --- Packages / Package_Levels / Package_Features: el modelo comercial.
   // Hasta ahora el cotizador no leia ninguna de las tres.
@@ -684,6 +685,7 @@ async function loadCatalogs(){
     .sort(function(a,b){return a.min-b.min;});
   catalog.cateringCfg={};
   (catCfg||[]).forEach(function(r){ if(r['Param'])catalog.cateringCfg[String(r['Param'])]=num(r['Value']); });
+  catalog.colors=(colors||[]).filter(function(r){return r['Color_ID'];});
 
   rebuildPriceStructures();
   catalog.loaded=true;
@@ -1479,8 +1481,8 @@ function cateringFeatureRows(plan){
     R=rr[rr.length-1].id;
   }
   const fixed=String((catalog.cateringModel||{})[plan])==='fixed';
-  const stars=num((catalog.cateringStars||{})[plan]);
-  return rows.map(function(r){
+  const stars=cateringStarsFor(plan,R);
+  return rows.filter(function(r){return r.type!=='stars';}).map(function(r){
     const q=num(r.byR[R]);
     const line={feature:catLabel(r.cat),value:'',show:true,adjustable:false,sort:0};
     if(!q)return line;
@@ -1610,6 +1612,44 @@ function addonTag(a){
   else if(mode==='per_guest')t+=' /persona';
   return t;
 }
+function yn(v){const t=String(v==null?'':v).trim().toUpperCase();return t==='Y'||t==='TRUE'||t==='1';}
+// Las opciones de un campo salen de Business_Rules.feature_list: o un catalogo
+// (Color_Catalog:Columna) o una lista literal separada por |.
+function optionsForFeature(division,subdivision,feature){
+  const map=(catalog.businessRules||{})['feature_list']||{};
+  const sub=(subdivision&&subdivision!=='-')?subdivision:'';
+  const spec=map[division+'|'+sub+'|'+feature]||map[division+'|-|'+feature]||map[division+'||'+feature];
+  if(!spec)return null;
+  const v=String(spec).trim();
+  if(v.indexOf('Color_Catalog:')===0){
+    const col=v.slice('Color_Catalog:'.length);
+    const rows=(catalog.colors||[]).filter(function(c){return yn(c['Active'])&&yn(c[col]);});
+    return {groups:[
+      {label:'En stock',items:rows.filter(function(c){return yn(c['In_Stock']);}).map(function(c){return String(c['Color_Name']);})},
+      {label:'Por encargo',items:rows.filter(function(c){return !yn(c['In_Stock']);}).map(function(c){return String(c['Color_Name']);})}
+    ].filter(function(g){return g.items.length;})};
+  }
+  return {groups:[{label:'',items:v.split('|').map(function(x){return x.trim();}).filter(Boolean)}]};
+}
+function optionsHtml(opts,current,original){
+  const esc=function(t){return String(t==null?'':t).replace(/"/g,'&quot;').replace(/</g,'&lt;');};
+  let seen=[], body='';
+  opts.groups.forEach(function(gr){
+    let inner='';
+    gr.items.forEach(function(it){
+      seen.push(it);
+      inner+='<option value="'+esc(it)+'"'+(it===current?' selected':'')+'>'+esc(it)+'</option>';
+    });
+    body+=gr.label?('<optgroup label="'+esc(gr.label)+'">'+inner+'</optgroup>'):inner;
+  });
+  // El valor original del tier siempre disponible para devolverse.
+  let head='';
+  if(original&&seen.indexOf(original)<0)
+    head='<option value="'+esc(original)+'"'+(original===current?' selected':'')+'>'+esc(original)+'</option>';
+  if(current&&seen.indexOf(current)<0&&current!==original)
+    head='<option value="'+esc(current)+'" selected>'+esc(current)+'</option>'+head;
+  return head+body;
+}
 function divColor(d){
   const C={'Venue':'#1E5C2E','Catering':'#8A5A2B','Decor':'#C9A84C',
            'Entertainment':'#2E86A8','Photo':'#B5447E'};
@@ -1665,8 +1705,14 @@ function renderIncluded(){
             '<input type="checkbox" '+(removed?'':'checked')+' onchange="toggleIncluded(\''+g.key+'\',\''+esc(f.feature)+'\',this.checked)" style="width:14px;height:14px;margin:0">'+
             '<span style="font-size:12px;flex:1;'+(removed?'text-decoration:line-through;color:#A32D2D':'')+'">'+esc(f.feature)+'</span>';
           if(removed)html+='<span style="font-size:9px;color:#A32D2D;letter-spacing:1px">RETIRADO</span>';
-          else if(!flag)html+=(changed?'<span style="font-size:10px;color:#B85C00;text-decoration:line-through">'+esc(a.orig)+'</span>':'')+
-            '<input type="text" value="'+esc(changed?a.value:f.value)+'" onchange="changeIncluded(\''+g.key+'\',\''+esc(f.feature)+'\',this.value,\''+esc(f.value)+'\')" style="width:170px;height:26px;font-size:11px">';
+          else if(!flag){
+            html+=(changed?'<span style="font-size:10px;color:#B85C00;text-decoration:line-through">'+esc(a.orig)+'</span>':'');
+            const opts=optionsForFeature(g.div,g.sub,f.feature);
+            const cur=changed?a.value:f.value;
+            html+=opts
+              ? ('<select onchange="changeIncluded(\''+g.key+'\',\''+esc(f.feature)+'\',this.value,\''+esc(f.value)+'\')" style="width:180px;height:26px;font-size:11px">'+optionsHtml(opts,cur,f.value)+'</select>')
+              : ('<input type="text" value="'+esc(cur)+'" onchange="changeIncluded(\''+g.key+'\',\''+esc(f.feature)+'\',this.value,\''+esc(f.value)+'\')" style="width:170px;height:26px;font-size:11px">');
+          }
           if(!removed&&f.badge)html+='<span style="font-size:9px;color:#854F0B;background:#FAEEDA;padding:2px 7px">'+esc(f.badge)+'</span>';
           html+='</div>';
         });
@@ -2219,8 +2265,36 @@ function updateVenueOptions(){
   }
 }
 
+// Capacidad declarada del tier, de Package_Features 'Guest Capacity' ("Up to 89").
+function venueCapacity(tier){
+  const rows=featuresFor('Venue','',tier)||[];
+  for(let i=0;i<rows.length;i++){
+    if(String(rows[i].feature||'').trim().toLowerCase()==='guest capacity'){
+      const m=String(rows[i].value||'').match(/\d+/);
+      if(m)return parseInt(m[0],10);
+    }
+  }
+  return 0;
+}
+function renderVenueCapacity(){
+  const el=document.getElementById('venueAlert');
+  if(!el)return;
+  const tier=(document.getElementById('venueTier')||{}).value;
+  if(state.isExternalEvent||!tier){el.style.display='none';el.textContent='';return;}
+  const cap=venueCapacity(tier), g=num(state.numGuests);
+  if(!cap){el.style.display='none';return;}
+  el.style.display='block';
+  if(g&&g>cap){
+    el.textContent=capitalize(tier)+' holds up to '+cap+' guests \u2014 this event has '+g;
+    el.style.background='#FDF3F3'; el.style.color='#A32D2D'; el.style.borderLeft='3px solid #A32D2D';
+  }else{
+    el.textContent=capitalize(tier)+' \u00b7 up to '+cap+' guests';
+    el.style.background=''; el.style.color='#888'; el.style.borderLeft='';
+  }
+}
 function calcVenuePrice(){
   const tier=document.getElementById('venueTier').value;
+  renderVenueCapacity();
   if(state.isExternalEvent||!tier||!state.guestRange){state.prices.venue=0;updateVenueDisplay();return;}
   // ANCHOR price only. Discounts are computed separately by computeDiscounts().
   const basePrice=VENUE_PRICES[tier]?.[state.guestRange]||0;
@@ -2285,6 +2359,46 @@ function cateringRangeId(g){
   return '';
 }
 function catLabel(c){ return String(c||'').replace(/([a-z])([A-Z])/g,'$1 $2').replace(/([A-Za-z])(\d)/g,'$1 $2'); }
+// Estrellas por rango: fuente de verdad = fila Type='stars' en Catering_Quantities.
+// Fallback a Catering_Tiers.Stars si esa fila no existe.
+function cateringStarsFor(plan,Rid){
+  const tname=((catalog.cateringQtyName||{})[plan])||'';
+  const rows=((catalog.cateringQty||{})[tname])||[];
+  const sr=rows.filter(function(r){return r.type==='stars';})[0];
+  if(sr&&Rid&&sr.byR[Rid]!=null&&sr.byR[Rid]!=='')return num(sr.byR[Rid]);
+  return num((catalog.cateringStars||{})[plan]);
+}
+// Orden de cocina. La cantidad sale de los invitados (Catering_Config
+// portions_main_per_guest / portions_sides_per_guest), con piso de variedad:
+// cada tipo elegido necesita al menos media bandeja y cada estrella una completa.
+function cateringKitchenOrder(plan,g,Rid){
+  const cfg=catalog.cateringCfg||{};
+  const half=num(cfg.half_tray)||20;
+  const rm=num(cfg.portions_main_per_guest)||1.1;
+  const rs=num(cfg.portions_sides_per_guest)||0.9;
+  const tname=((catalog.cateringQtyName||{})[plan])||'';
+  const rows=((catalog.cateringQty||{})[tname])||[];
+  if(!rows.length||!g||!Rid)return null;
+  const byGm=Math.round(g*rm/half), byGs=Math.round(g*rs/half);
+  // Menu fijo (Classic): los platos vienen dados, el piso es un plato por media
+  // bandeja. Las medias de la tabla quedan como referencia, no calculan cantidad.
+  if(String((catalog.cateringModel||{})[plan])==='fixed'){
+    let nm=0,ns=0;
+    rows.forEach(function(r){
+      if(r.type!=='half')return;
+      if(!num(r.byR[Rid]))return;
+      if(/main/i.test(r.cat))nm++; else ns++;
+    });
+    return {main:Math.max(byGm,nm),sides:Math.max(byGs,ns),stars:0,
+            types:nm,floor:nm,byGuests:byGm,fixed:true};
+  }
+  const mainRow=rows.filter(function(r){return r.type==='mains';})[0];
+  const types=mainRow?num(mainRow.byR[Rid]):0;
+  const stars=Math.min(cateringStarsFor(plan,Rid),types);
+  const floor=types?(stars*2+Math.max(0,types-stars)):0;
+  return {main:Math.max(byGm,floor),sides:Math.max(byGs,types?1:0),
+          stars:stars,types:types,floor:floor,byGuests:byGm,fixed:false};
+}
 function updateCateringTrays(){
   const el=document.getElementById('cateringTrayDisplay');
   if(!el)return;
@@ -2306,10 +2420,12 @@ function updateCateringTrays(){
   }
   const parts=[]; let sold=false;
   rows.forEach(function(r){
+    if(r.type==='stars')return; // interno, no es una linea de contenido
     const q=num(r.byR[Rid]);
     if(!q)return;
     sold=true;
     if(r.type==='included')parts.push(catLabel(r.cat)+' \u2713');
+    else if(r.type==='mains'||r.type==='sides')parts.push('choose '+q+' '+catLabel(r.cat));
     else parts.push(q+' '+catLabel(r.cat));
   });
   if(!sold){
@@ -2317,19 +2433,18 @@ function updateCateringTrays(){
     el.textContent=min?('Not sold under '+min+' guests'):'Not sold at this guest count';
     return;
   }
-  // Medias bandejas de mains: el star dish cuenta doble (Catering_Config).
-  const stars=num((catalog.cateringStars||{})[plan]);
-  const cfg=catalog.cateringCfg||{};
-  const mainRow=rows.filter(function(r){return r.type==='mains';})[0];
-  if(stars&&mainRow){
-    const choices=num(mainRow.byR[Rid]);
-    if(choices){
-      const sh=num(cfg.star_halves)||2, nh=num(cfg.normal_halves)||1;
-      const halves=stars*sh+Math.max(0,choices-stars)*nh;
-      parts.push(stars+' \u2605 star'+(stars>1?'s':'')+' \u00b7 '+halves+' half trays');
-    }
+  // Orden de cocina: medias bandejas por invitados, no por la tabla de variedad.
+  const ko=cateringKitchenOrder(plan,g,Rid);
+  let kitchen='';
+  if(ko&&(ko.main||ko.sides)){
+    const bits=[];
+    if(ko.main)bits.push(ko.main+' half trays main');
+    if(ko.sides)bits.push(ko.sides+' half trays sides');
+    if(ko.stars)bits.push(ko.stars+' \u2605 Star Dish'+(ko.stars>1?'es':'')+' \u2192 full tray each');
+    kitchen=' \u2014 KITCHEN: '+bits.join(' \u00b7 ');
+    if(!ko.fixed&&ko.floor>ko.byGuests)kitchen+=' (variety floor: '+ko.types+' dishes force '+ko.floor+', guests need '+ko.byGuests+')';
   }
-  el.textContent=Rid+' \u00b7 '+parts.join(' \u00b7 ')+over;
+  el.textContent=Rid+' \u00b7 '+parts.join(' \u00b7 ')+over+kitchen;
 }
 function setDecorPlan(tier,btn){markEdited();
   document.querySelectorAll('#decorTierBtns .tier-btn').forEach(b=>b.classList.remove('active'));
@@ -2341,8 +2456,8 @@ function onDecorHonorTierChange(){markEdited();
   const tier=document.getElementById('decorHonorTier').value;
   const typeSelect=document.getElementById('decorHonorType');
   if(tier&&tier!=='legacy'){
-    typeSelect.disabled=false;
-    if(!typeSelect.value)typeSelect.value='';
+    const n=fillDecorTypeOptions('decorHonorType',(catalog.HONOR||{})[tier],['flowers','balloons']);
+    typeSelect.disabled=(n<=1);
   } else {
     typeSelect.disabled=true;
     typeSelect.value='';
@@ -2350,12 +2465,30 @@ function onDecorHonorTierChange(){markEdited();
   calcDecorPrice();calcTotal();
 }
 
+// Arma un select de tipo (flowers/balloons/others) dejando solo los que tienen
+// precio activo en el tier elegido. Essential solo vende el trio (others), asi
+// que sus filas CEN-F y CEN-B estan inactivas y no deben ofrecerse.
+function fillDecorTypeOptions(selId,map,types){
+  const sel=document.getElementById(selId); if(!sel)return 0;
+  const prev=sel.value;
+  const L={flowers:'Flowers',balloons:'Balloons',others:'Others'};
+  let html='<option value="">\u2014 Select \u2014</option>', n=0, first='';
+  types.forEach(function(t){
+    if(num((map||{})[t])>0){
+      n++; if(!first)first=t;
+      html+='<option value="'+t+'">'+(L[t]||t)+'</option>';
+    }
+  });
+  sel.innerHTML=html;
+  sel.value=(prev&&num((map||{})[prev])>0)?prev:first;
+  return n;
+}
 function onDecorCPTierChange(){markEdited();
   const tier=document.getElementById('decorCPTier').value;
   const typeSelect=document.getElementById('decorCPType');
   if(tier&&tier!=='legacy'){
-    typeSelect.disabled=false;
-    if(!typeSelect.value)typeSelect.value='flowers';
+    const n=fillDecorTypeOptions('decorCPType',(catalog.CP||{})[tier],['flowers','balloons','others']);
+    typeSelect.disabled=(n<=1);
   } else {
     typeSelect.disabled=true;
     typeSelect.value='';
