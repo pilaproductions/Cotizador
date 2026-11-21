@@ -3334,7 +3334,11 @@ function collectData(){
     'Tables':state.numTables,
     'Event Type':state.eventType||'',
     'Event Sub-Type':state.eventTypeLabel||'',
-    'Full Package':(state.fullPackage&&state.fullPackage!=='na')?state.fullPackage:((disc.fp.eligible&&disc.fp.checked)?disc.fp.tier:'na'),
+    // `Full Package` guarda SOLO el Package_ID. El tier del bono va aparte en
+    // `FP Bonus Tier`. Antes las dos cosas compartian la columna, asi que una
+    // venta por paquete y una armada a mano quedaban indistinguibles.
+    'Full Package':(state.fullPackage&&state.fullPackage!=='na')?state.fullPackage:'',
+    'FP Bonus Tier':(disc.fp.eligible&&disc.fp.checked)?(disc.fp.tier||''):'',
     'Package Modified':(packageDelta().status==='below')?'Y':'N',
     'Venue Tier':state.isExternalEvent?'EXTERNAL':document.getElementById('venueTier').value,
     'Catering Line':document.getElementById('cateringLine').value,
@@ -3649,6 +3653,17 @@ function loadQuotation(cotNum){
   const savedDPhoto=parseFloat(rec['Discount Photo'])||0;
   const savedDCatering=parseFloat(rec['Discount Catering'])||0;
   const savedDDecor=parseFloat(rec['Discount Decor'])||0;
+  // Paquete guardado. No se restauraba, asi que al reabrir se perdia con que
+  // paquete se vendio y compareToPackage() no podia comparar nada.
+  const savedPkg=String(rec['Full Package']||'').trim();
+  state.fullPackage=(savedPkg&&savedPkg.toLowerCase()!=='na')?savedPkg:'na';
+  state.packageModified=false;   // calcTotal lo recalcula contra la definicion
+  // Compatibilidad con cotizaciones viejas: si `Full Package` traia un tier en
+  // vez de un Package_ID, ese valor era el bono, no el paquete.
+  const legacyTier=['essential','elegant','prestige','legacy'].indexOf(savedPkg.toLowerCase())>-1;
+  if(legacyTier)state.fullPackage='na';
+  disc.fp.checked=!!String(rec['FP Bonus Tier']||'').trim()||legacyTier;
+
   // Tarifa de dia guardada: si hay valor, la cotizacion la llevaba aplicada.
   const savedDayRate=String(rec['Day Rate Applied']||'').trim().toLowerCase();
   state.dayRate=savedDayRate;
