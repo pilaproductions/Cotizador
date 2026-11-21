@@ -381,7 +381,7 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
         <div class="sub-header"><div class="sub-title">Dining Setup</div><div class="sub-price" id="dining-price"></div></div>
         <div class="sub-content">
           <div class="grid-2">
-            <div class="field"><div class="field-label">Tier</div><select class="field-select" id="decorDiningTier" onchange="markEdited();calcDecorPrice();calcTotal()"><option value="">Not Applicable</option><option value="essential">Essential</option><option value="elegant">Elegant</option><option value="prestige">Prestige</option><option value="legacy">Legacy</option></select></div>
+            <div class="field"><div class="field-label">Tier</div><select class="field-select" id="decorDiningTier" onchange="onDecorSubChange()"><option value="">Not Applicable</option><option value="essential">Essential</option><option value="elegant">Elegant</option><option value="prestige">Prestige</option><option value="legacy">Legacy</option></select></div>
             <div class="field"><div class="field-label">Tables (auto)</div><span class="field-auto highlight" id="decorDiningTablesDisplay">—</span></div>
             <div class="field legacy-field" id="decorLegDiningField" style="display:none"><div class="field-label">Legacy price <span class="req">*</span></div><input class="field-input" id="decorLegDining" type="number" placeholder="Total" oninput="markEdited();calcDecorPrice();calcTotal()" style="max-width:120px"></div>
           </div>
@@ -400,8 +400,10 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
       </div>
       <div class="sub-block">
         <div class="sub-header"><div class="sub-title">Extras</div><div class="sub-price" id="extras-price"></div></div>
-        <div class="sub-content"><div class="field"><div class="field-label">Tier</div><select class="field-select" id="decorExtrasTier" onchange="markEdited();calcDecorPrice();calcTotal()"><option value="">Not Applicable</option><option value="elegant">Elegant</option><option value="prestige">Prestige</option><option value="legacy">Legacy</option></select><span class="info-badge gold" id="extrasInfo" style="display:none"></span></div>
-        <div class="field legacy-field" id="decorLegExtField" style="display:none"><div class="field-label">Legacy price <span class="req">*</span></div><input class="field-input" id="decorLegExt" type="number" placeholder="Total" oninput="markEdited();calcDecorPrice();calcTotal()" style="max-width:120px"></div></div>
+        <div class="sub-content"><div class="field"><div class="field-label">Tier</div><select class="field-select" id="decorExtrasTier" onchange="onDecorSubChange()"><option value="">Not Applicable</option><option value="elegant">Elegant</option><option value="prestige">Prestige</option><option value="legacy">Legacy</option></select><span class="info-badge gold" id="extrasInfo" style="display:none"></span></div>
+        <div class="field legacy-field" id="decorLegExtField" style="display:none"><div class="field-label">Legacy price <span class="req">*</span></div><input class="field-input" id="decorLegExt" type="number" placeholder="Total" oninput="markEdited();calcDecorPrice();calcTotal()" style="max-width:120px"></div>
+        <div id="decorAddonsQuota" style="margin:4px 0 6px;font-size:11px"></div>
+        <div id="decorAddonsWrap"></div></div>
       </div>
     </div>
     <div id="decorDiscountDisplay" style="display:none;margin-top:6px"></div>
@@ -960,6 +962,7 @@ window.onload=async()=>{
   applyGuestCapToInput();
   renderAddons('entertainment');
   renderAddons('photo');
+  renderAddons('decor');
   await loadAllQuotations();
   updateReserveButton();
   await generateCotNumber();
@@ -2483,6 +2486,14 @@ function cateringKitchenOrder(plan,g,Rid){
   const rows=((catalog.cateringQty||{})[tname])||[];
   if(!rows.length||!g||!Rid)return null;
   const byGm=Math.round(g*rm/half), byGs=Math.round(g*rs/half);
+  // Postre: es contenido del plan y se pide al restaurante, asi que entra en la
+  // orden de cocina. La cantidad sale de los invitados, no de la celda de
+  // Catering_Quantities, que se queda como referencia igual que las medias de
+  // Classic. Se redondea hacia arriba porque media bandeja no se pide.
+  const pdg=num(cfg.portions_dessert_per_guest)||0;
+  const ppt=num(cfg.portions_per_dessert_tray)||0;
+  const dRow=rows.filter(function(r){return r.type==='dessert';})[0];
+  const dessert=(dRow&&num(dRow.byR[Rid])&&pdg>0&&ppt>0)?Math.ceil(g*pdg/ppt):0;
   // Menu fijo (Classic): los platos vienen dados, el piso es un plato por media
   // bandeja. Las medias de la tabla quedan como referencia, no calculan cantidad.
   if(String((catalog.cateringModel||{})[plan])==='fixed'){
@@ -2492,7 +2503,7 @@ function cateringKitchenOrder(plan,g,Rid){
       if(!num(r.byR[Rid]))return;
       if(/main/i.test(r.cat))nm++; else ns++;
     });
-    return {main:Math.max(byGm,nm),sides:Math.max(byGs,ns),stars:0,
+    return {main:Math.max(byGm,nm),sides:Math.max(byGs,ns),stars:0,dessert:dessert,
             types:nm,floor:nm,byGuests:byGm,fixed:true};
   }
   const mainRow=rows.filter(function(r){return r.type==='mains';})[0];
@@ -2500,7 +2511,7 @@ function cateringKitchenOrder(plan,g,Rid){
   const stars=Math.min(cateringStarsFor(plan,Rid),types);
   const floor=types?(stars*2+Math.max(0,types-stars)):0;
   return {main:Math.max(byGm,floor),sides:Math.max(byGs,types?1:0),
-          stars:stars,types:types,floor:floor,byGuests:byGm,fixed:false};
+          stars:stars,dessert:dessert,types:types,floor:floor,byGuests:byGm,fixed:false};
 }
 function updateCateringTrays(){
   const el=document.getElementById('cateringTrayDisplay');
@@ -2558,6 +2569,7 @@ function updateCateringTrays(){
     if(ko.main)kit.push('<b>'+ko.main+'</b> medias de fuerte');
     if(ko.sides)kit.push('<b>'+ko.sides+'</b> medias de acompa\u00f1amiento');
     if(ko.stars)kit.push(ko.stars+' en bandeja completa');
+    if(ko.dessert)kit.push('<b>'+ko.dessert+'</b> '+(ko.dessert>1?'bandejas':'bandeja')+' de postre');
   }
   const floorNote=(ko&&!ko.fixed&&ko.floor>ko.byGuests)
     ? ' <span style="color:#B85C00">\u00b7 manda la variedad: '+ko.types+' platos exigen '+ko.floor+', los invitados piden '+ko.byGuests+'</span>' : '';
@@ -2587,8 +2599,12 @@ function onDecorHonorTierChange(){markEdited();
     typeSelect.disabled=true;
     typeSelect.value='';
   }
-  calcDecorPrice();calcTotal();
+  calcDecorPrice();calcTotal();renderAddons('decor');
 }
+
+// Un solo handler para los selects de subdivision sin logica propia. Re-dibuja
+// los add-ons porque el cupo depende de cuantas subdivisiones estan elegidas.
+function onDecorSubChange(){markEdited();calcDecorPrice();calcTotal();renderAddons('decor');}
 
 // Arma un select de tipo (flowers/balloons/others) dejando solo los que tienen
 // precio activo en el tier elegido. Essential solo vende el trio (others), asi
@@ -2618,7 +2634,7 @@ function onDecorCPTierChange(){markEdited();
     typeSelect.disabled=true;
     typeSelect.value='';
   }
-  calcDecorPrice();calcTotal();
+  calcDecorPrice();calcTotal();renderAddons('decor');
 }
 
 function setDecorPlanInternal(tier,skipValueOverwrite){
@@ -2951,7 +2967,9 @@ function computeDiscounts(){
     // % from Business_Rules.decor_full_discount (Essential=0; Legacy has no
     // discount — it is a manual custom price).
     const pct=rulePct('decor_full_discount',lt);
-    if(pct>0){disc.decor.eligible=true;disc.decor.pct=pct;disc.decor.amount=(p.decor||0)*(pct/100);}
+    // Base EXCLUYE add-ons: los extras nunca inflan el descuento de categoria.
+    const decBase=(p.decor||0)-addonsTotal('decor');
+    if(pct>0){disc.decor.eligible=true;disc.decor.pct=pct;disc.decor.amount=decBase*(pct/100);}
   }
 
   // ENTERTAINMENT — Collection plan (not sound-only); % from catalog by tier.
@@ -2977,7 +2995,7 @@ function computeDiscounts(){
   disc.day.key=dayKey;
   const dayElig=fullPackageEligible();
   if(dayElig.eligible&&dayPct>0){
-    const dayBase=(p.venue||0)+(p.catering||0)+(p.decor||0)
+    const dayBase=(p.venue||0)+(p.catering||0)+((p.decor||0)-addonsTotal('decor'))
       +((p.entertainment||0)-addonsTotal('entertainment'))
       +((p.photo||0)-addonsTotal('photo'));
     disc.day.eligible=true;disc.day.pct=dayPct;disc.day.amount=dayBase*(dayPct/100);
@@ -2990,7 +3008,7 @@ function computeDiscounts(){
   if(elig.eligible){
     disc.fp.pct=fpBonusPct(elig.tier);
     // Bonus base EXCLUDES add-ons (extras don't affect Full Package).
-    const fpBase=(p.venue||0)+(p.catering||0)+(p.decor||0)
+    const fpBase=(p.venue||0)+(p.catering||0)+((p.decor||0)-addonsTotal('decor'))
       +((p.entertainment||0)-addonsTotal('entertainment'))
       +((p.photo||0)-addonsTotal('photo'));
     disc.fp.amount=fpBase*(disc.fp.pct/100);
@@ -3049,8 +3067,136 @@ function fullPackageEligible(){
 // User adds extras on demand via "+ Add Extra". Each row = dropdown of add-ons
 // AVAILABLE for the chosen tier (Addon_Catalog Applies_To_Tiers) + manual price
 // + remove. Live Show requires a type. Add-ons don't affect discounts/FP.
-state.addons={entertainment:[],photo:[]};
+state.addons={entertainment:[],photo:[],decor:[]};
 let addonSeq=0;
+
+// ── ADD-ONS DE DECOR ───────────────────────────────────────
+// El cupo lo compra la subdivision Add-Ons (DEC-ELE-EXT $150 / DEC-PRE-EXT
+// $350). Sin esa subdivision no hay cupo y cada pieza se cobra a lista.
+// Legacy es manual: no lleva cupo, igual que su precio.
+const DEC_TIER_ORDER=['essential','elegant','prestige','legacy'];
+function decorAddonTier(){
+  return String((document.getElementById('decorExtrasTier')||{}).value||'').trim().toLowerCase();
+}
+// Cuantas de las OTRAS tres subdivisiones eligio. Add-Ons no se cuenta: es lo
+// que se esta desbloqueando.
+function decorSubsChosen(){
+  return ['decorHonorTier','decorDiningTier','decorCPTier'].filter(function(id){
+    return String((document.getElementById(id)||{}).value||'').trim()!=='';
+  }).length;
+}
+// Desbloqueo progresivo: cada subdivision elegida abre addons_per_division_
+// <tier>, y al llegar a addons_full_at_divisions se abre el cupo completo.
+// Elegant 1->2->4, Prestige 2->4->6.
+function decorAddonAllowance(){
+  const t=decorAddonTier();
+  if(!t||t==='legacy')return 0;
+  const full=ruleNum('decor_allowance','addons_'+t);
+  if(!full)return 0;
+  const per=ruleNum('decor_allowance','addons_per_division_'+t);
+  const at=ruleNum('decor_allowance','addons_full_at_divisions')||3;
+  const n=decorSubsChosen();
+  return (n>=at)?full:Math.min(full,per*n);
+}
+function decorItemTier(a){ return String(a['Item_Tier']||'').trim().toLowerCase(); }
+// Solo el grupo ADDONS consume cupo. El pastel no lo lleva, asi que nunca
+// descuenta cupo ni cuenta como upgrade.
+function decorAddonCountsQuota(a){
+  return String(a['Allowance_Group']||'').trim().toUpperCase()==='ADDONS';
+}
+// Disponibilidad propia de Decor. No sirve addonsForDivision(): su filtro lee
+// Applies_To_Tiers, que dice quien puede comprar POR ENCIMA de su tier, y
+// ninguna fila nombra Prestige porque Prestige ya lo incluye todo — un cliente
+// Prestige veria la lista vacia. Aqui se muestra todo item de tier igual o
+// menor, mas los de arriba que Applies_To_Tiers le permita comprar.
+function decorAddonsAvailable(){
+  const t=decorAddonTier();
+  const ti=DEC_TIER_ORDER.indexOf(t);
+  const ev=String((document.getElementById('eventType')||{}).value||'').trim().toLowerCase();
+  return (catalog.addons||[]).filter(function(a){
+    if(String(a['Division'])!=='Decor')return false;
+    if(!isActive(a['Active']))return false;
+    const evs=String(a['Event_Types']||'').trim().toLowerCase();
+    if(evs&&evs!=='all'&&ev&&evs.split(',').map(function(x){return x.trim();}).indexOf(ev)<0)return false;
+    const it=decorItemTier(a);
+    if(!it)return true;                       // sin tier (el pastel): siempre
+    const ii=DEC_TIER_ORDER.indexOf(it);
+    if(ti>-1&&ii>-1&&ii<=ti)return true;      // de su tier o menor
+    const applies=String(a['Applies_To_Tiers']||'').trim().toLowerCase();
+    if(applies==='none')return false;
+    if(!applies||applies==='all')return true;
+    if(!t)return true;                        // sin tier elegido: muestra todo
+    return applies.split(',').map(function(x){return x.trim();}).indexOf(t)>-1;
+  });
+}
+// Tres estados por fila elegida. included: de su tier o menor y dentro del
+// cupo. additional: pasado el cupo. upgrade: de un tier superior al suyo.
+// item: fuera del grupo ADDONS (el pastel), se cobra y no toca el cupo.
+function decorAddonStatuses(){
+  const t=decorAddonTier(), ti=DEC_TIER_ORDER.indexOf(t);
+  const allow=decorAddonAllowance();
+  const map={}; let used=0;
+  (state.addons.decor||[]).forEach(function(r){
+    if(!r.addonId){map[r.id]='';return;}
+    const a=(catalog.addons||[]).find(function(x){return String(x['Addon_ID'])===String(r.addonId);});
+    if(!a){map[r.id]='';return;}
+    if(!decorAddonCountsQuota(a)){map[r.id]='item';return;}
+    const it=decorItemTier(a), ii=DEC_TIER_ORDER.indexOf(it);
+    if(it&&ti>-1&&ii>ti){map[r.id]='upgrade';return;}
+    used++;
+    map[r.id]=(used<=allow)?'included':'additional';
+  });
+  return {map:map,used:used,allow:allow};
+}
+// Precio por estado: lo incluido vale 0, el resto va a precio de lista. Si el
+// vendedor escribio un precio (auto=false) se respeta.
+function applyDecorAddonPrices(st){
+  (state.addons.decor||[]).forEach(function(r){
+    if(r.auto===false||!r.addonId)return;
+    r.price=(st.map[r.id]==='included')?0:addonPrice(r.addonId);
+  });
+}
+const DEC_BADGE={included:['incluido','#1A5C2E','#E7F2EA'],additional:['extra','#8A5A2B','#F6EFE6'],
+                 upgrade:['upgrade','#A8863A','#FAF6EA'],item:['producto','#555','#ECECEC']};
+function renderDecorAddonQuota(st){
+  const el=document.getElementById('decorAddonsQuota');
+  if(!el)return;
+  const t=decorAddonTier();
+  const chg=addonsTotal('decor');
+  const money=chg?' <span style="color:#C9A84C">\u00b7 cobrado '+fmtMoney(chg)+'</span>':'';
+  if(!t){
+    el.innerHTML='<span style="color:#999">Sin la subdivisi\u00f3n Add-Ons no hay cupo: cada pieza se cobra a precio de lista.</span>'+money;
+    return;
+  }
+  if(t==='legacy'){
+    el.innerHTML='<span style="color:#A8863A">Legacy: sin cupo, las piezas se definen y se cobran a mano.</span>'+money;
+    return;
+  }
+  const full=ruleNum('decor_allowance','addons_'+t);
+  const n=decorSubsChosen(), at=ruleNum('decor_allowance','addons_full_at_divisions')||3;
+  let txt='<b>'+st.allow+'</b> incluidas';
+  if(st.used)txt+=', <b>'+st.used+'</b> adelantada(s) aqu\u00ed';
+  txt+=' <span style="color:#888">\u00b7 las dem\u00e1s se eligen en la reuni\u00f3n de dise\u00f1o</span>';
+  if(st.allow<full)txt+='<br><span style="color:#8A5A2B">'+n+' de '+at+' subdivisiones elegidas; con las tres el cupo llega a '+full+'</span>';
+  if(st.used>st.allow)txt+='<br><span style="color:#B23B3B">'+(st.used-st.allow)+' pasada(s) del cupo, se cobran</span>';
+  txt+=money;
+  // La lista de lo que el cupo puede cubrir. Es para mostrarsela al cliente en
+  // la venta; la eleccion real ocurre despues, en la reunion de diseno.
+  const ti=DEC_TIER_ORDER.indexOf(t);
+  const inT=[], up=[];
+  decorAddonsAvailable().forEach(function(a){
+    if(!decorAddonCountsQuota(a))return;              // el pastel no es del cupo
+    const ii=DEC_TIER_ORDER.indexOf(decorItemTier(a));
+    if(ii>-1&&ti>-1&&ii<=ti)inT.push(addonOptLabel(a));
+    else up.push(addonOptLabel(a)+' '+fmtMoney(num(a['Price'])));
+  });
+  const chips=function(arr,color){
+    return arr.map(function(x){return '<span style="display:inline-block;background:#1e1e1e;border:1px solid #333;color:'+color+';padding:1px 7px;margin:2px 3px 0 0;font-size:10px">'+x+'</span>';}).join('');
+  };
+  if(inT.length)txt+='<div style="margin-top:5px"><span style="color:#777;font-size:10px">Puede elegir entre:</span><br>'+chips(inT,'#CFCFCF')+'</div>';
+  if(up.length)txt+='<div style="margin-top:4px"><span style="color:#777;font-size:10px">De tier superior, con costo:</span><br>'+chips(up,'#C9A84C')+'</div>';
+  el.innerHTML=txt;
+}
 
 function addonsForDivision(division){
   const tierByDiv={entertainment:document.getElementById('entPlan').value||'',photo:(document.getElementById('photoTier').value||'')};
@@ -3089,7 +3235,16 @@ function onAddonSelect(division,rowId,addonId){markEdited();
   row.addonId=addonId;
   const a=(catalog.addons||[]).find(x=>String(x['Addon_ID'])===String(addonId));
   row.name=a?a['Name']:'';
-  row.requiresType=a?String(a['Requires_Type']).toLowerCase()==='true':false;
+  // Requires_Type llega como Y/N en la hoja; antes se comparaba contra el texto
+  // 'true', asi que siempre daba falso y el campo de tipo nunca aparecia.
+  row.requiresType=a?yn(a['Requires_Type']):false;
+  // El precio sale de Addon_Catalog.Price con su Price_Mode. Antes la fila
+  // nacia en cero y el vendedor escribia el numero a mano, asi que los precios
+  // de la hoja no se usaban en ninguna parte. auto=true deja que per_table y
+  // per_guest se recalculen al cambiar mesas o invitados; onAddonPrice lo
+  // apaga en cuanto el vendedor escribe encima.
+  row.price=addonPrice(addonId);
+  row.auto=true;
   renderAddons(division);calcTotal();
 }
 function onAddonPrice(division,rowId,val){markEdited();
@@ -3109,21 +3264,37 @@ function renderAddonTotals(){
   const f=document.getElementById('photoAddonsTotal');
   if(f){const t=addonsTotal('photo');f.textContent=t?fmtMoney(t):'';}
 }
+const ADDON_WRAP={entertainment:'entAddonsWrap',photo:'photoAddonsWrap',decor:'decorAddonsWrap'};
+// Etiqueta de la opcion. En Decor hay dos Welcome Sign y dos Guest List Sign
+// que solo se distinguen por Level, asi que el nivel entra en el nombre.
+function addonOptLabel(a){
+  const lv=String(a['Level']||'').trim();
+  return String(a['Name']||'')+((lv&&lv.toLowerCase()!=='standard')?' '+lv:'');
+}
 function renderAddons(division){
-  const wrap=document.getElementById(division==='entertainment'?'entAddonsWrap':'photoAddonsWrap');
+  const wrap=document.getElementById(ADDON_WRAP[division]);
   if(!wrap)return;
-  const avail=addonsForDivision(division);
+  const isDec=(division==='decor');
+  const avail=isDec?decorAddonsAvailable():addonsForDivision(division);
+  const st=isDec?decorAddonStatuses():null;
+  if(isDec)applyDecorAddonPrices(st);
   const rows=state.addons[division].map(row=>{
-    const opts=['<option value="">— add-on —</option>'].concat(avail.map(a=>`<option value="${a['Addon_ID']}" ${row.addonId==a['Addon_ID']?'selected':''}>${a['Name']}</option>`)).join('');
+    const opts=['<option value="">— add-on —</option>'].concat(avail.map(a=>`<option value="${a['Addon_ID']}" ${row.addonId==a['Addon_ID']?'selected':''}>${addonOptLabel(a)}</option>`)).join('');
     const typeField=row.requiresType?`<input type="text" placeholder="type" value="${row.type||''}" oninput="onAddonType('${division}','${row.id}',this.value)" style="width:90px;height:26px;font-size:11px">`:'';
+    let badge='';
+    if(isDec){
+      const b=DEC_BADGE[st.map[row.id]||''];
+      if(b)badge=`<span style="flex:none;font-size:9px;font-weight:700;letter-spacing:.5px;color:${b[1]};background:${b[2]};padding:2px 6px">${b[0]}</span>`;
+    }
     return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
       <select onchange="onAddonSelect('${division}','${row.id}',this.value)" style="flex:1;height:26px;font-size:11px">${opts}</select>
-      ${typeField}
+      ${typeField}${badge}
       <input type="number" placeholder="$" value="${row.price||''}" oninput="onAddonPrice('${division}','${row.id}',this.value)" style="width:70px;height:26px;font-size:11px;text-align:right">
       <button onclick="removeAddonRow('${division}','${row.id}')" style="width:24px;height:26px;background:#3a1a1a;color:#c88;border:none;border-radius:4px;cursor:pointer">✕</button>
     </div>`;
   }).join('');
   renderAddonTotals();
+  if(isDec)renderDecorAddonQuota(st);
   wrap.innerHTML=rows+`<button onclick="addAddonRow('${division}')" style="font-size:11px;color:#C9A84C;background:none;border:1px dashed #C9A84C55;border-radius:5px;padding:4px 10px;cursor:pointer;margin-top:2px">+ Add Extra</button>`;
 }
 
@@ -3156,6 +3327,7 @@ function calcTotal(){
     // add-ons (manual price) add to their category anchor
     p.entertainment+=addonsTotal('entertainment');
     p.photo+=addonsTotal('photo');
+    p.decor+=addonsTotal('decor');
   }
 
   // 2) Show anchor prices per category (no per-category discount baked in).
@@ -3374,7 +3546,7 @@ function collectData(){
     'Discount FP':(disc.fp.checked&&disc.fp.eligible)?disc.fp.amount:0,
     'Manual Disc Pct':disc.manual.pct||'',
     'Manual Disc Reason':disc.manual.reason||'',
-    'Addons Detail':JSON.stringify({entertainment:state.addons.entertainment,photo:state.addons.photo}),
+    'Addons Detail':JSON.stringify({entertainment:state.addons.entertainment,photo:state.addons.photo,decor:state.addons.decor}),
     'Included Snapshot':buildIncludedSnapshot(),
     'Price Override':document.getElementById('priceOverride').value,
     'Final Total':document.getElementById('p-final').textContent,
@@ -3674,12 +3846,13 @@ function loadQuotation(cotNum){
     const ax=JSON.parse(rec['Addons Detail']||'{}');
     state.addons.entertainment=Array.isArray(ax.entertainment)?ax.entertainment:[];
     state.addons.photo=Array.isArray(ax.photo)?ax.photo:[];
+    state.addons.decor=Array.isArray(ax.decor)?ax.decor:[];
     // ensure each row has an id and requiresType flag
     ['entertainment','photo'].forEach(div=>{
       state.addons[div].forEach(r=>{
         if(!r.id){addonSeq++;r.id='ax'+addonSeq;}
         const a=(catalog.addons||[]).find(x=>String(x['Addon_ID'])===String(r.addonId));
-        r.requiresType=a?String(a['Requires_Type']).toLowerCase()==='true':false;
+        r.requiresType=a?yn(a['Requires_Type']):false;
         if(a&&!r.name)r.name=a['Name'];
       });
     });
@@ -3701,7 +3874,7 @@ function loadQuotation(cotNum){
     const mp=document.getElementById('manualDiscPct');if(mp)mp.value=rec['Manual Disc Pct'];
     const mr=document.getElementById('manualDiscReason');if(mr)mr.value=rec['Manual Disc Reason']||'';
   }
-  renderAddons('entertainment');renderAddons('photo');
+  renderAddons('entertainment');renderAddons('photo');renderAddons('decor');
   state.prices.venue=parseFloat(rec['Price Venue'])||0;
   state.prices.catering=parseFloat(rec['Price Catering'])||0;
   state.prices.decor=parseFloat(rec['Price Decor'])||0;
