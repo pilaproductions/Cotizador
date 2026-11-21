@@ -491,12 +491,16 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
   <div class="block-header"><div class="block-num">4</div><div class="block-title">Add-Ons &amp; Extras</div></div>
   <div class="block-content">
     <div class="sub-block">
-      <div class="sub-header"><div class="sub-title">Entertainment &amp; Production</div><div class="sub-price" id="entAddonsTotal"></div></div>
-      <div class="sub-content"><div id="entAddonsWrap"></div></div>
+      <div class="sub-header"><div class="sub-title">Catering &amp; Hospitality</div><div class="sub-price" id="catAddonsTotal"></div></div>
+      <div class="sub-content"><div id="catAddonsWrap"></div></div>
     </div>
     <div class="sub-block">
       <div class="sub-header"><div class="sub-title">Design &amp; Decor</div><div class="sub-price" id="decorAddonsTotal"></div></div>
       <div class="sub-content"><div id="decorAddonsQuota" style="margin:0 0 6px;font-size:11px"></div><div id="decorAddonsWrap"></div></div>
+    </div>
+    <div class="sub-block">
+      <div class="sub-header"><div class="sub-title">Entertainment &amp; Production</div><div class="sub-price" id="entAddonsTotal"></div></div>
+      <div class="sub-content"><div id="entAddonsWrap"></div></div>
     </div>
     <div class="sub-block">
       <div class="sub-header"><div class="sub-title">Photo &amp; Video</div><div class="sub-price" id="photoAddonsTotal"></div></div>
@@ -966,6 +970,7 @@ window.onload=async()=>{
   renderAddons('entertainment');
   renderAddons('photo');
   renderAddons('decor');
+  renderAddons('catering');
   await loadAllQuotations();
   updateReserveButton();
   await generateCotNumber();
@@ -2459,6 +2464,8 @@ function onCateringPlanChange(){markEdited();
   const el=document.getElementById('cateringPriceDisplay');
   if(el)el.style.display='none'; // price shown only in header/summary, not next to plan
   document.getElementById('catering-header-price').textContent=price?fmtMoney(price):'';
+  // La lista de add-ons depende del plan (Addon_Catalog.Applies_To_Tiers).
+  renderAddons('catering');
   calcVenuePrice();calcTotal();
 }
 
@@ -2957,10 +2964,13 @@ function computeDiscounts(){
   // CATERING — Collection Elegant/Prestige + Legacy.
   if(cLine==='collection' && ['elegant','prestige'].includes(cPlan)){
     const pct=catDiscPct('CAT-COL-'+({elegant:'ELE',prestige:'PRE'}[cPlan]));
-    if(pct>0){disc.catering.eligible=true;disc.catering.pct=pct;disc.catering.amount=(p.catering||0)*(pct/100);}
+    // Base EXCLUYE add-ons, igual que en las otras categorias.
+    const catBase=(p.catering||0)-addonsTotal('catering');
+    if(pct>0){disc.catering.eligible=true;disc.catering.pct=pct;disc.catering.amount=catBase*(pct/100);}
   } else if(cLine==='legacy'){
     const pct=catDiscPct('CAT-LEG');
-    if(pct>0){disc.catering.eligible=true;disc.catering.pct=pct;disc.catering.amount=(p.catering||0)*(pct/100);}
+    const catBase=(p.catering||0)-addonsTotal('catering');
+    if(pct>0){disc.catering.eligible=true;disc.catering.pct=pct;disc.catering.amount=catBase*(pct/100);}
   }
 
   // DECOR — only if FULL DECOR (all 4 subdivisions present); % by LOWEST tier.
@@ -3012,7 +3022,7 @@ function computeDiscounts(){
   disc.day.key=dayKey;
   const dayElig=fullPackageEligible();
   if(dayElig.eligible&&dayPct>0){
-    const dayBase=(p.venue||0)+(p.catering||0)+((p.decor||0)-addonsTotal('decor'))
+    const dayBase=(p.venue||0)+((p.catering||0)-addonsTotal('catering'))+((p.decor||0)-addonsTotal('decor'))
       +((p.entertainment||0)-addonsTotal('entertainment'))
       +((p.photo||0)-addonsTotal('photo'));
     disc.day.eligible=true;disc.day.pct=dayPct;disc.day.amount=dayBase*(dayPct/100);
@@ -3025,7 +3035,7 @@ function computeDiscounts(){
   if(elig.eligible){
     disc.fp.pct=fpBonusPct(elig.tier);
     // Bonus base EXCLUDES add-ons (extras don't affect Full Package).
-    const fpBase=(p.venue||0)+(p.catering||0)+((p.decor||0)-addonsTotal('decor'))
+    const fpBase=(p.venue||0)+((p.catering||0)-addonsTotal('catering'))+((p.decor||0)-addonsTotal('decor'))
       +((p.entertainment||0)-addonsTotal('entertainment'))
       +((p.photo||0)-addonsTotal('photo'));
     disc.fp.amount=fpBase*(disc.fp.pct/100);
@@ -3084,7 +3094,7 @@ function fullPackageEligible(){
 // User adds extras on demand via "+ Add Extra". Each row = dropdown of add-ons
 // AVAILABLE for the chosen tier (Addon_Catalog Applies_To_Tiers) + manual price
 // + remove. Live Show requires a type. Add-ons don't affect discounts/FP.
-state.addons={entertainment:[],photo:[],decor:[]};
+state.addons={entertainment:[],photo:[],decor:[],catering:[]};
 let addonSeq=0;
 
 // ── ADD-ONS DE DECOR ───────────────────────────────────────
@@ -3213,9 +3223,11 @@ function renderDecorAddonQuota(st){
 }
 
 function addonsForDivision(division){
-  const tierByDiv={entertainment:document.getElementById('entPlan').value||'',photo:(document.getElementById('photoTier').value||'')};
+  const tierByDiv={entertainment:document.getElementById('entPlan').value||'',
+                   photo:(document.getElementById('photoTier').value||''),
+                   catering:(document.getElementById('cateringPlan').value||'')};
   const tier=(tierByDiv[division]||'').toLowerCase();
-  const divName={entertainment:'Entertainment',photo:'Photo'}[division];
+  const divName={entertainment:'Entertainment',photo:'Photo',catering:'Catering'}[division];
   return (catalog.addons||[]).filter(a=>{
     if(String(a['Division'])!==divName)return false;
     if(!isActive(a['Active']))return false;
@@ -3279,8 +3291,10 @@ function renderAddonTotals(){
   if(f){const t=addonsTotal('photo');f.textContent=t?fmtMoney(t):'';}
   const d=document.getElementById('decorAddonsTotal');
   if(d){const t=addonsTotal('decor');d.textContent=t?fmtMoney(t):'';}
+  const c=document.getElementById('catAddonsTotal');
+  if(c){const t=addonsTotal('catering');c.textContent=t?fmtMoney(t):'';}
 }
-const ADDON_WRAP={entertainment:'entAddonsWrap',photo:'photoAddonsWrap',decor:'decorAddonsWrap'};
+const ADDON_WRAP={entertainment:'entAddonsWrap',photo:'photoAddonsWrap',decor:'decorAddonsWrap',catering:'catAddonsWrap'};
 // Etiqueta de la opcion. En Decor hay dos Welcome Sign y dos Guest List Sign
 // que solo se distinguen por Level, asi que el nivel entra en el nombre.
 function addonOptLabel(a){
@@ -3344,6 +3358,7 @@ function calcTotal(){
     p.entertainment+=addonsTotal('entertainment');
     p.photo+=addonsTotal('photo');
     p.decor+=addonsTotal('decor');
+    p.catering+=addonsTotal('catering');
   }
 
   // 2) Show anchor prices per category (no per-category discount baked in).
@@ -3584,7 +3599,7 @@ function collectData(){
     'Discount FP':(disc.fp.checked&&disc.fp.eligible)?disc.fp.amount:0,
     'Manual Disc Pct':disc.manual.pct||'',
     'Manual Disc Reason':disc.manual.reason||'',
-    'Addons Detail':JSON.stringify({entertainment:state.addons.entertainment,photo:state.addons.photo,decor:state.addons.decor}),
+    'Addons Detail':JSON.stringify({entertainment:state.addons.entertainment,photo:state.addons.photo,decor:state.addons.decor,catering:state.addons.catering}),
     'Included Snapshot':buildIncludedSnapshot(),
     'Price Override':document.getElementById('priceOverride').value,
     'Final Total':document.getElementById('p-final').textContent,
@@ -3885,6 +3900,7 @@ function loadQuotation(cotNum){
     state.addons.entertainment=Array.isArray(ax.entertainment)?ax.entertainment:[];
     state.addons.photo=Array.isArray(ax.photo)?ax.photo:[];
     state.addons.decor=Array.isArray(ax.decor)?ax.decor:[];
+    state.addons.catering=Array.isArray(ax.catering)?ax.catering:[];
     // ensure each row has an id and requiresType flag
     ['entertainment','photo'].forEach(div=>{
       state.addons[div].forEach(r=>{
@@ -3912,7 +3928,7 @@ function loadQuotation(cotNum){
     const mp=document.getElementById('manualDiscPct');if(mp)mp.value=rec['Manual Disc Pct'];
     const mr=document.getElementById('manualDiscReason');if(mr)mr.value=rec['Manual Disc Reason']||'';
   }
-  renderAddons('entertainment');renderAddons('photo');renderAddons('decor');
+  renderAddons('entertainment');renderAddons('photo');renderAddons('decor');renderAddons('catering');
   state.prices.venue=parseFloat(rec['Price Venue'])||0;
   state.prices.catering=parseFloat(rec['Price Catering'])||0;
   state.prices.decor=parseFloat(rec['Price Decor'])||0;
