@@ -399,11 +399,10 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
         </div>
       </div>
       <div class="sub-block">
-        <div class="sub-header"><div class="sub-title">Extras</div><div class="sub-price" id="extras-price"></div></div>
+        <div class="sub-header"><div class="sub-title">Add-Ons</div><div class="sub-price" id="extras-price"></div></div>
         <div class="sub-content"><div class="field"><div class="field-label">Tier</div><select class="field-select" id="decorExtrasTier" onchange="onDecorSubChange()"><option value="">Not Applicable</option><option value="elegant">Elegant</option><option value="prestige">Prestige</option><option value="legacy">Legacy</option></select><span class="info-badge gold" id="extrasInfo" style="display:none"></span></div>
         <div class="field legacy-field" id="decorLegExtField" style="display:none"><div class="field-label">Legacy price <span class="req">*</span></div><input class="field-input" id="decorLegExt" type="number" placeholder="Total" oninput="markEdited();calcDecorPrice();calcTotal()" style="max-width:120px"></div>
-        <div id="decorAddonsQuota" style="margin:4px 0 6px;font-size:11px"></div>
-        <div id="decorAddonsWrap"></div></div>
+</div>
       </div>
     </div>
     <div id="decorDiscountDisplay" style="display:none;margin-top:6px"></div>
@@ -494,6 +493,10 @@ body{background:#111;font-family:'Montserrat',sans-serif;font-size:13px;color:va
     <div class="sub-block">
       <div class="sub-header"><div class="sub-title">Entertainment &amp; Production</div><div class="sub-price" id="entAddonsTotal"></div></div>
       <div class="sub-content"><div id="entAddonsWrap"></div></div>
+    </div>
+    <div class="sub-block">
+      <div class="sub-header"><div class="sub-title">Design &amp; Decor</div><div class="sub-price" id="decorAddonsTotal"></div></div>
+      <div class="sub-content"><div id="decorAddonsQuota" style="margin:0 0 6px;font-size:11px"></div><div id="decorAddonsWrap"></div></div>
     </div>
     <div class="sub-block">
       <div class="sub-header"><div class="sub-title">Photo &amp; Video</div><div class="sub-price" id="photoAddonsTotal"></div></div>
@@ -2989,6 +2992,20 @@ function computeDiscounts(){
     if(pct>0){disc.photo.eligible=true;disc.photo.pct=pct;disc.photo.amount=photoBaseNoAddons*(pct/100);}
   }
 
+  // LOS CINCO DESCUENTOS DE CATEGORIA SOLO EXISTEN CON PAQUETE COMPLETO.
+  // Antes quedaban elegibles por el solo hecho de tener un porcentaje mayor que
+  // cero, y ademas nunca se activaban: renderCategoryDiscountChecks() oculto los
+  // checks y toggleCatDiscount() quedo sin una sola llamada en todo el archivo,
+  // asi que ninguna cotizacion los aplicaba y todo salia a precio de lista.
+  // Ahora se condicionan al full y se aplican automaticamente, que es la regla
+  // cerrada: los descuentos de categoria solo existen si el cliente toma el
+  // paquete completo; a la carta paga lista.
+  const catElig=fullPackageEligible();
+  ['venue','catering','decor','entertainment','photo'].forEach(function(k){
+    if(!catElig.eligible){disc[k].eligible=false;disc[k].pct=0;disc[k].amount=0;}
+    disc[k].checked=disc[k].eligible;
+  });
+
   // TARIFA DE DIA — solo con paquete full, igual que el bono.
   const dayKey=effectiveDayRate();
   const dayPct=dayDiscPct(dayKey);
@@ -3162,14 +3179,12 @@ function renderDecorAddonQuota(st){
   const el=document.getElementById('decorAddonsQuota');
   if(!el)return;
   const t=decorAddonTier();
-  const chg=addonsTotal('decor');
-  const money=chg?' <span style="color:#C9A84C">\u00b7 cobrado '+fmtMoney(chg)+'</span>':'';
   if(!t){
-    el.innerHTML='<span style="color:#999">Sin la subdivisi\u00f3n Add-Ons no hay cupo: cada pieza se cobra a precio de lista.</span>'+money;
+    el.innerHTML='<span style="color:#999">Sin la subdivisi\u00f3n Add-Ons no hay cupo: cada pieza se cobra a precio de lista.</span>';
     return;
   }
   if(t==='legacy'){
-    el.innerHTML='<span style="color:#A8863A">Legacy: sin cupo, las piezas se definen y se cobran a mano.</span>'+money;
+    el.innerHTML='<span style="color:#A8863A">Legacy: sin cupo, las piezas se definen y se cobran a mano.</span>';
     return;
   }
   const full=ruleNum('decor_allowance','addons_'+t);
@@ -3179,7 +3194,6 @@ function renderDecorAddonQuota(st){
   txt+=' <span style="color:#888">\u00b7 las dem\u00e1s se eligen en la reuni\u00f3n de dise\u00f1o</span>';
   if(st.allow<full)txt+='<br><span style="color:#8A5A2B">'+n+' de '+at+' subdivisiones elegidas; con las tres el cupo llega a '+full+'</span>';
   if(st.used>st.allow)txt+='<br><span style="color:#B23B3B">'+(st.used-st.allow)+' pasada(s) del cupo, se cobran</span>';
-  txt+=money;
   // La lista de lo que el cupo puede cubrir. Es para mostrarsela al cliente en
   // la venta; la eleccion real ocurre despues, en la reunion de diseno.
   const ti=DEC_TIER_ORDER.indexOf(t);
@@ -3263,6 +3277,8 @@ function renderAddonTotals(){
   if(e){const t=addonsTotal('entertainment');e.textContent=t?fmtMoney(t):'';}
   const f=document.getElementById('photoAddonsTotal');
   if(f){const t=addonsTotal('photo');f.textContent=t?fmtMoney(t):'';}
+  const d=document.getElementById('decorAddonsTotal');
+  if(d){const t=addonsTotal('decor');d.textContent=t?fmtMoney(t):'';}
 }
 const ADDON_WRAP={entertainment:'entAddonsWrap',photo:'photoAddonsWrap',decor:'decorAddonsWrap'};
 // Etiqueta de la opcion. En Decor hay dos Welcome Sign y dos Guest List Sign
@@ -3386,8 +3402,9 @@ function renderCategoryDiscountChecks(){
   Object.keys(map).forEach(k=>{
     const cfg=map[k];const el=document.getElementById(cfg.el);if(!el)return;
     const dc=disc[k];
-    // Los checks de descuento por categoria salen: el modelo se reemplaza por
-    // descuento por paquete. Hasta entonces solo queda el descuento manual.
+    // Los checks por bloque siguen ocultos a proposito: los cinco descuentos ya
+    // no son opcionales ni se marcan uno por uno — se aplican solos cuando hay
+    // paquete completo y se muestran juntos en el resumen de descuentos.
     el.style.display='none'; el.innerHTML='';
   });
 }
@@ -3428,25 +3445,46 @@ function renderDiscountsSummary(anchorSubtotal,appliedCat,fpAmount,manualAmount,
   if(rowsEl){
     const rows=[];
     const catLabels={venue:'Venue',catering:'Catering',decor:'Decor',entertainment:'Entertainment',photo:'Photo'};
+
+    // Los cinco descuentos de categoria se aplican solos cuando hay paquete
+    // completo, asi que van como lineas de solo lectura con su monto.
+    ['venue','catering','decor','entertainment','photo'].forEach(function(k){
+      const dc=disc[k];
+      if(!dc.eligible||!dc.amount)return;
+      rows.push('<div style="display:flex;align-items:center;gap:6px;padding:4px 0">'+
+        '<span style="width:13px;text-align:center;color:#6EC98A">\u2713</span>'+
+        '<span style="flex:1;font-size:11px">'+catLabels[k]+' \u2014 '+(Math.round(dc.pct*100)/100)+'%</span>'+
+        '<span style="color:#6EC98A;font-size:12px;min-width:62px;text-align:right">-'+fmtMoney(dc.amount)+'</span></div>');
+    });
+    if(appliedCat)
+      rows.push('<div style="font-size:10px;color:#888;padding:0 0 6px 19px">'+
+        'Descuentos de categor\u00eda \u2014 aplican por tomar el paquete completo</div>');
     
     // Fila de TARIFA DE DIA. El select arranca con el dia real de la fecha y se
     // puede subir a mano; el % siempre sale de Business_Rules.day_discount.
     const dk=effectiveDayRate();
     if(dk){
       const real=dayRateFromDate();
-      const over=(dk!==real);
+      // fri y sun son la misma tarifa y comparten opcion en el select, asi que
+      // elegir "Friday / Sunday" en domingo no es un override.
+      const same=function(a,b){const n=function(x){return x==='sun'?'fri':x;};return n(a)===n(b);};
+      const over=!same(dk,real);
       const opts=[['sat','Saturday'],['fri','Friday / Sunday'],['monthu','Monday-Thursday']]
         .map(function(o){
           const sel=(dk===o[0]||(dk==='sun'&&o[0]==='fri'))?' selected':'';
           return '<option value="'+o[0]+'"'+sel+'>'+o[1]+' \u2014 '+dayDiscPct(o[0])+'%</option>';
         }).join('');
-      const amt=(disc.day.checked&&disc.day.eligible)?disc.day.amount:0;
+      // El valor se muestra siempre que haya descuento calculado: antes solo
+      // aparecia con el check puesto, asi que cambiar la tarifa dejaba -$0 y
+      // parecia que el selector no hacia nada.
+      const applied=(disc.day.checked&&disc.day.eligible);
+      const amt=disc.day.eligible?disc.day.amount:0;
       rows.push('<div style="display:flex;align-items:center;gap:6px;padding:6px 0">'+
         '<input type="checkbox" id="dayDiscChk" onchange="onDayDiscCheck(this)"'+
           (disc.day.checked?' checked':'')+(disc.day.eligible?'':' disabled')+'>'+
         '<select id="dayRateSel" onchange="onDayRateChange()" style="height:28px;font-size:11px;flex:1">'+opts+'</select>'+
-        '<span style="color:'+(amt?'#6EC98A':'#888')+';font-size:12px;min-width:44px;text-align:right">'+
-          (amt?'-'+fmtMoney(amt):'-$0')+'</span></div>');
+        '<span style="color:'+(applied&&amt?'#6EC98A':'#888')+';font-size:12px;min-width:62px;text-align:right">'+
+          (amt?(applied?'-'+fmtMoney(amt):'('+fmtMoney(amt)+')'):'-$0')+'</span></div>');
       if(isSpecialDate())
         rows.push('<div style="font-size:10px;color:#E0A458;padding:0 0 6px 22px">'+
           specialDateName()+' \u2014 fecha especial, sin descuento de dia</div>');
@@ -3642,7 +3680,7 @@ async function resetForm(){
   document.getElementById('decorHonorType').disabled=true;document.getElementById('decorHonorType').value='';
   document.getElementById('decorCPType').disabled=true;document.getElementById('decorCPType').value='';
   // Clear decor sub-price displays
-  ['honor-price','dining-price','cp-price','extras-price'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='';});
+  ['honor-price','dining-price','cp-price','extras-price','decorAddonsTotal'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='';});
   document.querySelectorAll('#decorTierBtns .tier-btn').forEach(b=>b.disabled=false);
   document.querySelectorAll('#photoTierBtns .tier-btn').forEach(b=>b.disabled=false);
   showLoading('Preparing new quotation...');
