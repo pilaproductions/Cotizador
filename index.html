@@ -589,17 +589,27 @@ async function loadCatalogs(){
       return Array.isArray(d)?d:[];
     }catch(e){return [];}
   };
-  const [svc,rules,addons,catTiers,pkgInc,pkgs,pkgLvl,pkgFeat,catQty,catRng,catCfg,colors]=await Promise.all([
+  const [svc,rules,addons,catTiers,pkgInc,pkgs,pkgLvl,pkgFeat,catQty,catRng,catCfg,colors,pkgLabels]=await Promise.all([
     get('Service_Catalog'), get('Business_Rules'), get('Addon_Catalog'), get('Catering_Tiers'), get('Package_Includes'),
     get('Packages'), get('Package_Levels'), get('Package_Features'),
     get('Catering_Quantities'), get('Catering_Ranges'), get('Catering_Config'),
-    get('Color_Catalog')
+    get('Color_Catalog'), get('Package_Labels')
   ]);
   // --- Packages / Package_Levels / Package_Features: el modelo comercial.
   // Hasta ahora el cotizador no leia ninguna de las tres.
   const isOn=isActive;
   catalog.packages=(pkgs||[]).filter(function(r){return r['Package_ID']&&isOn(r['Active']);})
     .sort(function(a,b){return (num(a['Sort'])||99)-(num(b['Sort'])||99);});
+  // Etiqueta de cara al cliente. Una misma definicion de paquete se muestra con
+  // distinto nombre segun el tipo de evento: un Sweet 16 ve "Sweet 16 Signature",
+  // no "Quinceañera Signature", aunque compren el mismo PKG-QUI-PREMIER. La llave
+  // es la etiqueta de event_type_labels, que es lo que guarda Event Sub-Type.
+  catalog.packageLabels={};
+  (pkgLabels||[]).forEach(function(r){
+    if(!r['Event_Label']||!r['Level']||!isOn(r['Active']))return;
+    catalog.packageLabels[String(r['Event_Label']).trim()+'|'+String(r['Level']).trim().toUpperCase()]=
+      {name:r['Name']||'',tagline:r['Tagline']||''};
+  });
   catalog.packageLevels={};
   (pkgLvl||[]).forEach(function(r){
     if(!r['Division']||!r['Level']||!isOn(r['Active']))return;
@@ -1198,6 +1208,25 @@ function decorPriceFromLevel(level){
 }
 // Precio de lista del paquete. Devuelve custom=true cuando alguna division es
 // totalmente a medida (Decor Legacy) y por lo tanto no tiene precio fijo.
+// El nivel sale de la clave: PKG-{GRUPO}-PREMIER o -CLASSIC. El que no termina
+// asi (PKG-PIL-ELE, eventos externos) no depende del tipo de evento y conserva
+// su propio nombre.
+function packageLevelOf(pkgId){
+  const s=String(pkgId||'').toUpperCase();
+  if(s.endsWith('-PREMIER'))return 'SIGNATURE';
+  if(s.endsWith('-CLASSIC'))return 'CLASSIC';
+  return '';
+}
+// Nombre y tagline que ve el cliente. Si no hay etiqueta para ese tipo de
+// evento, cae al nombre interno de Packages y nada se rompe.
+function packageLabelFor(pkg){
+  const fb={name:(pkg&&(pkg['Name']||pkg['Package_ID']))||'',tagline:(pkg&&pkg['Tagline'])||''};
+  if(!pkg)return fb;
+  const lvl=packageLevelOf(pkg['Package_ID']);
+  if(!lvl)return fb;
+  const lb=(catalog.packageLabels||{})[String(state.eventTypeLabel||'').trim()+'|'+lvl];
+  return (lb&&lb.name)?lb:fb;
+}
 function packageAnchorPrice(pkg){
   const out={venue:0,catering:0,decor:0,ent:0,photo:0,custom:false,ready:true};
   if(!state.guestRange||!state.numGuests){out.ready=false;return out;}
@@ -1240,10 +1269,11 @@ function renderPackages(){
     const parts=[p['Venue']?'Venue '+p['Venue']:'',p['Catering']||'',p['Decor']?'Decor '+p['Decor']:'',
       p['Entertainment']||'',p['Photo']||''].filter(function(x){return x;}).join(' \u00b7 ');
     const priceTxt=!pr.ready?'Falta invitados':(pr.custom?('desde '+fmtMoney(pr.total)+' + Decor a definir'):fmtMoney(pr.total));
+    const lbl=packageLabelFor(p);
     return '<div style="border:1px solid '+(mod?'#B85C00':(upg?'#1E5C2E':(sel?'#C9A84C':'#E8E8E8')))+';background:'+(sel?'#FDF8EE':'#FFF')+';padding:10px 14px;margin-bottom:8px">'+
       '<div style="display:flex;align-items:baseline;gap:10px">'+
-      '<span style="font-family:\'Cormorant Garamond\',serif;font-size:15px;font-weight:600">'+(p['Name']||p['Package_ID'])+'</span>'+
-      '<span style="font-size:10px;color:#888;font-style:italic;flex:1">'+(p['Tagline']||'')+'</span>'+
+      '<span style="font-family:\'Cormorant Garamond\',serif;font-size:15px;font-weight:600">'+lbl.name+'</span>'+
+      '<span style="font-size:10px;color:#888;font-style:italic;flex:1">'+(lbl.tagline||'')+'</span>'+
       '<span style="font-size:13px;font-weight:700;color:#1A1A1A">'+priceTxt+'</span>'+
       '<button class="btn '+((mod||upg)?'btn-outline':(sel?'btn-gold':'btn-outline'))+'" style="'+(mod?'border-color:#B85C00;color:#B85C00':(upg?'border-color:#1E5C2E;color:#1E5C2E':''))+'" onclick="applyPackage(\''+p['Package_ID']+'\')">'+(mod?'Below \u00b7 reapply':(upg?'Upgraded':(sel?'Selected':'Select')))+'</button>'+
       '</div>'+
@@ -1329,7 +1359,7 @@ function applyPackage(pkgId){
   state.fullPackage=pkgId;state.packageModified=false;
   state.applyingPackage=false;
   calcTotal();renderPackages();renderPackageWarn();
-  showToast('Paquete aplicado \u2014 '+(pkg['Name']||pkgId),'success');
+  showToast('Paquete aplicado \u2014 '+(packageLabelFor(pkg).name||pkgId),'success');
   goToStep(3);
 }
 // ── UPGRADE / DOWNGRADE CONTRA EL PAQUETE ───────────────────────────────────
