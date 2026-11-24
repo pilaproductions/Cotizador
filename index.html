@@ -727,11 +727,14 @@ function populateDynamicPrices(){
   setOpt('entPlan','elegant','Elegant — '+fmtMoney(catalog.ENT.elegant||0));
   setOpt('entPlan','prestige','Prestige — '+fmtMoney(catalog.ENT.prestige||0));
   setOpt('entPlan','legacy','Legacy — '+fmtMoney(catalog.ENT.legacy||0));
-  ['elegant','prestige','legacy'].forEach(function(t){
-    const name=t.charAt(0).toUpperCase()+t.slice(1);
-    setOpt('photoTier',t,name+' — '+fmtMoney((catalog.PHOTO.cov||{})[t]||0));
-    setOpt('photoVideo',t,name+' — '+fmtMoney((catalog.PHOTO.vid||{})[t]||0));
-    setOpt('photoShootPlan',t,name+' — '+fmtMoney((catalog.PHOTO.sho||{})[t]||0));
+  // Los niveles de cada subdivision de Photo salen de Service_Catalog via catalog.PHOTO.
+  // Un nivel con precio 0 (fila inactiva o inexistente) NO se ofrece: nada se vende en $0.
+  [['photoTier','cov'],['photoVideo','vid'],['photoShootPlan','sho']].forEach(function(pr){
+    const map=catalog.PHOTO[pr[1]]||{};
+    Object.keys(map).forEach(function(t){
+      if(!(map[t]>0))return;
+      setOpt(pr[0],t,t.charAt(0).toUpperCase()+t.slice(1)+' — '+fmtMoney(map[t]));
+    });
   });
 }
 
@@ -3783,6 +3786,7 @@ function loadQuotation(cotNum){
   document.getElementById('email').value=rec['Email']||'';
   document.getElementById('specialConditions').value=rec['Special Conditions']||'';
   const _inote=document.getElementById('internalNote'); if(_inote)_inote.value=rec['Internal Note']||'';
+  state.loadedRaw=rec;
   document.getElementById('priceOverride').value=rec['Price Override']||'';
   // La fecha de emision y el vencimiento se congelan con el registro: reabrir
   // una cotizacion vieja no puede reiniciarle la validez.
@@ -4156,6 +4160,10 @@ function buildDiscountDetail(){
       detail[k]={amt:Math.round(dc.amount),pct:dc.pct,reason:catLabels[k]+' '+dc.pct+'%'};
     }
   });
+  if(disc.day.checked&&disc.day.eligible&&disc.day.amount>0){
+    const dayName=String(disc.day.key||'').replace(/_/g,' ').replace(/\b\w/g,function(c){return c.toUpperCase();});
+    detail.day={amt:Math.round(disc.day.amount),pct:disc.day.pct,reason:(dayName||'Day')+' Rate '+disc.day.pct+'%'};
+  }
   if(disc.fp.checked&&disc.fp.eligible&&disc.fp.amount>0){
     const tierName={essential:'Essential',elegant:'Elegant',prestige:'Prestige',legacy:'Legacy'}[disc.fp.tier]||disc.fp.tier;
     detail.fp={amt:Math.round(disc.fp.amount),pct:disc.fp.pct,reason:'Full Package '+tierName+' '+disc.fp.pct+'%'};
@@ -4377,21 +4385,30 @@ function generatePDF(){
     const shootTierName='Photo Shoot '+capitalize(photoShoot);
     rows+=svcRow(COL.photo,COL.photo,'Photo & Video','Photo Shoot',tagFor('Photo',shootTierName),phoSection,COL.photo,false);
     rows+=featBlock('Photo','Photo Shoot',photoShoot,'Photo Shoot');
+  }else if(state.prices.photo>0){
+    // El nivel guardado ya no esta activo, asi que los selects quedaron vacios.
+    // No se puede imprimir "Not included" mientras se cobra: se lee la fila guardada.
+    const raw=state.loadedRaw||{};
+    const lv=function(k){return String(raw[k]||'').trim();};
+    const pieces=[];
+    if(lv('Photo Tier'))pieces.push('Coverage '+capitalize(lv('Photo Tier')));
+    if(lv('Photo Video'))pieces.push('Video '+capitalize(lv('Photo Video')));
+    if(lv('Photo Shoot'))pieces.push('Photo Shoot '+capitalize(lv('Photo Shoot')));
+    rows+=svcRow(COL.photo,COL.photo,'Photo & Video','Selected pieces',pieces.join(' · '),phoSection,COL.photo,false);
   }else{
     rows+=svcRow(COL.photo,COL.photo,'Photo & Video','','',phoSection,COL.photo,true);
   }
 
   // ── ADD-ONS as own category ───────────────────────────────────────
+  // Los add-ons salen de la linea de categoria y van en su propia seccion del resumen,
+  // de modo que todo suma a la vista hasta UN solo total. Las cuatro categorias que los tienen.
   const allAddons=[];
-  (state.addons.entertainment||[]).forEach(a=>{ if(a.name||a.price)allAddons.push({name:a.name||'Add-on',div:'Entertainment',price:a.price||0}); });
-  (state.addons.photo||[]).forEach(a=>{ if(a.name||a.price)allAddons.push({name:a.name||'Add-on',div:'Photo & Video',price:a.price||0}); });
-  let addonBlock='';
-  if(allAddons.length){
-    addonBlock='<div class="srow addon-head"><div class="addon-label">Add-Ons</div></div>';
-    allAddons.forEach(a=>{
-      addonBlock+=`<div class="arow"><div class="a-dot"></div><div class="a-name">${a.name}<span class="a-div">${a.div}</span></div><div class="a-price">${fmtPDFMoney(a.price)}</div></div>`;
+  [['catering','Catering'],['decor','Design & Decor'],['entertainment','Entertainment'],['photo','Photo & Video']]
+   .forEach(function(d){
+    (state.addons[d[0]]||[]).forEach(function(a){
+      if(a.name||a.price)allAddons.push({name:a.name||'Add-on',div:d[1],price:a.price||0});
     });
-  }
+  });
 
   // ── Discounts Applied rows (dynamic, per category with colors) ─────
   const discColor={venue:COL.venue,catering:COL.catering,decor:COL.decor,entertainment:COL.ent,photo:COL.photo};
@@ -4400,21 +4417,33 @@ function generatePDF(){
     const d=discDetail[k];
     if(d)discRows+=`<div class="drow"><div class="dl"><div class="dd" style="background:${discColor[k]}"></div><div class="dn">${d.reason}</div></div><div class="dp">−${fmtPDFMoney(d.amt)}</div></div>`;
   });
+  if(discDetail.day)discRows+=`<div class="drow"><div class="dl"><div class="dd" style="background:${COL.gold}"></div><div class="dn">${discDetail.day.reason}</div></div><div class="dp">−${fmtPDFMoney(discDetail.day.amt)}</div></div>`;
   if(discDetail.fp)discRows+=`<div class="drow"><div class="dl"><div class="dd" style="background:${COL.gold}"></div><div class="dn">${discDetail.fp.reason}</div></div><div class="dp">−${fmtPDFMoney(discDetail.fp.amt)}</div></div>`;
   if(discDetail.manual)discRows+=`<div class="drow"><div class="dl"><div class="dd" style="background:${COL.gold}"></div><div class="dn">${discDetail.manual.reason}</div></div><div class="dp">−${fmtPDFMoney(discDetail.manual.amt)}</div></div>`;
-  if(!discRows)discRows='<div style="font-size:10px;color:#bbb;font-style:italic;padding:5px 0">No discounts applied</div>';
+  // Sin descuentos itemizados pero con ahorro: es precio de paquete, no "ningun descuento".
+  if(!discRows)discRows=discountsTotal>0
+    ? '<div class="drow"><div class="dl"><div class="dd" style="background:'+COL.gold+'"></div><div class="dn">Package pricing</div></div><div class="dp">−'+fmtPDFMoney(discountsTotal)+'</div></div>'
+    : '<div style="font-size:10px;color:#bbb;font-style:italic;padding:5px 0">No discounts applied</div>';
 
   // ── Price Summary (anchor per category; external -> venue $0) ──────
   const pV=isExternal?0:state.prices.venue;
   function prRow(label,val,extraNote){ return `<div class="prow"><div class="prow-l">${label}${extraNote?' &nbsp;<span style="font-size:8px;color:#aaa">'+extraNote+'</span>':''}</div><div class="prow-v">${val>0?fmtPDFMoney(val):'—'}</div></div>`; }
-  const entHasAddons=(state.addons.entertainment||[]).some(a=>a.price>0);
-  const phoHasAddons=(state.addons.photo||[]).some(a=>a.price>0);
+  // Precio base = categoria sin sus add-ons. Los add-ons se listan aparte y suman.
+  const baseOf=function(k){return Math.max(0,(state.prices[k]||0)-addonsTotal(k));};
   let summaryRows='';
   summaryRows+=prRow('Venue & Host',pV,'');
-  summaryRows+=prRow('Catering',state.prices.catering,'');
-  summaryRows+=prRow('Design & Decor',state.prices.decor,'');
-  summaryRows+=prRow('Entertainment',state.prices.entertainment,entHasAddons?'(incl. add-ons)':'');
-  summaryRows+=prRow('Photo & Video',state.prices.photo,phoHasAddons?'(incl. add-ons)':'');
+  summaryRows+=prRow('Catering',baseOf('catering'),'');
+  summaryRows+=prRow('Design & Decor',baseOf('decor'),'');
+  summaryRows+=prRow('Entertainment',baseOf('entertainment'),'');
+  summaryRows+=prRow('Photo & Video',baseOf('photo'),'');
+  if(allAddons.length){
+    summaryRows+='<div class="prow-ah">Add-Ons</div>';
+    allAddons.forEach(function(a){
+      summaryRows+='<div class="prow"><div class="prow-l" style="padding-left:12px">'+a.name+
+        ' <span style="font-size:8px;color:#aaa;letter-spacing:.5px;text-transform:uppercase">'+a.div+'</span></div>'+
+        '<div class="prow-v">'+fmtPDFMoney(a.price)+'</div></div>';
+    });
+  }
 
   const venueLine=isExternal?(extAddress||'External venue'):'Cardona Hall, Passaic NJ';
 
@@ -4488,6 +4517,10 @@ html,body{background:#fff;font-family:'Montserrat',sans-serif;color:#1a1a1a;}
 .prow.sub{border-top:1.5px solid #C9A84C;margin-top:6px;padding-top:8px;}
 .prow.sub .prow-l{color:#1a1a1a;letter-spacing:1px;text-transform:uppercase;font-size:10px;font-weight:700;}
 .prow.sub .prow-v{font-size:17px;}.prow.dsc .prow-v{color:#1B6B3A;font-size:16px;}
+.prow.sub2{margin-top:2px;}
+.prow.sub2 .prow-l{color:#1a1a1a;letter-spacing:1px;text-transform:uppercase;font-size:10px;font-weight:700;}
+.prow.sub2 .prow-v{font-size:17px;}
+.prow-ah{font-size:9px;letter-spacing:1.5px;color:#A67C1E;text-transform:uppercase;font-weight:700;margin:7px 0 2px;}
 .total{margin:5px 0 0;padding:14px 44px;background:#0A0A0A !important;display:flex;justify-content:space-between;align-items:center;}
 .tot-l{font-family:'Cormorant Garamond',serif;font-size:16px;color:#ccc;letter-spacing:3px;text-transform:uppercase;}
 .dep{font-size:11px;margin-top:6px;font-weight:500;}
@@ -4518,12 +4551,13 @@ html,body{background:#fff;font-family:'Montserrat',sans-serif;color:#1a1a1a;}
   ${eventLine2?`<div class="cl-line" style="font-size:11px;color:#777;letter-spacing:0.3px">${eventLine2}</div>`:''}
   <div class="cl-contact">${phone}${email?' · '+email:''} · ${venueLine}</div></div>
 <div class="svc-head">✦ Your Collection ✦</div>
-<div class="svc-wrap">${rows}${addonBlock}</div>
+<div class="svc-wrap">${rows}</div>
 <div class="fin">
   <div><div class="fin-t">Discounts Applied</div>${discRows}</div>
   <div><div class="fin-t">Investment Summary</div>${summaryRows}
-    <div class="prow sub"><div class="prow-l">Subtotal</div><div class="prow-v">${fmtPDFMoney(subtotalList)}</div></div>
-    ${discountsTotal>0?`<div class="prow dsc"><div class="prow-l" style="color:#2E7D4F">Total Discounts</div><div class="prow-v">−${fmtPDFMoney(discountsTotal)}</div></div>`:''}
+    <div class="prow sub"><div class="prow-l">Purchased separately</div><div class="prow-v">${fmtPDFMoney(subtotalList)}</div></div>
+    <div class="prow sub2"><div class="prow-l">Full package</div><div class="prow-v">${fmtPDFMoney(finalTotal)}</div></div>
+    ${discountsTotal>0?`<div class="prow sub2 dsc"><div class="prow-l" style="color:#2E7D4F">You save</div><div class="prow-v">${fmtPDFMoney(discountsTotal)}</div></div>`:''}
   </div>
 </div>
 <div class="total"><div><div class="tot-l">Total Investment</div>${depNote}</div><div class="tot-a">${fmtPDFMoney(finalTotal)}</div></div>
