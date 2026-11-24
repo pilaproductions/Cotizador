@@ -4169,7 +4169,10 @@ function buildDiscountDetail(){
     detail.fp={amt:Math.round(disc.fp.amount),pct:disc.fp.pct,reason:'Full Package '+tierName+' '+disc.fp.pct+'%'};
   }
   if(disc.manual.amount>0){
-    detail.manual={amt:Math.round(disc.manual.amount),pct:disc.manual.pct,reason:disc.manual.reason||'Manual discount'};
+    // 'named' decide si sale con nombre propio en el documento: solo cuando le
+    // escribiste una razon. Vacio = margen que regalaste, se funde en el ahorro.
+    const mr=String(disc.manual.reason||'').trim();
+    detail.manual={amt:Math.round(disc.manual.amount),pct:disc.manual.pct,reason:mr||'Manual discount',named:!!mr};
   }
   return JSON.stringify(detail);
 }
@@ -4410,20 +4413,17 @@ function generatePDF(){
     });
   });
 
-  // ── Discounts Applied rows (dynamic, per category with colors) ─────
-  const discColor={venue:COL.venue,catering:COL.catering,decor:COL.decor,entertainment:COL.ent,photo:COL.photo};
-  let discRows='';
-  ['venue','catering','decor','entertainment','photo'].forEach(k=>{
-    const d=discDetail[k];
-    if(d)discRows+=`<div class="drow"><div class="dl"><div class="dd" style="background:${discColor[k]}"></div><div class="dn">${d.reason}</div></div><div class="dp">−${fmtPDFMoney(d.amt)}</div></div>`;
-  });
-  if(discDetail.day)discRows+=`<div class="drow"><div class="dl"><div class="dd" style="background:${COL.gold}"></div><div class="dn">${discDetail.day.reason}</div></div><div class="dp">−${fmtPDFMoney(discDetail.day.amt)}</div></div>`;
-  if(discDetail.fp)discRows+=`<div class="drow"><div class="dl"><div class="dd" style="background:${COL.gold}"></div><div class="dn">${discDetail.fp.reason}</div></div><div class="dp">−${fmtPDFMoney(discDetail.fp.amt)}</div></div>`;
-  if(discDetail.manual)discRows+=`<div class="drow"><div class="dl"><div class="dd" style="background:${COL.gold}"></div><div class="dn">${discDetail.manual.reason}</div></div><div class="dp">−${fmtPDFMoney(discDetail.manual.amt)}</div></div>`;
-  // Sin descuentos itemizados pero con ahorro: es precio de paquete, no "ningun descuento".
-  if(!discRows)discRows=discountsTotal>0
-    ? '<div class="drow"><div class="dl"><div class="dd" style="background:'+COL.gold+'"></div><div class="dn">Package pricing</div></div><div class="dp">−'+fmtPDFMoney(discountsTotal)+'</div></div>'
-    : '<div style="font-size:10px;color:#bbb;font-style:italic;padding:5px 0">No discounts applied</div>';
+  // ── El ahorro va en UNA sola linea ────────────────────────────────
+  // Cinco lineas de descuento por categoria son cinco cosas que el cliente puede
+  // pedir que le quiten. Los descuentos de categoria y el bono de paquete se
+  // absorben en "You save". Solo se nombra lo que el cliente PUEDE ACCIONAR:
+  //  - la tarifa de dia, que es la razon para mover la fecha a un lunes
+  //  - un descuento manual al que le escribiste una razon (un favor con nombre)
+  let namedRows='';
+  if(discDetail.day)
+    namedRows+=`<div class="prow nmd"><div class="prow-l">${discDetail.day.reason}</div><div class="prow-v">−${fmtPDFMoney(discDetail.day.amt)}</div></div>`;
+  if(discDetail.manual&&discDetail.manual.named)
+    namedRows+=`<div class="prow nmd"><div class="prow-l">${discDetail.manual.reason}</div><div class="prow-v">−${fmtPDFMoney(discDetail.manual.amt)}</div></div>`;
 
   // ── Price Summary (anchor per category; external -> venue $0) ──────
   const pV=isExternal?0:state.prices.venue;
@@ -4507,7 +4507,11 @@ html,body{background:#fff;font-family:'Montserrat',sans-serif;color:#1a1a1a;}
 .a-name{flex:1;font-size:13px;color:#444;}
 .a-div{font-size:9px;color:#aaa;letter-spacing:.5px;text-transform:uppercase;margin-left:8px;}
 .a-price{font-family:'Cormorant Garamond',serif;font-size:16px;color:#1a1a1a;font-weight:600;}
-.fin{margin:2px 44px 0;padding:12px 0;border-top:2px solid #C9A84C;display:grid;grid-template-columns:1fr 1fr;gap:44px;}
+.fin{margin:2px 44px 0;padding:12px 0;border-top:2px solid #C9A84C;}
+.fin>div{max-width:340px;margin:0 auto;}
+.prow.nmd{padding:4px 0;}
+.prow.nmd .prow-l{font-size:10px;color:#2E7D4F;letter-spacing:.3px;}
+.prow.nmd .prow-v{font-size:13px;color:#2E7D4F;}
 .fin-t{font-size:11px;letter-spacing:3px;color:#A67C1E;text-transform:uppercase;margin-bottom:8px;text-align:center;font-weight:700;}
 .drow{display:flex;justify-content:space-between;align-items:center;padding:3px 0;}
 .dl{display:flex;align-items:center;gap:9px;}.dd{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
@@ -4553,9 +4557,9 @@ html,body{background:#fff;font-family:'Montserrat',sans-serif;color:#1a1a1a;}
 <div class="svc-head">✦ Your Collection ✦</div>
 <div class="svc-wrap">${rows}</div>
 <div class="fin">
-  <div><div class="fin-t">Discounts Applied</div>${discRows}</div>
   <div><div class="fin-t">Investment Summary</div>${summaryRows}
     <div class="prow sub"><div class="prow-l">Purchased separately</div><div class="prow-v">${fmtPDFMoney(subtotalList)}</div></div>
+    ${namedRows}
     <div class="prow sub2"><div class="prow-l">Full package</div><div class="prow-v">${fmtPDFMoney(finalTotal)}</div></div>
     ${discountsTotal>0?`<div class="prow sub2 dsc"><div class="prow-l" style="color:#2E7D4F">You save</div><div class="prow-v">${fmtPDFMoney(discountsTotal)}</div></div>`:''}
   </div>
