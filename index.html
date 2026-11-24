@@ -2127,7 +2127,10 @@ function hideLoading(){document.getElementById('loadingOverlay').classList.remov
 
 async function loadAllQuotations(){
   try{
-    const res=await fetch(SCRIPT_URL+'?nocache='+Date.now());
+    // Explicito: el backend ya no tiene hoja por default. Una URL sin ?sheet
+    // devuelve [] a proposito, para que abrirla pelada no entregue la lista
+    // de clientes con telefonos y precios.
+    const res=await fetch(SCRIPT_URL+'?sheet=Quotations&nocache='+Date.now());
     const data=await res.json();
     state.allQuotations=Array.isArray(data)?data:[];
     // B2: only CARDONA HALL reservations block calendar dates (restriction is by
