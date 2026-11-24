@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Su propuesta &middot; Cardona Hall</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=Montserrat:wght@200;300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--ink:#0A0A0A;--gold:#C9A84C;--gold-d:#A67C1E;--champagne:#F8F5EE;
+ --decor:#C79A2E;--ent:#C0368A;--photo:#0098C8;--cat:#1B7A52;--venue:#0A0A0A;
+ --green:#1B6B3A;--muted:#8a8378;--line:#E8E0D0;}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--champagne);color:#1a1a1a;font-family:'Montserrat',sans-serif;
+ line-height:1.55;-webkit-font-smoothing:antialiased}
+.wrap{max-width:560px;margin:0 auto;background:#fff;box-shadow:0 0 60px rgba(0,0,0,.06);min-height:100vh}
+.hero{background:var(--ink);color:#fff;padding:46px 26px 34px;text-align:center;position:relative}
+.lang{position:absolute;top:14px;right:14px;display:flex;gap:1px}
+.lang button{background:rgba(255,255,255,.08);color:#9b9484;border:0;padding:5px 10px;
+ font-size:10px;letter-spacing:1px;font-family:inherit;cursor:pointer;font-weight:600}
+.lang button.on{background:var(--gold);color:var(--ink)}
+.hero .mark{font-size:8px;letter-spacing:4px;color:var(--gold);text-transform:uppercase;margin-bottom:28px}
+.hero .pre{font-size:10px;letter-spacing:3px;color:#8d8678;text-transform:uppercase;margin-bottom:10px}
+.hero .who{font-family:'Cormorant Garamond',serif;font-size:27px;font-weight:500;color:#f3ede0}
+.hero .what{font-family:'Cormorant Garamond',serif;font-size:42px;font-weight:600;color:var(--gold);
+ line-height:1.08;margin:14px 0 18px}
+.hero .when{font-size:12.5px;color:#cfc8b8}
+.hero .orn{width:46px;height:1px;background:var(--gold);margin:22px auto 0;opacity:.6}
+.pref{padding:13px 26px;font-size:12px;text-align:center;border-bottom:1px solid var(--line)}
+.pref.n{background:#FAF7F0;color:#6d665b}
+.pref.s{background:#FBF2E2;color:#8a5a12;font-weight:500}
+.pref.hide{display:none}
+.intro{padding:34px 26px 8px;text-align:center}
+.intro h2{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:500;line-height:1.3}
+.intro p{font-size:13px;color:var(--muted);margin-top:12px}
+.blk{padding:30px 0 6px}
+.blk-h{padding:0 26px 18px;display:flex;align-items:center;gap:12px}
+.blk-n{font-family:'Cormorant Garamond',serif;font-size:34px;font-weight:600;color:var(--line);line-height:1}
+.blk-t{font-size:10px;letter-spacing:3.5px;color:var(--gold-d);text-transform:uppercase;font-weight:700}
+.mo{margin-bottom:28px}
+.ph{position:relative;background:#F2EEE4;aspect-ratio:3/2;display:flex;align-items:center;
+ justify-content:center;flex-direction:column;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.ph-i{font-size:9px;letter-spacing:2.5px;color:#b9b1a2;text-transform:uppercase;margin-bottom:8px}
+.ph-s{font-size:11.5px;color:#9a9486;max-width:78%;text-align:center;font-style:italic;line-height:1.5}
+.ph-tag{position:absolute;top:10px;left:10px;font-size:8px;letter-spacing:1.5px;text-transform:uppercase;
+ background:rgba(255,255,255,.9);padding:4px 8px;color:#8a8378;font-weight:600}
+.mo-b{padding:16px 26px 0}
+.mo-t{font-family:'Cormorant Garamond',serif;font-size:21px;font-weight:600;line-height:1.25}
+.mo-d{font-size:13.5px;color:#555;margin-top:7px}
+.mo-s{margin-top:11px;display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:8.5px;letter-spacing:1.2px;text-transform:uppercase;padding:4px 9px;
+ font-weight:600;color:#fff}
+.c-venue{background:var(--venue)}.c-catering{background:var(--cat)}.c-decor{background:var(--decor)}
+.c-ent{background:var(--ent)}.c-photo{background:var(--photo)}
+.up{background:var(--ink);padding:40px 26px;margin-top:14px}
+.up-h{font-size:10px;letter-spacing:3.5px;color:var(--gold);text-transform:uppercase;
+ font-weight:700;text-align:center;margin-bottom:8px}
+.up-s{font-family:'Cormorant Garamond',serif;font-size:23px;color:#f3ede0;text-align:center;
+ margin-bottom:26px;font-weight:500}
+.up-i{border-top:1px solid #262626;padding:16px 0}
+.up-i:last-of-type{border-bottom:1px solid #262626}
+.up-n{font-family:'Cormorant Garamond',serif;font-size:19px;color:var(--gold);font-weight:600}
+.up-d{font-size:12.5px;color:#9b9484;margin-top:5px}
+.sum{padding:40px 26px 10px}
+.sum-h{font-size:10px;letter-spacing:3.5px;color:var(--gold-d);text-transform:uppercase;
+ font-weight:700;text-align:center;margin-bottom:6px}
+.sum-s{font-family:'Cormorant Garamond',serif;font-size:23px;text-align:center;
+ margin-bottom:24px;font-weight:500}
+.sr{border-top:1px solid var(--line)}
+.sr:last-child{border-bottom:1px solid var(--line)}
+.sr-head{padding:15px 0;cursor:pointer;display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.sr-l{flex:1}
+.sr-h{display:flex;align-items:center;gap:9px}
+.sr-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.sr-n{font-size:12px;letter-spacing:1.5px;text-transform:uppercase;font-weight:700}
+.sr-t{font-family:'Cormorant Garamond',serif;font-size:17px;color:var(--gold-d);margin-top:4px;font-weight:600}
+.sr-x{color:var(--gold-d);font-size:17px;line-height:1;margin-top:10px;transition:transform .2s;flex-shrink:0}
+.sr.open .sr-x{transform:rotate(45deg)}
+.sr-body{display:none;padding:0 0 15px}
+.sr.open .sr-body{display:block}
+.fl{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-top:1px dotted #E8E0D0;font-size:12.5px}
+.fl-n{color:#444}.fl-v{color:var(--gold-d);text-align:right;font-weight:500;flex-shrink:0}
+.pr{background:var(--champagne);margin-top:34px;padding:36px 26px}
+.pl{display:flex;justify-content:space-between;align-items:baseline;padding:9px 0}
+.pl-l{font-size:11.5px;letter-spacing:1.2px;text-transform:uppercase;color:#7a7368}
+.pl-v{font-family:'Cormorant Garamond',serif;font-size:21px;color:#9a9486;font-weight:600;
+ text-decoration:line-through}
+.pl.main{border-top:1px solid var(--gold);margin-top:6px;padding-top:16px}
+.pl.main .pl-l{color:#1a1a1a;font-weight:700}
+.pl.main .pl-v{font-size:40px;color:var(--ink);text-decoration:none}
+.pl.save{background:#EFF6F0;margin:12px -12px 0;padding:12px}
+.pl.save .pl-l{color:var(--green);font-weight:700}
+.pl.save .pl-v{font-size:23px;color:var(--green);text-decoration:none}
+.pr-note{font-size:11.5px;color:var(--muted);margin-top:16px;line-height:1.6;text-align:center}
+.close{background:var(--ink);padding:40px 26px;text-align:center}
+.close-t{font-family:'Cormorant Garamond',serif;font-size:26px;color:#f3ede0;font-weight:500;line-height:1.3}
+.close-d{font-size:13px;color:#9b9484;margin:14px 0 24px;line-height:1.6}
+.btn{display:block;background:var(--gold);color:var(--ink);text-decoration:none;padding:17px;
+ font-size:12px;letter-spacing:2.5px;text-transform:uppercase;font-weight:700;border:none;
+ width:100%;font-family:inherit;cursor:pointer}
+.close-s{font-size:11px;color:#6d665b;margin-top:16px}
+.foot{padding:26px;text-align:center;border-top:1px solid var(--line)}
+.foot-b{font-family:'Cormorant Garamond',serif;font-size:15px;letter-spacing:4px;text-transform:uppercase}
+.foot-a{font-size:10px;color:var(--muted);margin-top:8px}
+.foot-r{font-size:9px;color:#b9b1a2;margin-top:14px;letter-spacing:1px}
+.msg{padding:80px 30px;text-align:center;color:var(--muted);font-size:14px;line-height:1.7}
+.msg b{display:block;font-family:'Cormorant Garamond',serif;font-size:22px;color:#1a1a1a;margin-bottom:12px;font-weight:600}
+.demo{background:#8a5a12;color:#fff;padding:7px;text-align:center;font-size:10px;letter-spacing:1px}
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <div class="msg"><b>Un momento</b>Cargando su propuesta...</div>
+</div>
+<script>
+const API='https://script.google.com/macros/s/AKfycbzsRUuk_x8my16q0t-ODBQ-UWGH3dAgN7EE3xdhANuSZYa0tiWEtXyjkIllCb1XS3404A/exec';
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║  TEMPORAL — esto se muda a la hoja `Sequence` del Sheet.                 ║
+// ║  El esquema de abajo ES el de la hoja: una fila por momento, mismas      ║
+// ║  columnas y mismos nombres. Mudarlo = cambiar un fetch, no reescribir.   ║
+// ║                                                                          ║
+// ║  Requires — que tuvo que comprar la familia para que el momento exista:  ║
+// ║    always            siempre pasa, cambia la foto segun el tier          ║
+// ║    photo.coverage    tiene Photo Tier                                    ║
+// ║    photo.video       tiene Photo Video                                   ║
+// ║    photo.shoot       tiene Photo Shoot                                   ║
+// ║    photo.prints      tiene Photo Prints                                  ║
+// ║    ent.any           tiene plan de Entertainment                         ║
+// ║    ent.feat:<X>      Package_Features dice Included=Y para <X> en su tier║
+// ╚══════════════════════════════════════════════════════════════════════════╝
+const SEQUENCE = [
+{block:1,id:'1.1',req:'photo.shoot',chips:['photo'],
+ t_es:'La sesión de fotos',t_en:'The photo session',
+ d_es:'Semanas antes del día. Dos horas, estudio propio o la locación que elija, con cabina de outfits.',
+ d_en:'Weeks before the day. Two hours, our studio or the location she picks, with an outfit booth.',
+ shot:'Ella con el vestido, afuera del salón',
+ u_es:'La sesión de fotos',u_en:'The photo session',
+ ud_es:'Dos horas solo para ella, semanas antes, para que las fotos no dependan de un día que ya está lleno.',
+ ud_en:'Two hours just for her, weeks ahead, so the photos do not depend on an already full day.'},
+
+{block:1,id:'1.2',req:'photo.coverage',chips:['photo'],
+ t_es:'Se prepara',t_en:'Getting ready',
+ d_es:'La cobertura empieza antes de que empiece la fiesta.',
+ d_en:'Coverage starts before the party does.',
+ shot:'El maquillaje, el vestido colgado, las manos de su mamá'},
+
+{block:1,id:'1.3',req:'photo.coverage',chips:['photo'],
+ t_es:'La iglesia',t_en:'The church',
+ d_es:'Segunda locación el mismo día, cuando su cobertura la incluye.',
+ d_en:'A second location the same day, when her coverage includes it.',
+ shot:'El altar, ella entrando, la familia'},
+
+{block:1,id:'1.4',req:'photo.coverage',chips:['photo'],
+ t_es:'Con los padrinos',t_en:'With the padrinos',
+ d_es:'Antes de entrar al salón, con toda la familia reunida.',
+ d_en:'Before walking in, with the whole family together.',
+ shot:'El grupo completo, los abrazos'},
+
+{block:2,id:'2.1',req:'always',chips:['venue'],
+ t_es:'Llegan sus invitados',t_en:'Your guests arrive',
+ d_es:'Parqueadero propio y personal recibiendo en la puerta.',
+ d_en:'Our own parking and staff greeting them at the door.',
+ shot:'La gente entrando, la fachada de noche'},
+
+{block:2,id:'2.2',req:'always',chips:['venue','decor'],
+ t_es:'La primera vista del salón',t_en:'First sight of the room',
+ d_es:'El momento en que abren la puerta y ven dónde va a pasar todo.',
+ d_en:'The moment the doors open and they see where it all happens.',
+ shot:'El salón lleno y montado, visto desde la puerta'},
+
+{block:3,id:'3.1',req:'ent.feat:MC',chips:['ent'],
+ t_es:'La apertura',t_en:'The opening',
+ d_es:'Alguien conduce: da la bienvenida, presenta a los papás, marca el ritmo de la noche.',
+ d_en:'Someone runs the room: welcomes everyone, brings the parents in, sets the pace.',
+ shot:'El micrófono, los papás entrando',
+ u_es:'Maestro de ceremonias',u_en:'Master of ceremonies',
+ ud_es:'Alguien que conduzca el programa de principio a fin, para que su familia no tenga que organizar nada esa noche.',
+ ud_en:'Someone to run the program end to end, so your family does not have to organize anything that night.'},
+
+{block:3,id:'3.2',req:'photo.video',chips:['photo'],
+ t_es:'Su video',t_en:'Her video',
+ d_es:'Pantalla abajo, luces bajas, silencio total.',
+ d_en:'Screen down, lights low, the room completely silent.',
+ shot:'La pantalla proyectando, el salón a oscuras',
+ u_es:'Su video',u_en:'Her video',
+ ud_es:'Pantalla abajo, silencio total, y su historia proyectada antes de la entrada. Es el momento que más se recuerda.',
+ ud_en:'Screen down, total silence, her story projected before she walks in. The moment people remember most.'},
+
+{block:3,id:'3.3',req:'ent.any',chips:['ent','photo'],
+ t_es:'La entrada',t_en:'The entrance',
+ d_es:'Luces, sonido y todo el salón de pie.',
+ d_en:'Lights, sound, and the whole room on its feet.',
+ shot:'Ella entrando, todos de pie aplaudiendo'},
+
+{block:3,id:'3.4',req:'photo.coverage',chips:['photo'],
+ t_es:'El cambio de zapatillas',t_en:'The shoe change',
+ d_es:'Cubierto de cerca, sin que nadie tenga que pedirlo.',
+ d_en:'Covered up close, without anyone having to ask.',
+ shot:'El tío arrodillado, la cara de ella'},
+
+{block:3,id:'3.5',req:'photo.coverage',chips:['photo'],
+ t_es:'Anillo, collar, flores y el último muñeco',t_en:'Ring, necklace, flowers and the last doll',
+ d_es:'Cada símbolo con su foto.',
+ d_en:'Each symbol with its own photo.',
+ shot:'Anillo, collar, flores y el muñeco — cuatro fotos'},
+
+{block:3,id:'3.6',req:'ent.any',chips:['ent','photo'],
+ t_es:'El vals con su mamá',t_en:'The waltz with her mother',
+ d_es:'Luces bajas y la pista solo para las dos.',
+ d_en:'Lights down and the floor just for the two of them.',
+ shot:'Las dos bailando, la cara de la mamá'},
+
+{block:3,id:'3.7',req:'ent.any',chips:['ent'],
+ t_es:'El vals con la familia',t_en:'The waltz with the family',
+ d_es:'Uno por uno, con la flor, hasta que la pista está llena.',
+ d_en:'One by one, with the flower, until the floor is full.',
+ shot:'La fila con las flores, la pista llena'},
+
+{block:4,id:'4.1',req:'always',chips:['catering','venue'],
+ t_es:'La cena',t_en:'Dinner',
+ d_es:'Servida mesa por mesa por nuestro personal.',
+ d_en:'Served table by table by our staff.',
+ shot:'Buffet servido, un mesero sirviendo, los platos'},
+
+{block:4,id:'4.2',req:'always',chips:['decor','catering'],
+ t_es:'El brindis y el pastel',t_en:'The toast and the cake',
+ d_es:'La mesa principal montada para la foto que va a quedar.',
+ d_en:'The main table set for the photo that will last.',
+ shot:'La mesa principal, el pastel, las copas'},
+
+{block:5,id:'5.1',req:'ent.feat:Photobooth',chips:['ent'],
+ t_es:'Photobooth',t_en:'Photobooth',
+ d_es:'Cabina con props toda la noche. Cada invitado se lleva su foto.',
+ d_en:'A booth with props all night. Every guest leaves with their photo.',
+ shot:'Gente haciendo payasadas con los props',
+ u_es:'Photobooth',u_en:'Photobooth',
+ ud_es:'Cabina con props toda la noche. Cada invitado se lleva su foto impresa.',
+ ud_en:'A booth with props all night. Every guest leaves with a printed photo.'},
+
+{block:5,id:'5.2',req:'ent.feat:Hora Loca',chips:['ent'],
+ t_es:'La hora loca',t_en:'The hora loca',
+ d_es:'Es donde la fiesta cambia de marcha.',
+ d_en:'This is where the party shifts gear.',
+ shot:'El robot LED, la pista llena, el desorden feliz',
+ u_es:'La hora loca',u_en:'The hora loca',
+ ud_es:'Robot LED, props y música. Es lo que levanta a los que ya se iban a sentar.',
+ ud_en:'LED robot, props and music. It gets up the people who were about to sit down.'},
+
+{block:5,id:'5.3',req:'ent.feat:Live Show',chips:['ent'],
+ t_es:'Música en vivo',t_en:'Live music',
+ d_es:'Mariachi o banda, en el momento del programa que usted elija.',
+ d_en:'Mariachi or a band, at the point in the program you choose.',
+ shot:'El mariachi o la banda tocando, la gente cantando',
+ u_es:'Música en vivo',u_en:'Live music',
+ ud_es:'Mariachi o banda, una hora, en el momento del programa que usted elija.',
+ ud_en:'Mariachi or a band, one hour, at the point in the program you choose.'},
+
+{block:6,id:'6.1',req:'photo.prints',chips:['photo'],
+ t_es:'Lo que se queda',t_en:'What stays',
+ d_es:'Galería completa en la nube, para toda la familia, para siempre.',
+ d_en:'The full gallery online, for the whole family, for good.',
+ shot:'El álbum impreso, ella mirándolo',
+ u_es:'La galería',u_en:'The gallery',
+ ud_es:'Todas las fotos en línea para que la familia entera las vea y las descargue.',
+ ud_en:'Every photo online so the whole family can see and download them.'}
+];
+
+const BLOCKS = [
+ {n:1,es:'Antes',en:'Before'},
+ {n:2,es:'La llegada',en:'Arrival'},
+ {n:3,es:'El corazón',en:'The heart'},
+ {n:4,es:'La mesa',en:'The table'},
+ {n:5,es:'La fiesta',en:'The party'},
+ {n:6,es:'El recuerdo',en:'The keepsake'}
+];
+
+// ── estado ──────────────────────────────────────────────────────────────────
+let LANG = (navigator.language||'es').toLowerCase().indexOf('es')===0 ? 'es' : 'en';
+let Q=null, FEAT=[], LABELS=[], DEMO=false;
+
+const T={
+ es:{load:'Cargando su propuesta...',wait:'Un momento',
+     nf:'No encontramos esta propuesta',
+     nfd:'Puede que el enlace esté incompleto o que la propuesta ya no esté disponible. Escríbanos y se la reenviamos.',
+     intro:'Así se va a ver su día.',introd:'De principio a fin, con todo lo que ya está incluido.',
+     uph:'Si quiere',ups:'Se puede agregar',
+     sumh:'Su paquete',sep:'Por separado',full:'Paquete completo',save:'Usted ahorra',
+     note:'Un solo proveedor, un solo total, un solo pago.',
+     closed:'El saldo se puede pagar hasta 15 días antes del evento.',
+     book:'Reservar su fecha',or:'O escríbanos y lo hablamos',
+     guests:'invitados',tables:'mesas',
+     cat:{venue:'Salón y personal',catering:'Catering',decor:'Diseño y decoración',
+          ent:'Entretenimiento',photo:'Foto y video'},
+     prefA:'Su fecha &mdash; <b>{d}</b>',
+     prefB:'Tiene <b>preferencia sobre el {d}</b> hasta el {u}. No bloqueamos fechas: se la lleva quien reserve primero.',
+     prefC:'Su preferencia sobre el <b>{d}</b> vence pronto.'},
+ en:{load:'Loading your proposal...',wait:'One moment',
+     nf:'We could not find this proposal',
+     nfd:'The link may be incomplete, or the proposal may no longer be available. Write to us and we will resend it.',
+     intro:'Here is how your day will look.',introd:'Start to finish, with everything already included.',
+     uph:'If you want',ups:'You can add',
+     sumh:'Your package',sep:'Purchased separately',full:'Full package',save:'You save',
+     note:'One provider, one total, one payment.',
+     closed:'The balance can be paid up to 15 days before the event.',
+     book:'Hold your date',or:'Or message us and we will talk it through',
+     guests:'guests',tables:'tables',
+     cat:{venue:'Venue & staff',catering:'Catering',decor:'Design & decor',
+          ent:'Entertainment',photo:'Photo & video'},
+     prefA:'Your date &mdash; <b>{d}</b>',
+     prefB:'You have <b>first preference on {d}</b> until {u}. We do not hold dates: it goes to whoever books first.',
+     prefC:'Your preference on <b>{d}</b> expires soon.'}
+};
+const t=()=>T[LANG];
+
+// ── utilidades ──────────────────────────────────────────────────────────────
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const money=n=>'$'+Math.round(Number(n)||0).toLocaleString('en-US');
+const num=v=>{const n=parseFloat(v);return isNaN(n)?0:n;};
+const has=v=>{const s=String(v==null?'':v).trim().toLowerCase();return s!==''&&s!=='na'&&s!=='n/a'&&s!=='none';};
+const cap=s=>String(s||'').charAt(0).toUpperCase()+String(s||'').slice(1);
+
+function parseDate(s){
+  const m=String(s||'').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m?new Date(+m[1],+m[2]-1,+m[3]):null;
+}
+function fmtDate(s){
+  const d=parseDate(s); if(!d)return String(s||'');
+  return d.toLocaleDateString(LANG==='es'?'es-ES':'en-US',
+    {weekday:'long',day:'numeric',month:'long',year:'numeric'});
+}
+function fmtShort(s){
+  const d=parseDate(s); if(!d)return String(s||'');
+  return d.toLocaleDateString(LANG==='es'?'es-ES':'en-US',{day:'numeric',month:'long'});
+}
+
+// ── que compro la familia ───────────────────────────────────────────────────
+function entTier(){ return String(Q['Entertainment Plan']||'').toLowerCase(); }
+
+// Package_Features dice si el tier contratado incluye una feature concreta.
+function entFeat(name){
+  const tier=entTier(); if(!tier)return false;
+  return FEAT.some(f=>
+    String(f.Division||'').toLowerCase()==='entertainment' &&
+    String(f.Tier||'').toLowerCase()===tier &&
+    String(f.Feature||'').trim().toLowerCase()===name.toLowerCase() &&
+    String(f.Included||'').trim().toUpperCase()==='Y');
+}
+
+function meets(req){
+  if(req==='always')return true;
+  if(req==='ent.any')return has(Q['Entertainment Plan']);
+  if(req.indexOf('ent.feat:')===0)return entFeat(req.slice(9));
+  if(req==='photo.coverage')return has(Q['Photo Tier'])||has(Q['Photo Plan']);
+  if(req==='photo.video')return has(Q['Photo Video']);
+  if(req==='photo.shoot')return has(Q['Photo Shoot']);
+  if(req==='photo.prints')return has(Q['Photo Prints']);
+  return false;
+}
+
+// ── render ──────────────────────────────────────────────────────────────────
+function prefBlock(){
+  const ev=Q['Event Date'], cr=Q['Created Date'];
+  const evd=parseDate(ev), crd=parseDate(cr);
+  if(!evd||!crd)return '';
+  const days=Math.floor((Date.now()-crd.getTime())/864e5);
+  if(days>=16)return '';
+  const until=new Date(crd.getTime()+15*864e5);
+  const D=fmtShort(ev), U=fmtShort(until.toISOString().slice(0,10));
+  let cls='n', txt;
+  if(days<=2){txt=t().prefA.replace('{d}',D);}
+  else if(days<=13){txt=t().prefB.replace(/\{d\}/g,D).replace('{u}',U);}
+  else {cls='s';txt=t().prefC.replace('{d}',D);}
+  return '<div class="pref '+cls+'">'+txt+'</div>';
+}
+
+function moments(){
+  const shown=[],up=[];
+  SEQUENCE.forEach(m=>{ (meets(m.req)?shown:up).push(m); });
+  let html='';
+  BLOCKS.forEach(b=>{
+    const list=shown.filter(m=>m.block===b.n);
+    if(!list.length)return;
+    html+='<div class="blk"><div class="blk-h"><div class="blk-n">'+b.n+'</div>'+
+          '<div class="blk-t">'+esc(LANG==='es'?b.es:b.en)+'</div></div>';
+    list.forEach(m=>{
+      html+='<div class="mo"><div class="ph"><div class="ph-tag">'+m.id+'</div>'+
+            '<div class="ph-i">Foto</div><div class="ph-s">'+esc(m.shot)+'</div></div>'+
+            '<div class="mo-b"><div class="mo-t">'+esc(LANG==='es'?m.t_es:m.t_en)+'</div>'+
+            '<div class="mo-d">'+esc(LANG==='es'?m.d_es:m.d_en)+'</div><div class="mo-s">'+
+            m.chips.map(c=>'<span class="chip c-'+c+'">'+esc(t().cat[c])+'</span>').join('')+
+            '</div></div></div>';
+    });
+    html+='</div>';
+  });
+  // Upsell: solo los que tienen texto propio de upsell. Un momento sin texto
+  // simplemente no se menciona — no se le dice al cliente lo que no compro.
+  const uo=up.filter(m=>m.u_es);
+  let uh='';
+  if(uo.length){
+    uh='<div class="up"><div class="up-h">'+esc(t().uph)+'</div>'+
+       '<div class="up-s">'+esc(t().ups)+'</div>';
+    uo.forEach(m=>{
+      uh+='<div class="up-i"><div class="up-n">'+esc(LANG==='es'?m.u_es:m.u_en)+'</div>'+
+          '<div class="up-d">'+esc(LANG==='es'?m.ud_es:m.ud_en)+'</div></div>';
+    });
+    uh+='</div>';
+  }
+  return html+uh;
+}
+
+// Resumen por categoria, SIN precios. Cada fila se despliega con su contenido,
+// filtrado por Highlight: solo lo que el cliente deberia leer en un telefono.
+function summary(){
+  const defs=[
+    ['venue','Venue','',String(Q['Venue Tier']||'')],
+    ['catering','Catering','',String(Q['Catering Plan']||'')],
+    ['decor','Decor','',String(Q['Decor Plan']||'')],
+    ['ent','Entertainment','',String(Q['Entertainment Plan']||'')],
+    ['photo','Photo','',String(Q['Photo Tier']||Q['Photo Plan']||'')]
+  ];
+  const col={venue:'var(--venue)',catering:'var(--cat)',decor:'var(--decor)',
+             ent:'var(--ent)',photo:'var(--photo)'};
+  let h='';
+  defs.forEach((d,i)=>{
+    const key=d[0],div=d[1],tier=d[3];
+    if(!has(tier))return;
+    const lines=FEAT.filter(f=>
+      String(f.Division||'').toLowerCase()===div.toLowerCase() &&
+      String(f.Tier||'').toLowerCase()===tier.toLowerCase() &&
+      String(f.Included||'').trim().toUpperCase()==='Y' &&
+      String(f.Highlight||'').trim().toUpperCase()==='Y');
+    let body='';
+    lines.forEach(f=>{
+      const name=LANG==='es'&&f.Feature_ES?f.Feature_ES:f.Feature;
+      const val =LANG==='es'&&f.Value_ES  ?f.Value_ES  :f.Value;
+      body+='<div class="fl"><div class="fl-n">'+esc(name)+'</div>'+
+            '<div class="fl-v">'+esc(val||'')+'</div></div>';
+    });
+    h+='<div class="sr" id="sr'+i+'">'+
+       '<div class="sr-head" onclick="document.getElementById(\'sr'+i+'\').classList.toggle(\'open\')">'+
+       '<div class="sr-l"><div class="sr-h"><div class="sr-dot" style="background:'+col[key]+'"></div>'+
+       '<div class="sr-n">'+esc(t().cat[key])+'</div></div>'+
+       '<div class="sr-t">'+esc(cap(tier))+'</div></div>'+
+       (body?'<div class="sr-x">+</div>':'')+'</div>'+
+       (body?'<div class="sr-body">'+body+'</div>':'')+'</div>';
+  });
+  return h;
+}
+
+function prices(){
+  const cats=['Price Venue','Price Catering','Price Decor','Price Entertainment','Price Photo'];
+  const sub=cats.reduce((a,k)=>a+num(Q[k]),0);
+  const fin=num(Q['Final Total'])||sub;
+  const sav=Math.max(0,sub-fin);
+  let h='<div class="pr">';
+  if(sav>0)h+='<div class="pl"><div class="pl-l">'+esc(t().sep)+'</div><div class="pl-v">'+money(sub)+'</div></div>';
+  h+='<div class="pl main"><div class="pl-l">'+esc(t().full)+'</div><div class="pl-v">'+money(fin)+'</div></div>';
+  if(sav>0)h+='<div class="pl save"><div class="pl-l">'+esc(t().save)+'</div><div class="pl-v">'+money(sav)+'</div></div>';
+  h+='<div class="pr-note">'+esc(t().note)+'</div></div>';
+  return h;
+}
+
+function pkgName(){
+  const lbl=String(Q['Event Sub-Type']||Q['Event Type']||'').trim();
+  const fp=String(Q['Full Package']||'').toLowerCase();
+  const lvl=fp==='prestige'||fp==='legacy'?'SIGNATURE':(has(fp)?'CLASSIC':'');
+  if(lvl){
+    const m=LABELS.find(x=>String(x.Event_Label||'').trim().toLowerCase()===lbl.toLowerCase() &&
+                            String(x.Level||'')===lvl);
+    if(m&&m.Name)return m.Name;
+  }
+  return lbl;
+}
+
+function render(){
+  const guests=num(Q['Guests']), tables=num(Q['Tables']);
+  let meta=fmtDate(Q['Event Date']);
+  if(guests)meta+=' &nbsp;&middot;&nbsp; '+guests+' '+t().guests;
+  if(tables)meta+=' &nbsp;&middot;&nbsp; '+tables+' '+t().tables;
+
+  const html =
+   (DEMO?'<div class="demo">DEMO &mdash; datos de ejemplo, sin token</div>':'')+
+   '<div class="hero">'+
+     '<div class="lang"><button onclick="setLang(\'es\')" class="'+(LANG==='es'?'on':'')+'">ES</button>'+
+     '<button onclick="setLang(\'en\')" class="'+(LANG==='en'?'on':'')+'">EN</button></div>'+
+     '<div class="mark">Cardona Hall</div>'+
+     '<div class="pre">'+(LANG==='es'?'Para':'For')+'</div>'+
+     '<div class="who">'+esc(Q['Client Name'])+'</div>'+
+     '<div class="what">'+esc(pkgName())+'</div>'+
+     '<div class="when">'+meta+'</div><div class="orn"></div>'+
+   '</div>'+
+   prefBlock()+
+   '<div class="intro"><h2>'+esc(t().intro)+'</h2><p>'+esc(t().introd)+'</p></div>'+
+   moments()+
+   '<div class="sum"><div class="sum-h">'+esc(t().sumh)+'</div>'+
+     '<div class="sum-s">'+esc(pkgName())+'</div>'+summary()+'</div>'+
+   prices()+
+   '<div class="close"><div class="close-t">'+
+     (LANG==='es'?'Su fecha se reserva con&nbsp;$1,000':'Your date is held with&nbsp;$1,000')+
+     '</div><div class="close-d">'+esc(t().closed)+'</div>'+
+     '<button class="btn" onclick="book()">'+esc(t().book)+'</button>'+
+     '<div class="close-s">'+esc(t().or)+' &nbsp;&middot;&nbsp; (862) 232-0117</div></div>'+
+   '<div class="foot"><div class="foot-b">Cardona Hall</div>'+
+     '<div class="foot-a">72 Hoover Ave, Passaic NJ &nbsp;&middot;&nbsp; cardonahall.com</div>'+
+     '<div class="foot-r">Produced by Pilab Productions</div></div>';
+  document.getElementById('app').innerHTML=html;
+  window.scrollTo(0,0);
+}
+
+function setLang(l){ LANG=l; render(); }
+function book(){
+  const msg=encodeURIComponent(LANG==='es'
+    ? 'Hola, quiero reservar mi fecha para '+(Q['Event Date']||'')+'.'
+    : 'Hi, I would like to hold my date for '+(Q['Event Date']||'')+'.');
+  window.open('https://wa.me/18622320117?text='+msg,'_blank');
+}
+
+function fail(){
+  document.getElementById('app').innerHTML=
+    '<div class="msg"><b>'+esc(t().nf)+'</b>'+esc(t().nfd)+'<br><br>(862) 232-0117</div>';
+}
+
+// ── arranque ────────────────────────────────────────────────────────────────
+async function boot(){
+  const tok=new URLSearchParams(location.search).get('t');
+  try{
+    const [feat,labels]=await Promise.all([
+      fetch(API+'?sheet=Package_Features').then(r=>r.json()),
+      fetch(API+'?sheet=Package_Labels').then(r=>r.json())
+    ]);
+    FEAT=Array.isArray(feat)?feat:[];
+    LABELS=Array.isArray(labels)?labels:[];
+    if(tok){
+      const q=await fetch(API+'?token='+encodeURIComponent(tok)).then(r=>r.json());
+      if(!q||!q['Client Name'])return fail();
+      Q=q;
+    }else{
+      DEMO=true; Q=SAMPLE;
+    }
+    render();
+  }catch(e){ fail(); }
+}
+
+// Datos de ejemplo para abrir el archivo sin token y ver la pagina funcionando.
+const SAMPLE={'Client Name':'Valentina Restrepo','Event Type':'quinceanera',
+ 'Event Sub-Type':'Quinceañera','Event Date':'2027-05-22','Guests':80,'Tables':10,
+ 'Full Package':'elegant','Venue Tier':'Prestige','Catering Line':'collection',
+ 'Catering Plan':'Elegant','Decor Plan':'Legacy','Entertainment Plan':'Elegant',
+ 'Photo Plan':'Prestige','Photo Tier':'Prestige','Photo Shoot':'Prestige',
+ 'Photo Prints':'gallery','Photo Video':'','Price Venue':2500,'Price Catering':3200,
+ 'Price Decor':2000,'Price Entertainment':1600,'Price Photo':3300,'Final Total':11084,
+ 'Created Date':new Date(Date.now()-5*864e5).toISOString().slice(0,10)};
+
+boot();
+</script>
+</body>
+</html>
