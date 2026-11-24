@@ -973,7 +973,7 @@ function fmtMoney(n){return n?'$'+Math.round(n).toLocaleString():'—';}
 
 // ── INIT ───────────────────────────────────────────────────
 window.onload=async()=>{
-  state.createdDate='';
+  state.createdDate='';state.publicToken='';
   document.getElementById('createdDate').textContent=new Date().toLocaleDateString('en-US');
   showLoading('Connecting to database...');
   await loadCatalogs();
@@ -2013,7 +2013,7 @@ async function repeatEvent(cotNum){
   applyStatusLock();
   showLoading('Preparing new quotation...');
   await loadAllQuotations();await generateCotNumber();
-  state.createdDate='';
+  state.createdDate='';state.publicToken='';
   document.getElementById('createdDate').textContent=new Date().toLocaleDateString('en-US');
   hideLoading();
   calcTotal();renderIdentity();updateReserveButton();
@@ -3579,7 +3579,19 @@ function hasChanges(){
   return keys.some(k=>norm(cur[k])!==norm(state.loadedSnapshot[k]));
 }
 
+// Token publico de la cotizacion: 32 hex = 128 bits de aleatoriedad real del
+// navegador. No es adivinable ni enumerable, a diferencia del COT#, que es
+// secuencial — por eso el link del cliente nunca puede llevar el COT#.
+function newPublicToken(){
+  const a=new Uint8Array(16);
+  (window.crypto||window.msCrypto).getRandomValues(a);
+  return Array.from(a,function(b){return b.toString(16).padStart(2,'0');}).join('');
+}
+
 function collectData(){
+  // Se genera una sola vez y se arrastra en las revisiones: el link que ya
+  // tiene el cliente debe seguir sirviendo y mostrar la version vigente.
+  if(!state.publicToken)state.publicToken=newPublicToken();
   return{
     'COT#':state.cotNumber,
     'RES#':state.resNumber||'',
@@ -3629,6 +3641,7 @@ function collectData(){
     'Event End Time':(document.getElementById('eventEndTime')||{}).value||'',
     'Special Conditions':document.getElementById('specialConditions').value,
     'Internal Note':(document.getElementById('internalNote')||{}).value||'',
+    'Public_Token':state.publicToken,
     'Price Venue':state.prices.venue,
     'Price Catering':state.prices.catering,
     'Price Decor':state.prices.decor,
@@ -3743,7 +3756,7 @@ async function resetForm(){
   document.querySelectorAll('#photoTierBtns .tier-btn').forEach(b=>b.disabled=false);
   showLoading('Preparing new quotation...');
   await loadAllQuotations();await generateCotNumber();
-  state.createdDate='';
+  state.createdDate='';state.publicToken='';
   document.getElementById('createdDate').textContent=new Date().toLocaleDateString('en-US');
   renderIdentity();
   hideLoading();
@@ -3793,6 +3806,7 @@ function loadQuotation(cotNum){
   document.getElementById('priceOverride').value=rec['Price Override']||'';
   // La fecha de emision y el vencimiento se congelan con el registro: reabrir
   // una cotizacion vieja no puede reiniciarle la validez.
+  state.publicToken=rec['Public_Token']||'';
   state.createdDate=rec['Created Date']||'';
   if(state.createdDate){
     const el=document.getElementById('createdDate');
