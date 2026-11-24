@@ -460,10 +460,26 @@ function prices(){
   return h;
 }
 
+// 'Full Package' guarda dos cosas segun la epoca del registro: el modelo nuevo
+// escribe un Package_ID (PKG-QUI-PREMIER) y el viejo escribia un tier suelto
+// (prestige). Hay que entender los dos o las cotizaciones de una u otra epoca
+// se quedan sin nombre de paquete.
+function pkgLevel(){
+  const raw=String(Q['Full Package']||'').trim();
+  if(!has(raw))return '';
+  const u=raw.toUpperCase();
+  if(u.indexOf('PKG-')===0){
+    if(u.slice(-8)==='-PREMIER')return 'SIGNATURE';
+    if(u.slice(-8)==='-CLASSIC')return 'CLASSIC';
+    return '';
+  }
+  const t=raw.toLowerCase();
+  return (t==='prestige'||t==='legacy')?'SIGNATURE':'CLASSIC';
+}
+
 function pkgName(){
   const lbl=String(Q['Event Sub-Type']||Q['Event Type']||'').trim();
-  const fp=String(Q['Full Package']||'').toLowerCase();
-  const lvl=fp==='prestige'||fp==='legacy'?'SIGNATURE':(has(fp)?'CLASSIC':'');
+  const lvl=pkgLevel();
   if(lvl){
     const m=LABELS.find(x=>String(x.Event_Label||'').trim().toLowerCase()===lbl.toLowerCase() &&
                             String(x.Level||'')===lvl);
