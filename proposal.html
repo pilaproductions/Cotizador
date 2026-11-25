@@ -79,6 +79,10 @@ body{background:var(--champagne);color:#1a1a1a;font-family:'Montserrat',sans-ser
 .sr-body{display:none;padding:0 0 15px}
 .sr.open .sr-body{display:block}
 .fl{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-top:1px dotted #E8E0D0;font-size:12.5px}
+.fhead{font-size:12.5px;color:#444;font-style:italic;padding:2px 0 9px;line-height:1.5}
+.fbadge{display:block;font-size:9px;letter-spacing:.8px;text-transform:uppercase;color:var(--gold-d);font-weight:700;margin-top:3px}
+.fmenu{padding:11px 0 2px;text-align:right}
+.fmenu a{font-size:11.5px;color:var(--gold-d);text-decoration:none;letter-spacing:.3px;font-weight:600}
 .fl-n{color:#444}.fl-v{color:var(--gold-d);text-align:right;font-weight:500;flex-shrink:0}
 .pr{background:var(--champagne);margin-top:34px;padding:36px 26px}
 .pl{display:flex;justify-content:space-between;align-items:baseline;padding:9px 0}
@@ -277,6 +281,17 @@ const BLOCKS = [
 // ── estado ──────────────────────────────────────────────────────────────────
 let LANG = (navigator.language||'es').toLowerCase().indexOf('es')===0 ? 'es' : 'en';
 let Q=null, FEAT=[], LABELS=[], DEMO=false;
+let TXT=[], CTIERS=[], CQTY=[], CRANGES=[];
+
+// UI_Text: el texto que no tiene fila propia en ninguna hoja. Si una clave no
+// existe, se devuelve '' y quien llama decide el respaldo — nunca se rompe.
+function TX(group,key){
+  const r=TXT.find(function(x){
+    return String(x.Group||'')===group && String(x.Key||'')===String(key);
+  });
+  if(!r)return '';
+  return (LANG==='es'&&r.ES)?String(r.ES):String(r.EN||'');
+}
 
 const T={
  es:{load:'Cargando su propuesta...',wait:'Un momento',
@@ -408,39 +423,136 @@ function moments(){
   return html+uh;
 }
 
-// Resumen por categoria, SIN precios. Cada fila se despliega con su contenido,
-// filtrado por Highlight: solo lo que el cliente deberia leer en un telefono.
+// ── Catering ────────────────────────────────────────────────────────────────
+// Catering no tiene filas en Package_Features: su detalle se calcula del plan
+// contratado y del numero de invitados. Es el mismo calculo que ya hace el PDF.
+function cateringDetail(){
+  const line=String(Q['Catering Line']||'').toLowerCase();
+  const plan=String(Q['Catering Plan']||'').toLowerCase();
+  if(!has(line)||!has(plan))return null;
+  const tier=CTIERS.filter(function(t){
+    return String(t.Line||'').toLowerCase()===line && String(t.Tier||'').toLowerCase()===plan;
+  })[0];
+  if(!tier)return null;
+
+  // El nombre con que esta fila aparece en Catering_Quantities: las Classic
+  // llevan la linea adelante, las demas van solas.
+  const qName=String(tier.Line)==='Classic'
+    ? String(tier.Line)+' '+String(tier.Tier) : String(tier.Tier);
+
+  const head=(LANG==='es'&&tier.Includes_ES)?String(tier.Includes_ES):String(tier.Includes||'');
+  const g=num(Q['Guests']);
+  const rg=CRANGES.filter(function(x){return g>=num(x.Min)&&g<=num(x.Max);})[0];
+  if(!rg)return {head:head,rows:[],tier:String(tier.Tier||'')};
+  const R=String(rg.Range_ID);
+
+  const rows=CQTY.filter(function(x){return String(x.Tier||'')===qName;});
+  const srow=rows.filter(function(x){return String(x.Type||'')==='stars';})[0];
+  const stars=srow?num(srow[R]):num(tier.Stars);
+  // Menu fijo: las cantidades son bandejas de cocina, no elecciones del cliente.
+  const fixed=String(tier.Model||'')==='fixed';
+
+  const out=[];
+  rows.forEach(function(x){
+    const ty=String(x.Type||'');
+    if(ty==='stars')return;
+    const q=num(x[R]);
+    if(!q)return;
+    const cat=String(x.Category||'');
+    const name=TX('catering',cat)||cat;
+    let val, badge='';
+    if(fixed||ty==='included'||q===1){ val=TX('phrase','included')||'Included'; }
+    else { val=(TX('phrase','choose')||'choose {n}').replace('{n}',q); }
+    if(ty==='mains'&&stars>0&&!fixed){
+      const st=Math.min(stars,q);
+      if(st){
+        const k=st>1?'star_many':'star_one';
+        badge=(TX('phrase',k)||('{n} Star Dish'+(st>1?'es':''))).replace('{n}',st);
+      }
+    }
+    out.push({name:name,val:val,badge:badge});
+  });
+  return {head:head,rows:out,tier:String(tier.Tier||'')};
+}
+
+// Resumen por categoria, SIN precios.
+//
+// Cada categoria se despliega con TODO lo que el paquete incluye. Una lista
+// larga de cosas concretas es lo que le da peso a la cotizacion.
+//
+// Dos reglas que el codigo tiene que respetar:
+//  - Una categoria puede tener varias subdivisiones y CADA UNA lleva su propio
+//    tier. Photo Coverage puede ser prestige y Photo Shoot legacy en la misma
+//    cotizacion. Filtrar la categoria entera por un solo tier mostraba cosas
+//    que la familia no compro: una clienta sin video veia las lineas de video.
+//  - Una subdivision sin tier no aporta nada.
+const SUMMARY=[
+  {key:'venue', div:'Venue', head:'Venue Tier', subs:[['','Venue Tier']]},
+  {key:'catering', div:'Catering', catering:true},
+  {key:'decor', div:'Decor', head:'Decor Plan', subs:[
+     ['Main Table','Decor Honor Tier'],['Centerpieces','Decor CP Tier'],
+     ['Dining Table','Decor Dining Tier'],['Add-Ons','Decor Extras Tier']]},
+  {key:'ent', div:'Entertainment', head:'Entertainment Plan', subs:[['','Entertainment Plan']]},
+  {key:'photo', div:'Photo', head:'Photo Tier', subs:[
+     ['Coverage','Photo Tier'],['Video','Photo Video'],['Photo Shoot','Photo Shoot']]}
+];
+const SUMCOL={venue:'var(--venue)',catering:'var(--cat)',decor:'var(--decor)',
+              ent:'var(--ent)',photo:'var(--photo)'};
+
+function featLinesFor(div,sub,tier,seen){
+  return FEAT.filter(function(f){
+    return String(f.Division||'').toLowerCase()===div.toLowerCase() &&
+           String(f.Subdivision||'').toLowerCase()===String(sub||'').toLowerCase() &&
+           String(f.Tier||'').toLowerCase()===String(tier||'').toLowerCase() &&
+           String(f.Included||'').trim().toUpperCase()==='Y';
+  }).map(function(f){
+    const name=(LANG==='es'&&f.Feature_ES)?f.Feature_ES:f.Feature;
+    const val =(LANG==='es'&&f.Value_ES)?f.Value_ES:f.Value;
+    // Una categoria agrupa varias subdivisiones, asi que "Entrega / Galeria en
+    // linea" puede venir tres veces. Repetir no suma peso, hace ver la lista
+    // automatica. Se muestra una vez.
+    const k=String(name)+'\u0000'+String(val||'');
+    if(seen[k])return '';
+    seen[k]=1;
+    return '<div class="fl"><div class="fl-n">'+esc(name)+'</div>'+
+           '<div class="fl-v">'+esc(val||'')+'</div></div>';
+  }).join('');
+}
+
 function summary(){
-  const defs=[
-    ['venue','Venue','',String(Q['Venue Tier']||'')],
-    ['catering','Catering','',String(Q['Catering Plan']||'')],
-    ['decor','Decor','',String(Q['Decor Plan']||'')],
-    ['ent','Entertainment','',String(Q['Entertainment Plan']||'')],
-    ['photo','Photo','',String(Q['Photo Tier']||Q['Photo Plan']||'')]
-  ];
-  const col={venue:'var(--venue)',catering:'var(--cat)',decor:'var(--decor)',
-             ent:'var(--ent)',photo:'var(--photo)'};
   let h='';
-  defs.forEach((d,i)=>{
-    const key=d[0],div=d[1],tier=d[3];
-    if(!has(tier))return;
-    const lines=FEAT.filter(f=>
-      String(f.Division||'').toLowerCase()===div.toLowerCase() &&
-      String(f.Tier||'').toLowerCase()===tier.toLowerCase() &&
-      String(f.Included||'').trim().toUpperCase()==='Y' &&
-      String(f.Highlight||'').trim().toUpperCase()==='Y');
-    let body='';
-    lines.forEach(f=>{
-      const name=LANG==='es'&&f.Feature_ES?f.Feature_ES:f.Feature;
-      const val =LANG==='es'&&f.Value_ES  ?f.Value_ES  :f.Value;
-      body+='<div class="fl"><div class="fl-n">'+esc(name)+'</div>'+
-            '<div class="fl-v">'+esc(val||'')+'</div></div>';
-    });
+  SUMMARY.forEach(function(d,i){
+    let body='', head='';
+
+    if(d.catering){
+      const cd=cateringDetail();
+      if(!cd)return;
+      head=cd.tier;
+      if(cd.head)body+='<div class="fhead">'+esc(cd.head)+'</div>';
+      cd.rows.forEach(function(r){
+        body+='<div class="fl"><div class="fl-n">'+esc(r.name)+'</div><div class="fl-v">'+
+              esc(r.val)+(r.badge?'<span class="fbadge">'+esc(r.badge)+'</span>':'')+
+              '</div></div>';
+      });
+      if(body)body+='<div class="fmenu"><a href="https://menu.cardonahall.com" target="_blank" rel="noopener">'+
+                    esc(TX('phrase','see_menu')||'See the menu')+' &rarr;</a></div>';
+    } else {
+      head=String(Q[d.head]||'');
+      if(!has(head))return;
+      const seen={};
+      d.subs.forEach(function(sp){
+        const tier=String(Q[sp[1]]||'');
+        if(!has(tier))return;
+        body+=featLinesFor(d.div,sp[0],tier,seen);
+      });
+    }
+
+    if(!has(head))return;
     h+='<div class="sr" id="sr'+i+'">'+
        '<div class="sr-head" onclick="document.getElementById(\'sr'+i+'\').classList.toggle(\'open\')">'+
-       '<div class="sr-l"><div class="sr-h"><div class="sr-dot" style="background:'+col[key]+'"></div>'+
-       '<div class="sr-n">'+esc(t().cat[key])+'</div></div>'+
-       '<div class="sr-t">'+esc(cap(tier))+'</div></div>'+
+       '<div class="sr-l"><div class="sr-h"><div class="sr-dot" style="background:'+SUMCOL[d.key]+'"></div>'+
+       '<div class="sr-n">'+esc(t().cat[d.key])+'</div></div>'+
+       '<div class="sr-t">'+esc(cap(head))+'</div></div>'+
        (body?'<div class="sr-x">+</div>':'')+'</div>'+
        (body?'<div class="sr-body">'+body+'</div>':'')+'</div>';
   });
@@ -540,12 +652,20 @@ function fail(){
 async function boot(){
   const tok=new URLSearchParams(location.search).get('t');
   try{
-    const [feat,labels]=await Promise.all([
+    const [feat,labels,txt,ct,cq,cr]=await Promise.all([
       fetch(API+'?sheet=Package_Features').then(r=>r.json()),
-      fetch(API+'?sheet=Package_Labels').then(r=>r.json())
+      fetch(API+'?sheet=Package_Labels').then(r=>r.json()),
+      fetch(API+'?sheet=UI_Text').then(r=>r.json()),
+      fetch(API+'?sheet=Catering_Tiers').then(r=>r.json()),
+      fetch(API+'?sheet=Catering_Quantities').then(r=>r.json()),
+      fetch(API+'?sheet=Catering_Ranges').then(r=>r.json())
     ]);
     FEAT=Array.isArray(feat)?feat:[];
     LABELS=Array.isArray(labels)?labels:[];
+    TXT=Array.isArray(txt)?txt:[];
+    CTIERS=Array.isArray(ct)?ct.filter(function(x){return x&&x.Line;}):[];
+    CQTY=Array.isArray(cq)?cq.filter(function(x){return x&&x.Tier;}):[];
+    CRANGES=Array.isArray(cr)?cr.filter(function(x){return x&&x.Range_ID;}):[];
     if(tok){
       const q=await fetch(API+'?token='+encodeURIComponent(tok)).then(r=>r.json());
       if(!q||!q['Client Name'])return fail();
@@ -560,11 +680,15 @@ async function boot(){
 // Datos de ejemplo para abrir el archivo sin token y ver la pagina funcionando.
 const SAMPLE={'Client Name':'Valentina Restrepo','Event Type':'quinceanera',
  'Event Sub-Type':'Quinceañera','Event Date':'2027-05-22','Guests':80,'Tables':10,
- 'Full Package':'elegant','Venue Tier':'Prestige','Catering Line':'collection',
- 'Catering Plan':'Elegant','Decor Plan':'Legacy','Entertainment Plan':'Elegant',
- 'Photo Plan':'Prestige','Photo Tier':'Prestige','Photo Shoot':'Prestige',
- 'Photo Prints':'gallery','Photo Video':'','Price Venue':2500,'Price Catering':3200,
- 'Price Decor':2000,'Price Entertainment':1600,'Price Photo':3300,'Final Total':11084,
+ 'Full Package':'PKG-QUI-PREMIER','Venue Tier':'Prestige',
+ 'Catering Line':'collection','Catering Plan':'prestige',
+ 'Decor Plan':'Prestige','Decor Honor Tier':'Prestige','Decor CP Tier':'Elegant',
+ 'Decor Dining Tier':'Prestige','Decor Extras Tier':'Prestige',
+ 'Entertainment Plan':'Elegant',
+ 'Photo Tier':'Prestige','Photo Shoot':'Legacy','Photo Video':'',
+ 'Photo Prints':'gallery','Photo Plan':'',
+ 'Price Venue':2500,'Price Catering':3600,
+ 'Price Decor':2000,'Price Entertainment':1600,'Price Photo':3300,'Final Total':11800,
  'Created Date':new Date(Date.now()-5*864e5).toISOString().slice(0,10)};
 
 boot();
