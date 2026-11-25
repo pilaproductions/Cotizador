@@ -293,39 +293,35 @@ function TX(group,key){
   return (LANG==='es'&&r.ES)?String(r.ES):String(r.EN||'');
 }
 
-const T={
- es:{load:'Cargando su propuesta...',wait:'Un momento',
-     nf:'No encontramos esta propuesta',
-     nfd:'Puede que el enlace esté incompleto o que la propuesta ya no esté disponible. Escríbanos y se la reenviamos.',
-     intro:'Así se va a ver su día.',introd:'De principio a fin, con todo lo que ya está incluido.',
-     uph:'Si quiere',ups:'Se puede agregar',
-     sumh:'Su paquete',sep:'Por separado',full:'Paquete completo',save:'Usted ahorra',
-     note:'Un solo proveedor, un solo total, un solo pago.',
-     closed:'El saldo se puede pagar hasta 15 días antes del evento.',
-     book:'Reservar su fecha',or:'O escríbanos y lo hablamos',
-     guests:'invitados',tables:'mesas',
-     cat:{venue:'Salón y personal',catering:'Catering',decor:'Diseño y decoración',
-          ent:'Entretenimiento',photo:'Foto y video'},
-     prefA:'Su fecha &mdash; <b>{d}</b>',
-     prefB:'Tiene <b>preferencia sobre el {d}</b> hasta el {u}. No bloqueamos fechas: se la lleva quien reserve primero.',
-     prefC:'Su preferencia sobre el <b>{d}</b> vence pronto.'},
- en:{load:'Loading your proposal...',wait:'One moment',
-     nf:'We could not find this proposal',
-     nfd:'The link may be incomplete, or the proposal may no longer be available. Write to us and we will resend it.',
-     intro:'Here is how your day will look.',introd:'Start to finish, with everything already included.',
-     uph:'If you want',ups:'You can add',
-     sumh:'Your package',sep:'Purchased separately',full:'Full package',save:'You save',
-     note:'One provider, one total, one payment.',
-     closed:'The balance can be paid up to 15 days before the event.',
-     book:'Hold your date',or:'Or message us and we will talk it through',
-     guests:'guests',tables:'tables',
-     cat:{venue:'Venue & staff',catering:'Catering',decor:'Design & decor',
-          ent:'Entertainment',photo:'Photo & video'},
-     prefA:'Your date &mdash; <b>{d}</b>',
-     prefB:'You have <b>first preference on {d}</b> until {u}. We do not hold dates: it goes to whoever books first.',
-     prefC:'Your preference on <b>{d}</b> expires soon.'}
-};
-const t=()=>T[LANG];
+// Los textos de la pagina salen de UI_Text, grupos 'proposal' y 'category'.
+// TKEYS/TCATS traducen la clave de la hoja a la clave corta que usa el render.
+// Agregar un texto = una fila en la hoja y una linea aqui.
+//
+// FB son los UNICOS textos que quedan escritos en el codigo: el mensaje de
+// error. Tienen que existir precisamente cuando UI_Text es lo que no llego.
+// Si la hoja si cargo, se usan los de la hoja y estos no se ven nunca.
+const FB={es:{nf:'No encontramos esta propuesta',
+              nfd:'Escribanos y se la reenviamos.'},
+          en:{nf:'We could not find this proposal',
+              nfd:'Write to us and we will resend it.'}};
+const TKEYS={loading:'load',loading_wait:'wait',notfound_title:'nf',notfound_body:'nfd',
+  intro_title:'intro',intro_sub:'introd',addons_head:'uph',addons_sub:'ups',
+  summary_head:'sumh',label_separate:'sep',label_full:'full',label_save:'save',
+  note_single:'note',note_balance:'closed',cta_book:'book',cta_or:'or',
+  unit_guests:'guests',unit_tables:'tables',
+  pref_a:'prefA',pref_b:'prefB',pref_c:'prefC'};
+const TCATS={venue:'venue',catering:'catering',decor:'decor',
+             entertainment:'ent',photo:'photo'};
+// Se arma una vez y se guarda. setLang() lo limpia para que el boton ES/EN
+// no deje los textos del idioma anterior.
+let TL=null;
+function buildText(){
+  const o={cat:{}};
+  Object.keys(TKEYS).forEach(function(k){ o[TKEYS[k]]=TX('proposal',k); });
+  Object.keys(TCATS).forEach(function(k){ o.cat[TCATS[k]]=TX('category',k); });
+  return o;
+}
+const t=function(){ return TL||(TL=buildText()); };
 
 // ── utilidades ──────────────────────────────────────────────────────────────
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -635,7 +631,7 @@ function render(){
   window.scrollTo(0,0);
 }
 
-function setLang(l){ LANG=l; render(); }
+function setLang(l){ LANG=l; TL=null; render(); }
 function book(){
   const msg=encodeURIComponent(LANG==='es'
     ? 'Hola, quiero reservar mi fecha para '+(Q['Event Date']||'')+'.'
@@ -644,8 +640,11 @@ function book(){
 }
 
 function fail(){
+  const f=FB[LANG]||FB.es;
+  const ti=TX('proposal','notfound_title')||f.nf;
+  const bo=TX('proposal','notfound_body')||f.nfd;
   document.getElementById('app').innerHTML=
-    '<div class="msg"><b>'+esc(t().nf)+'</b>'+esc(t().nfd)+'<br><br>(862) 232-0117</div>';
+    '<div class="msg"><b>'+esc(ti)+'</b>'+esc(bo)+'<br><br>(862) 232-0117</div>';
 }
 
 // ── arranque ────────────────────────────────────────────────────────────────
@@ -666,6 +665,10 @@ async function boot(){
     CTIERS=Array.isArray(ct)?ct.filter(function(x){return x&&x.Line;}):[];
     CQTY=Array.isArray(cq)?cq.filter(function(x){return x&&x.Tier;}):[];
     CRANGES=Array.isArray(cr)?cr.filter(function(x){return x&&x.Range_ID;}):[];
+    TL=null;
+    // Sin UI_Text no hay titulos ni boton. Mejor el mensaje de error que una
+    // pagina en blanco frente al cliente.
+    if(!TX('proposal','cta_book'))return fail();
     if(tok){
       const q=await fetch(API+'?token='+encodeURIComponent(tok)).then(r=>r.json());
       if(!q||!q['Client Name'])return fail();
