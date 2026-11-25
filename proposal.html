@@ -79,6 +79,9 @@ body{background:var(--champagne);color:#1a1a1a;font-family:'Montserrat',sans-ser
 .sr-body{display:none;padding:0 0 15px}
 .sr.open .sr-body{display:block}
 .fl{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-top:1px dotted #E8E0D0;font-size:12.5px}
+.fsub{font:600 10px/1.3 'Montserrat',sans-serif;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--muted);margin:15px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--line)}
+.fsub:first-child{margin-top:2px}
 .fhead{font-size:12.5px;color:#444;font-style:italic;padding:2px 0 9px;line-height:1.5}
 .fbadge{display:block;font-size:9px;letter-spacing:.8px;text-transform:uppercase;color:var(--gold-d);font-weight:700;margin-top:3px}
 .fmenu{padding:11px 0 2px;text-align:right}
@@ -300,7 +303,8 @@ function TX(group,key){
 // FB son los UNICOS textos que quedan escritos en el codigo: el mensaje de
 // error. Tienen que existir precisamente cuando UI_Text es lo que no llego.
 // Si la hoja si cargo, se usan los de la hoja y estos no se ven nunca.
-const FB={es:{nf:'No encontramos esta propuesta',
+const FB={tel:'(862) 232-0117',
+          es:{nf:'No encontramos esta propuesta',
               nfd:'Escribanos y se la reenviamos.'},
           en:{nf:'We could not find this proposal',
               nfd:'Write to us and we will resend it.'}};
@@ -564,12 +568,21 @@ function summary(){
     } else {
       head=String(Q[d.head]||'');
       if(!has(head))return;
-      const seen={};
+      // Cada subdivision ya se filtra con SU tier. Se arman por separado para
+      // saber cuantas trajeron contenido: con dos o mas se rotulan, porque
+      // "Cobertura" y "Sesion de fotos" son cosas distintas y en una lista
+      // plana eso se pierde. Con una sola el rotulo seria ruido.
+      const seen={}, got=[];
       d.subs.forEach(function(sp){
         const tier=String(Q[sp[1]]||'');
         if(!has(tier))return;
-        body+=featLinesFor(d.div,sp[0],tier,seen);
+        const ln=featLinesFor(d.div,sp[0],tier,seen);
+        if(ln)got.push([sp[0],ln]);
       });
+      body+=got.map(function(g){
+        const lb=g[0]?(TX('subdivision',g[0])||g[0]):'';
+        return (got.length>1&&lb?'<div class="fsub">'+esc(lb)+'</div>':'')+g[1];
+      }).join('');
     }
 
     if(!has(head))return;
@@ -637,7 +650,7 @@ function render(){
      '<div class="lang"><button onclick="setLang(\'es\')" class="'+(LANG==='es'?'on':'')+'">ES</button>'+
      '<button onclick="setLang(\'en\')" class="'+(LANG==='en'?'on':'')+'">EN</button></div>'+
      '<div class="mark">Cardona Hall</div>'+
-     '<div class="pre">'+(LANG==='es'?'Para':'For')+'</div>'+
+     '<div class="pre">'+esc(TX('proposal','hero_for'))+'</div>'+
      '<div class="who">'+esc(Q['Client Name'])+'</div>'+
      '<div class="what">'+esc(pkgName())+'</div>'+
      '<div class="when">'+meta+'</div><div class="orn"></div>'+
@@ -652,9 +665,11 @@ function render(){
      depLine()+
      '</div><div class="close-d">'+esc(t().closed)+'</div>'+
      '<button class="btn" onclick="book()">'+esc(t().book)+'</button>'+
-     '<div class="close-s">'+esc(t().or)+' &nbsp;&middot;&nbsp; (862) 232-0117</div></div>'+
+     '<div class="close-s">'+esc(t().or)+
+       (TX('proposal','contact_phone')
+         ?' &nbsp;&middot;&nbsp; '+esc(TX('proposal','contact_phone')):'')+'</div></div>'+
    '<div class="foot"><div class="foot-b">Cardona Hall</div>'+
-     '<div class="foot-a">72 Hoover Ave, Passaic NJ &nbsp;&middot;&nbsp; cardonahall.com</div>'+
+     '<div class="foot-a">'+esc(TX('proposal','contact_address'))+'</div>'+
      '<div class="foot-r">Produced by Pilab Productions</div></div>';
   document.getElementById('app').innerHTML=html;
   window.scrollTo(0,0);
@@ -662,10 +677,12 @@ function render(){
 
 function setLang(l){ LANG=l; TL=null; render(); }
 function book(){
-  const msg=encodeURIComponent(LANG==='es'
-    ? 'Hola, quiero reservar mi fecha para '+(Q['Event Date']||'')+'.'
-    : 'Hi, I would like to hold my date for '+(Q['Event Date']||'')+'.');
-  window.open('https://wa.me/18622320117?text='+msg,'_blank');
+  // El numero va sin parentesis ni guiones: se limpia por si la celda los trae.
+  const wa=String(TX('proposal','contact_wa')||'').replace(/[^0-9]/g,'');
+  if(!wa)return;
+  const msg=encodeURIComponent(
+    String(TX('proposal','wa_message')||'').replace('{d}',Q['Event Date']||''));
+  window.open('https://wa.me/'+wa+'?text='+msg,'_blank');
 }
 
 function fail(){
@@ -673,7 +690,8 @@ function fail(){
   const ti=TX('proposal','notfound_title')||f.nf;
   const bo=TX('proposal','notfound_body')||f.nfd;
   document.getElementById('app').innerHTML=
-    '<div class="msg"><b>'+esc(ti)+'</b>'+esc(bo)+'<br><br>(862) 232-0117</div>';
+    '<div class="msg"><b>'+esc(ti)+'</b>'+esc(bo)+'<br><br>'+
+    esc(TX('proposal','contact_phone')||FB.tel)+'</div>';
 }
 
 // ── arranque ────────────────────────────────────────────────────────────────
