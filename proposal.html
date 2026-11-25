@@ -281,7 +281,7 @@ const BLOCKS = [
 // ── estado ──────────────────────────────────────────────────────────────────
 let LANG = (navigator.language||'es').toLowerCase().indexOf('es')===0 ? 'es' : 'en';
 let Q=null, FEAT=[], LABELS=[], DEMO=false;
-let TXT=[], CTIERS=[], CQTY=[], CRANGES=[];
+let TXT=[], CTIERS=[], CQTY=[], CRANGES=[], RULES=[];
 
 // UI_Text: el texto que no tiene fila propia en ninguna hoja. Si una clave no
 // existe, se devuelve '' y quien llama decide el respaldo — nunca se rompe.
@@ -312,6 +312,35 @@ const TKEYS={loading:'load',loading_wait:'wait',notfound_title:'nf',notfound_bod
   pref_a:'prefA',pref_b:'prefB',pref_c:'prefC'};
 const TCATS={venue:'venue',catering:'catering',decor:'decor',
              entertainment:'ent',photo:'photo'};
+
+// Una regla de Business_Rules. Activa por defecto: solo 'N' la apaga.
+function rule(g,k){
+  const r=RULES.find(function(x){
+    return String(x.Rule_Group||'')===g && String(x.Rule_Key||'')===String(k)
+           && String(x.Active==null?'Y':x.Active).trim().toUpperCase()!=='N';
+  });
+  return r?r.Rule_Value:null;
+}
+
+// Lo que cuesta apartar la fecha: el piso, o el porcentaje del total si es mayor.
+// No es un deposito registrado — todavia no hay reserva — es la politica de
+// precio de la casa aplicada a ESTA cotizacion. Si falta el total o faltan las
+// dos reglas devuelve 0 y la linea no se imprime: antes nada que una cifra mala.
+function depositAsk(){
+  const tot=num(Q['Final Total']);
+  if(tot<=0)return 0;
+  const mn=num(rule('deposit','min')), pc=num(rule('deposit','pct'));
+  if(mn<=0&&pc<=0)return 0;
+  return Math.round(Math.max(mn,tot*pc/100));
+}
+
+function depLine(){
+  const v=depositAsk(), txt=TX('proposal','close_deposit');
+  if(!v||!txt)return '';
+  // Se come el espacio que traiga la celda antes de {n} y pone uno duro, para
+  // que la cifra no quede sola en la linea siguiente.
+  return esc(txt).replace(/\s*\{n\}/,'&nbsp;'+money(v));
+}
 // Se arma una vez y se guarda. setLang() lo limpia para que el boton ES/EN
 // no deje los textos del idioma anterior.
 let TL=null;
@@ -620,7 +649,7 @@ function render(){
      '<div class="sum-s">'+esc(pkgName())+'</div>'+summary()+'</div>'+
    prices()+
    '<div class="close"><div class="close-t">'+
-     (LANG==='es'?'Su fecha se reserva con&nbsp;$1,000':'Your date is held with&nbsp;$1,000')+
+     depLine()+
      '</div><div class="close-d">'+esc(t().closed)+'</div>'+
      '<button class="btn" onclick="book()">'+esc(t().book)+'</button>'+
      '<div class="close-s">'+esc(t().or)+' &nbsp;&middot;&nbsp; (862) 232-0117</div></div>'+
@@ -651,13 +680,14 @@ function fail(){
 async function boot(){
   const tok=new URLSearchParams(location.search).get('t');
   try{
-    const [feat,labels,txt,ct,cq,cr]=await Promise.all([
+    const [feat,labels,txt,ct,cq,cr,br]=await Promise.all([
       fetch(API+'?sheet=Package_Features').then(r=>r.json()),
       fetch(API+'?sheet=Package_Labels').then(r=>r.json()),
       fetch(API+'?sheet=UI_Text').then(r=>r.json()),
       fetch(API+'?sheet=Catering_Tiers').then(r=>r.json()),
       fetch(API+'?sheet=Catering_Quantities').then(r=>r.json()),
-      fetch(API+'?sheet=Catering_Ranges').then(r=>r.json())
+      fetch(API+'?sheet=Catering_Ranges').then(r=>r.json()),
+      fetch(API+'?sheet=Business_Rules').then(r=>r.json())
     ]);
     FEAT=Array.isArray(feat)?feat:[];
     LABELS=Array.isArray(labels)?labels:[];
@@ -665,6 +695,7 @@ async function boot(){
     CTIERS=Array.isArray(ct)?ct.filter(function(x){return x&&x.Line;}):[];
     CQTY=Array.isArray(cq)?cq.filter(function(x){return x&&x.Tier;}):[];
     CRANGES=Array.isArray(cr)?cr.filter(function(x){return x&&x.Range_ID;}):[];
+    RULES=Array.isArray(br)?br:[];
     TL=null;
     // Sin UI_Text no hay titulos ni boton. Mejor el mensaje de error que una
     // pagina en blanco frente al cliente.
